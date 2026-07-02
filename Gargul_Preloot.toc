@@ -1,0 +1,9 @@
+## Interface: 20504
+## Title: Gargul Preloot Extension
+## Version: 1.0.0
+## Author: Custom
+## Notes: Extends Gargul Master Looter UI with custom player data display
+## Dependencies: Gargul
+## SavedVariables: GargulPrelootDB
+
+Core.lua
