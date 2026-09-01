@@ -53,7 +53,10 @@
       var originalGenerateRaidJson = generateRaidJson_;
       generateRaidJson_ = function (reportCode) {
         generatedReportCount += 1;
-        return {qualifiedNames: [reportCode + 'Player']};
+        return {
+          document: {attendees: [{name: reportCode + 'Player'}]},
+          qualifiedNames: [reportCode + 'Player']
+        };
       };
 
       var mockSheet = {
@@ -62,13 +65,13 @@
           if (row === 2 && column === 5 && rowCount === 5) {
             return {getDisplayValues: function () { return raidInputs; }};
           }
-          if (row === 2 && column === 6 && rowCount === 5) {
+          if (row === 2 && column === 7 && rowCount === 5) {
             return {
               getDisplayValues: function () { return outputValues; },
               getFormulas: function () { return outputFormulas; }
             };
           }
-          if (column === 6 && typeof rowCount === 'undefined') {
+          if (column === 7 && typeof rowCount === 'undefined') {
             var outputIndex = row - 2;
             return {
               setNumberFormat: function () { return this; },
@@ -99,12 +102,12 @@
 
       var mainResult = main();
       generateRaidJson_ = originalGenerateRaidJson;
-      equal(mainResult.processed, 2, 'main processed blank F rows');
+      equal(mainResult.processed, 2, 'main processed blank G rows');
       equal(generatedReportCount, 1, 'duplicate raid fetched once');
-      equal(outputValues[0][0], '["RAID1Player"]', 'first blank F populated');
-      equal(outputValues[1][0], '["Existing"]', 'existing F preserved');
+      equal(outputValues[0][0], '["RAID1Player"]', 'first blank G populated');
+      equal(outputValues[1][0], '["Existing"]', 'existing G preserved');
       equal(outputValues[2][0], '["RAID1Player"]', 'duplicate row populated');
-      equal(outputValues[4][0], '', 'formula-backed F preserved');
+      equal(outputValues[4][0], '', 'formula-backed G preserved');
 
       document.getElementById('result').textContent =
         'PASS: 18 assertions\n\n' + JSON.stringify(raidDocument, null, 2);

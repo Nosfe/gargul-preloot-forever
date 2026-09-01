@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>presence_details tests</title>
+<pre id="result">Tests did not run.</pre>
+<script>
+  window.Logger = {log: function () {}};
+</script>
+<script src="ratio.js"></script>
+<script src="attendance.js"></script>
+<script>
+  (function () {
+    function equal(actual, expected, label) {
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    try {
+      var raids = [
+        {description: 'Karazhan', date: '31/08/2026', attendeeKeys: new Set(['alice'])},
+        {description: 'Gruul', date: '01/09/2026', attendeeKeys: new Set(['bob'])}
+      ];
+      var rows = buildPresenceDetailsRows_(raids, ['Alice', 'Bob']);
+
+      equal(rows.length, 2, 'one output row per raid');
+      equal(rows[0].length, 4, 'two metadata columns plus one per player');
+      equal(JSON.stringify(rows[0]),
+        JSON.stringify(['Karazhan', '31/08/2026', 1, 0]),
+        'first raid presence');
+      equal(JSON.stringify(rows[1]),
+        JSON.stringify(['Gruul', '01/09/2026', 0, 1]),
+        'second raid presence');
+      equal(JSON.stringify(buildPresenceTotalsRow_(rows, 2)),
+        JSON.stringify(['TOTAL', '', 1, 1]),
+        'presence totals row');
+      var totalsMap = buildPresenceTotalsMap_(
+        ['raid_description', 'raid_date', 'Alice', 'Bob'],
+        ['TOTAL', '', 2, 1]
+      );
+      equal(totalsMap.get('alice'), 2, 'Alice total map');
+      equal(totalsMap.get('bob'), 1, 'Bob total map');
+      var ratioUpdate = buildRatioAttendanceValues_(
+        [['Bob'], ['Unknown'], ['Alice']],
+        [[9], [8], [7]],
+        totalsMap
+      );
+      equal(JSON.stringify(ratioUpdate.values), JSON.stringify([[1], [8], [2]]),
+        'ratio column F values preserve unmatched rows');
+      equal(ratioUpdate.updated, 2, 'ratio updated count');
+      equal(ratioUpdate.unmatched, 1, 'ratio unmatched count');
+      equal(findRaidLogColumnIndex_(['date', 'name', 'attendees'], ['attendees'], 5),
+        2, 'attendees header detection');
+      equal(findRaidLogColumnIndex_(['raid_date', 'attendees'], ['raid_date', 'date'], 0),
+        0, 'date header detection');
+      equal(findRaidLogColumnIndex_(['date'], ['attendees'], 6),
+        6, 'attendees fallback is column G');
+      equal(getRosterPlayerKey('Alice-Thunderstrike'), 'alice', 'realm normalization');
+      var roster = new Map([['samblà', 'Samblà'], ['jüice', 'Jüice']]);
+      var rerolls = {
+        exact: new Map([['dotlà', 'samblà']])
+      };
+      equal(resolvePresenceAttendeeKey_('Dotlà', roster, rerolls),
+        'samblà', 'reroll resolves to main');
+      equal(resolvePresenceAttendeeKey_('Dotla', roster, rerolls),
+        null, 'reroll accent variant is not reconciled');
+      equal(resolvePresenceAttendeeKey_('Juice', roster, rerolls),
+        null, 'accent variant is not reconciled');
+      equal(resolvePresenceAttendeeKey_('Unknown', roster, rerolls),
+        null, 'unknown attendee remains unresolved');
+
+      document.getElementById('result').textContent =
+        'PASS: 18 assertions\n\n' + JSON.stringify(rows, null, 2);
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+    }
+  }());
+</script>

@@ -8,12 +8,16 @@ The primary entry point is `main()`:
 
 1. It opens the sheet named `raid_logs`.
 2. Starting at row 2, it reads Warcraft Logs report IDs or URLs from column E.
-3. It processes only rows where column F is blank and has no formula.
-4. It writes compact JSON such as `["Alice","Bob"]` into column F, including only
+3. It processes only rows where column G is blank and has no formula.
+4. It writes compact JSON such as `["Alice","Bob"]` into column G, including only
    attendees whose `attendancePercent` is strictly greater than 25.
 
 Duplicate report IDs are requested only once during a run. Failed rows remain blank and
 receive a cell note containing the error, allowing the next invocation to retry them.
+
+Every run writes structured entries only to the Apps Script execution log. Events cover
+run start/end, skipped rows, API fetches, updated rows, and errors. No logging sheet is
+created.
 
 ## Setup
 
