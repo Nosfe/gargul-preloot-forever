@@ -1,0 +1,4 @@
+.env
+tools/google_apps_script/.env
+tools/google_apps_script/output/
+
