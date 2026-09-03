@@ -15,27 +15,40 @@
 local ADDON_NAME = "Gargul_Preloot"
 local GP = {}  -- Local namespace
 
--- Wait for Gargul to be fully loaded before extending it
-local function onAddonLoaded(self, event, addonName)
-    print("|cFFFFFF00[GP Event]|r ADDON_LOADED fired for: " .. tostring(addonName))
-    
-    if addonName ~= ADDON_NAME then
+-- Initialize after the add-on loads, then show the saved-data summary once the
+-- player has entered the world and the chat frame is ready.
+local function onLoaderEvent(self, event, addonName)
+    if event == "ADDON_LOADED" then
+        if addonName ~= ADDON_NAME then
+            return
+        end
+
+        self:UnregisterEvent("ADDON_LOADED")
+        GP:init()
+        self:RegisterEvent("PLAYER_ENTERING_WORLD")
         return
     end
-    
-    print("|cFF00FF00[GP Event]|r Our addon loaded! Initializing...")
-    
-    -- Unregister the load event since we only need it once
-    self:UnregisterEvent("ADDON_LOADED")
-    
-    -- Initialize the extension
-    GP:init()
+
+    if event == "PLAYER_ENTERING_WORLD" then
+        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
+
+        local function logStartupSummary()
+            GP:logPersistedRatioSummary()
+            GP:logLastImportDate()
+        end
+
+        if C_Timer and type(C_Timer.After) == "function" then
+            C_Timer.After(1, logStartupSummary)
+        else
+            logStartupSummary()
+        end
+    end
 end
 
 -- Initialize the extension after Gargul loads
 local LoaderFrame = CreateFrame("Frame")
 LoaderFrame:RegisterEvent("ADDON_LOADED")
-LoaderFrame:SetScript("OnEvent", onAddonLoaded)
+LoaderFrame:SetScript("OnEvent", onLoaderEvent)
 
 print("|cFF00FFFF[GP Boot]|r Core.lua loaded, waiting for ADDON_LOADED event...")
 
@@ -108,9 +121,25 @@ end
     Initialize the custom data storage and provide test data
 ]]
 function GP:initializeCustomData()
-    -- In a real implementation, this would load from a database or calculate values
-    -- For now, we provide static test data that will be indexed by player name
-    
+    -- Keep imported data in the add-on's SavedVariables table so award updates
+    -- survive logout and /reload. The .toc declares GargulPrelootDB.
+    if type(_G.GargulPrelootDB) ~= "table" then
+        _G.GargulPrelootDB = {}
+    end
+
+    self.db = _G.GargulPrelootDB
+    if type(self.db.importedPreloot) ~= "table" then
+        self.db.importedPreloot = {}
+    end
+    if type(self.db.importedPrelootOriginalNames) ~= "table" then
+        self.db.importedPrelootOriginalNames = {}
+    end
+
+    -- These are references to the saved tables. Mutating an entry after an award
+    -- therefore also updates the data that WoW writes to disk.
+    self.importedPreloot = self.db.importedPreloot
+    self.importedPrelootOriginalNames = self.db.importedPrelootOriginalNames
+
     self.playerData = {}
     
     -- Generate test data for demonstration
@@ -122,6 +151,83 @@ function GP:initializeCustomData()
         ["PlayerC"] = 1.500,
         ["Player"] = 4.250,
     }
+end
+
+-- Replace all persisted preloot data with a newly imported snapshot.
+function GP:replaceImportedPreloot(importedPreloot, originalNames)
+    if type(_G.GargulPrelootDB) ~= "table" then
+        _G.GargulPrelootDB = {}
+    end
+
+    self.db = _G.GargulPrelootDB
+    self.db.importedPreloot = type(importedPreloot) == "table" and importedPreloot or {}
+    self.db.importedPrelootOriginalNames = type(originalNames) == "table" and originalNames or {}
+    self.db.lastImportTime = time()
+    self.importedPreloot = self.db.importedPreloot
+    self.importedPrelootOriginalNames = self.db.importedPrelootOriginalNames
+end
+
+-- Log a compact summary of the ratios restored on login or /reload.
+function GP:logPersistedRatioSummary()
+    local count = 0
+    local highestName
+    local highestRatio
+    local lowestName
+    local lowestRatio
+
+    for key, value in pairs(self.importedPreloot or {}) do
+        local attendance
+        local lootCount
+
+        if type(value) == "table" then
+            attendance = tonumber(value[1])
+            lootCount = tonumber(value[2])
+        elseif type(value) == "string" then
+            attendance, lootCount = string.match(value, "^%s*(%d+%.?%d*)%s*,%s*(%d+%.?%d*)%s*$")
+            attendance = tonumber(attendance)
+            lootCount = tonumber(lootCount)
+        end
+
+        local ratio = self:getPrelootRatio(attendance, lootCount)
+        if ratio ~= nil then
+            local playerName = self.importedPrelootOriginalNames[key] or key
+            count = count + 1
+
+            if highestRatio == nil or ratio > highestRatio then
+                highestName = playerName
+                highestRatio = ratio
+            end
+            if lowestRatio == nil or ratio < lowestRatio then
+                lowestName = playerName
+                lowestRatio = ratio
+            end
+        end
+    end
+
+    if count == 0 then
+        print("|cFFFFFF00[GP]|r No persisted preloot ratios loaded. Import ratios from Gargul's Importer > Preloot (Base64).")
+        return
+    end
+
+    print(string.format(
+        "|cFF00FF00[GP]|r Persisted preloot ratios loaded for %d player(s). Highest: %s (%.3f), Lowest: %s (%.3f)",
+        count,
+        tostring(highestName),
+        highestRatio,
+        tostring(lowestName),
+        lowestRatio
+    ))
+end
+
+-- Log when the currently persisted preloot snapshot was imported.
+function GP:logLastImportDate()
+    local lastImportTime = self.db and tonumber(self.db.lastImportTime)
+    if not lastImportTime then
+        print("|cFFFFFF00[GP]|r Last preloot import: not recorded. Import ratios to start tracking it.")
+        return
+    end
+
+    print("|cFF00FF00[GP]|r Last preloot import: " .. date("%Y-%m-%d %H:%M:%S", lastImportTime))
 end
 
 --[[
@@ -178,45 +284,6 @@ function GP:getPrelootRatio(attendance, lootCount)
     end
 
     return attendance / lootCount
-end
-
---[[
-    Find the imported player with the lowest current ratio
-    Optionally exclude a specific player so the award message can compare
-    the current player's ratio against the lowest other player.
-]]
-function GP:getLowestImportedRatioPlayer(excludeKey)
-    if not self.importedPreloot or type(self.importedPreloot) ~= "table" then
-        return nil
-    end
-
-    local lowestName
-    local lowestRatio = math.huge
-
-    for key, value in pairs(self.importedPreloot) do
-        if key ~= excludeKey then
-            local attendance, lootCount
-
-            if type(value) == "table" then
-                attendance = tonumber(value[1])
-                lootCount = tonumber(value[2])
-            elseif type(value) == "string" then
-                attendance, lootCount = string.match(value, "^%s*(%d+%.?%d*)%s*,%s*(%d+%.?%d*)%s*$")
-                attendance = tonumber(attendance)
-                lootCount = tonumber(lootCount)
-            end
-
-            if attendance ~= nil and lootCount ~= nil then
-                local ratio = self:getPrelootRatio(attendance, lootCount)
-                if ratio ~= 0 and ratio < lowestRatio then
-                    lowestRatio = ratio
-                    lowestName = self.importedPrelootOriginalNames and self.importedPrelootOriginalNames[key] or key
-                end
-            end
-        end
-    end
-
-    return lowestName
 end
 
 --[[
@@ -472,15 +539,17 @@ function GP:hookImporterUI()
                         return
                     end
 
-                    GP.importedPreloot = {}
-                    GP.importedPrelootOriginalNames = {}
+                    -- Build a complete replacement first. A valid new import wipes
+                    -- previous saved award updates and becomes the new persisted base.
+                    local importedPreloot = {}
+                    local importedPrelootOriginalNames = {}
                     local count = 0
                     print("|cFF00FF00[GP]|r Preloot data imported:")
                     for player, value in pairs(json) do
                         local key = GP:normalizePlayerKey(player)
                         if key then
-                            GP.importedPreloot[key] = value
-                            GP.importedPrelootOriginalNames[key] = player
+                            importedPreloot[key] = value
+                            importedPrelootOriginalNames[key] = player
                         end
 
                         if type(value) == "table" then
@@ -498,6 +567,7 @@ function GP:hookImporterUI()
                         end
                         count = count + 1
                     end
+                    GP:replaceImportedPreloot(importedPreloot, importedPrelootOriginalNames)
                     print("|cFF00FF00[GP]|r Total imported values: " .. tostring(count))
                     dialog:Hide()
                 end)
@@ -570,7 +640,6 @@ function GP:enhanceTableWithCustomData()
     end
 
     if not currentData or #currentData == 0 then
-        print("|cFFFF0000[GP]|r ERROR: No table data!")
         return
     end
 
@@ -682,11 +751,9 @@ function GP:hookAwardedLoot()
                 if attendance ~= nil and lootCount ~= nil then
                     lootCount = lootCount + 1
                     local newRatio = GP:getPrelootRatio(attendance, lootCount)
-                    local lowestPlayer = GP:getLowestImportedRatioPlayer(key) or key
-                    ratioMessage = string.format("Ton nouveau ratio est %.3f (Toujours plus haut que %s)", newRatio, lowestPlayer)
+                    ratioMessage = string.format("Ton nouveau ratio est %.3f", newRatio)
                 else
-                    local lowestPlayer = GP:getLowestImportedRatioPlayer(key) or key
-                    ratioMessage = string.format("Ton nouveau ratio est N/A (Toujours plus haut que %s)", lowestPlayer)
+                    ratioMessage = "Ton nouveau ratio est N/A"
                 end
                 shouldAppendRatio = true
             end

@@ -1,98 +1,118 @@
-# Gargul_Preloot Extension
+# Gargul Preloot
 
-**Gargul_Preloot** is a safe extension addon for Gargul that adds a custom numeric column to the Master Looter window without modifying any Gargul core files.
+Gargul Preloot is a World of Warcraft add-on that extends Gargul's Master Looter player table with an imported attendance-to-loot ratio.
 
-## Quick Start
+It adds a `Ratio_Preloot` column, updates a player's loot count after eligible awards, and persists those updates across logout, login, and `/reload`.
 
-1. Copy this folder to `World of Warcraft\Interface\AddOns\`
-2. Enable in Addons menu
-3. `/reload`
-4. Open Master Looter window
-5. See "Value" column with custom player data
+## Requirements
 
-## Features
+- Gargul must be installed and enabled.
+- `Gargul_Preloot` must be copied to the same `Interface/AddOns` directory and enabled.
 
-- ✅ Adds "Value" column between "+1" and "Type"
-- ✅ Displays decimal values (3.125, 2.848, 1.500, etc.)
-- ✅ Uses class colors from player names
-- ✅ Updates automatically on rolloffs
-- ✅ Zero modifications to Gargul core files
-- ✅ Survives Gargul updates
+Gargul is declared as a required dependency, so this extension initializes after Gargul is available.
 
-## How It Works
+## Installation
 
-The addon hooks into two Gargul functions:
+1. Copy the `Gargul_Preloot` directory into your World of Warcraft `Interface/AddOns` directory.
+2. Enable **Gargul** and **Gargul Preloot** in the add-on list.
+3. Log in or run `/reload`.
 
-1. **`MasterLooterUI:tableColumns()`** - Adds custom column definition
-2. **`RollOff:refreshRollsTable()`** - Injects custom values into rows
+## Importing preloot data
 
-Both hooks preserve original Gargul behavior and only enhance it.
+1. Open Gargul's Importer window.
+2. Select **Preloot (Base64)**.
+3. Paste a Base64-encoded JSON object into the dialog.
+4. Select **Import**.
 
-## Customization
+The decoded JSON must map each player name to an array containing attendance first and loot count second:
 
-Edit `Core.lua`:
-
-### Change Display Format
-```lua
--- In enhanceTableWithCustomData(), change:
-local formattedValue = string.format("%.3f", customValue)
-
--- To display integers:
-local formattedValue = tostring(math.floor(customValue))
-```
-
-### Modify Test Data
-```lua
--- In initializeCustomData():
-self.testData = {
-    ["PlayerName"] = 5.0,
-    ["AnotherPlayer"] = 3.5,
+```json
+{
+  "PlayerA": [19, 4],
+  "PlayerB": [29, 7],
+  "PlayerC": [34, 17.33]
 }
 ```
 
-### Load External Data
-```lua
--- In getCustomDataForPlayer():
-return MyExternalSystem:getValue(playerName) or 0
+Both values may be integers or decimals. Player names are matched case-insensitively and realm suffixes are removed when Gargul provides that normalization.
+
+A successful import completely replaces the previously persisted preloot snapshot, including loot-count changes made from earlier awards. Empty or invalid input does not replace the stored data.
+
+See `sample_json` for a larger decoded example.
+
+## Ratio calculation
+
+The displayed ratio is calculated from the imported attendance and loot count:
+
+| Condition | Displayed ratio |
+| --- | ---: |
+| Attendance is 3 or lower | `0.000` |
+| Attendance is above 3 and loot count is 0 | `999.000` |
+| Otherwise | `attendance / loot count` |
+
+Ratios are displayed to three decimal places in the Master Looter player table. Players without usable imported data currently receive the add-on's generated fallback value.
+
+## Automatic updates after awards
+
+The imported loot count is incremented when all of these conditions are met:
+
+- The recipient exists in the imported preloot data.
+- The item is epic quality.
+- The award is not marked as off-spec (`OS`).
+
+After an eligible award, the add-on:
+
+1. Calculates the recipient's new ratio using the incremented loot count.
+2. Appends the new ratio to Gargul's award announcement.
+3. Updates the ratio shown in the player table.
+4. Keeps the updated loot count in `GargulPrelootDB` for the next login or `/reload`.
+
+## Persistence and startup log
+
+Imported attendance, loot counts, and original player names are stored in WoW's `GargulPrelootDB` SavedVariable.
+
+Each successful import also stores its timestamp. On login or `/reload`, the add-on restores the saved data and prints a compact ratio summary followed by the last import date shortly after the player enters the world:
+
+```text
+[GP] Persisted preloot ratios loaded for 25 player(s). Highest: PlayerA (12.500), Lowest: PlayerB (1.250)
+[GP] Last preloot import: 2026-09-03 18:45:12
 ```
 
-## Files
+The date and time use the game client's local time. If no valid ratios or import timestamp are stored, it prints:
 
-- **Core.lua** - Main implementation (fully commented)
-- **Gargul_Preloot.toc** - Addon metadata
+```text
+[GP] No persisted preloot ratios loaded. Import ratios from Gargul's Importer > Preloot (Base64).
+[GP] Last preloot import: not recorded. Import ratios to start tracking it.
+```
+
+As with all WoW SavedVariables, changes are written by the game during normal logout and `/reload` processing.
 
 ## Debugging
 
-Check if loaded:
-```
+Check whether the extension initialized:
+
+```lua
 /script print(GargulPreloot and "OK" or "FAIL")
 ```
 
-List column structure:
-```
-/script
-local cols = Gargul.MasterLooterUI:tableColumns()
-for i, c in ipairs(cols) do
-    print(i, c.name)
-end
-```
+Inspect the current ratio for a player:
 
-Verify test data:
-```
+```lua
 /script print(GargulPreloot:getCustomDataForPlayer("PlayerA"))
 ```
 
-## Compatibility
+Inspect the persisted imported entry for a player:
 
-- ✅ TBC, Vanilla, Wrath, Cataclysm (all Gargul versions)
-- ✅ No dependencies except Gargul
-- ✅ Safe to remove anytime
+```lua
+/dump GargulPrelootDB.importedPreloot["playera"]
+```
 
-## Support
+Player keys in the saved table are normalized to lowercase.
 
-For detailed documentation, configuration examples, and troubleshooting, refer to the full guides in the original Gargul_CustomData addon or view the comments in Core.lua.
+## Files
 
----
+- `Core.lua` contains the Gargul hooks, import handling, ratio calculation, award updates, and persistence logic.
+- `Gargul_Preloot.toc` contains add-on metadata and declares `GargulPrelootDB` as a SavedVariable.
+- `sample_json` demonstrates the decoded attendance/loot import structure.
 
-**Version:** 1.0.0  
-**Status:** Production-ready
+**Version:** 1.1.0
