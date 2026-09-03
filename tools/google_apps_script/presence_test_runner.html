@@ -30,15 +30,27 @@
       equal(JSON.stringify(rows[1]),
         JSON.stringify(['Gruul', '01/09/2026', 0, 1]),
         'second raid presence');
-      equal(JSON.stringify(buildPresenceTotalsRow_(rows, 2)),
-        JSON.stringify(['TOTAL', '', 1, 1]),
-        'presence totals row');
-      var totalsMap = buildPresenceTotalsMap_(
+      equal(JSON.stringify(buildDatedPresenceTotalsRow_(rows, 2, 20260518, 'TOTAL SINCE P2')),
+        JSON.stringify(['TOTAL SINCE P2', '', 1, 1]),
+        'P2 presence totals row');
+      equal(JSON.stringify(buildDatedPresenceTotalsRow_(rows, 2, 20260901, 'TOTAL SINCE AUTOMATION')),
+        JSON.stringify(['TOTAL SINCE AUTOMATION', '', 0, 1]),
+        'automation presence totals row');
+      var datedTotals = buildDatedPresenceTotalsMap_(
         ['raid_description', 'raid_date', 'Alice', 'Bob'],
-        ['TOTAL', '', 2, 1]
+        [
+          ['Old raid', '31/08/2026', 1, 1],
+          ['Cutoff raid', '01/09/2026', 0, 1],
+          ['New raid', '2026-09-02', 1, 0],
+          ['TOTAL', '', 2, 2]
+        ],
+        20260901
       );
-      equal(totalsMap.get('alice'), 2, 'Alice total map');
-      equal(totalsMap.get('bob'), 1, 'Bob total map');
+      var totalsMap = datedTotals.totalsByPlayer;
+      equal(totalsMap.get('alice'), 1, 'Alice dated total map');
+      equal(totalsMap.get('bob'), 1, 'Bob dated total map');
+      equal(datedTotals.includedRows, 2, 'included raids from cutoff onward');
+      equal(datedTotals.skippedRows, 1, 'pre-cutoff raid skipped');
       var ratioUpdate = buildRatioAttendanceValues_(
         [['Bob'], ['Unknown'], ['Alice']],
         [[9], [8], [7]],
@@ -69,7 +81,7 @@
         null, 'unknown attendee remains unresolved');
 
       document.getElementById('result').textContent =
-        'PASS: 18 assertions\n\n' + JSON.stringify(rows, null, 2);
+        'PASS: 21 assertions\n\n' + JSON.stringify(rows, null, 2);
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;
     }

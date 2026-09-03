@@ -738,13 +738,13 @@ function updateLootCounts(ss, allItems) {
   const playerRange = ratioSheet.getRange(3, 1, lastRow - 2, 1);
   const playerNames = playerRange.getValues();
 
-  // Update column H with loot counts
+  // Update column J with loot counts
   for (let i = 0; i < playerNames.length; i++) {
     const playerName = playerNames[i][0];
     if (playerName && playerName.trim() !== '') {
       const lootCount = lootCountMap[playerName] || 0;
       const rowIndex = i + 3; // actual sheet row (starting from row 3)
-      ratioSheet.getRange(rowIndex, 8).setValue(lootCount); // Column H = column 8
+      ratioSheet.getRange(rowIndex, 10).setValue(lootCount); // Column J = column 10
     }
   }
 

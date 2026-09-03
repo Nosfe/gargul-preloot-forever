@@ -37,7 +37,7 @@ function onOpen() {
 function process_presences() {
   process_attendees();
   process_raid_logs_presence();
-  update_ratio_sheet();
+  update_attendance_on_ratio_sheet();
 }
 
 function process_attendees() {
@@ -770,7 +770,7 @@ function populatePresenceDetails(ss, raids, sortedPlayers) {
   }
 
   const numColumns = sortedPlayers.length + 2;
-  ensurePresenceSheetSize_(detailsSheet, raids.length + 2, numColumns);
+  ensurePresenceSheetSize_(detailsSheet, raids.length + 3, numColumns);
 
   const headerValues = ['raid_description', 'raid_date'].concat(sortedPlayers);
   detailsSheet.getRange(1, 1, 1, numColumns).setValues([headerValues]);
@@ -789,14 +789,20 @@ function populatePresenceDetails(ss, raids, sortedPlayers) {
   detailsSheet.setFrozenRows(1);
   detailsSheet.setFrozenColumns(2);
 
-  if (raids.length === 0) {
-    Logger.log('No raid rows with attendees JSON were found.');
-    return;
-  }
-
   const rowData = buildPresenceDetailsRows_(raids, sortedPlayers);
-  const totalRow = buildPresenceTotalsRow_(rowData, sortedPlayers.length);
-  const outputRows = rowData.concat([totalRow]);
+  const totalSinceP2 = buildDatedPresenceTotalsRow_(
+    rowData,
+    sortedPlayers.length,
+    20260518,
+    'TOTAL SINCE P2'
+  );
+  const totalSinceAutomation = buildDatedPresenceTotalsRow_(
+    rowData,
+    sortedPlayers.length,
+    20260901,
+    'TOTAL SINCE AUTOMATION'
+  );
+  const outputRows = rowData.concat([totalSinceP2, totalSinceAutomation]);
   detailsSheet.getRange(2, 1, outputRows.length, numColumns).setValues(outputRows);
   detailsSheet.getRange(2, 1, outputRows.length, 2).setNumberFormat('@');
 
@@ -807,10 +813,14 @@ function populatePresenceDetails(ss, raids, sortedPlayers) {
       .setBorder(null, null, null, true, null, null, 'black', SpreadsheetApp.BorderStyle.SOLID);
   }
 
-  const totalSheetRow = outputRows.length + 1;
-  detailsSheet.getRange(totalSheetRow, 1, 1, numColumns)
+  const firstTotalSheetRow = rowData.length + 2;
+  detailsSheet.getRange(firstTotalSheetRow, 1, 2, numColumns)
     .setFontWeight('bold')
     .setBackground('#D9EAF7');
+
+  if (raids.length === 0) {
+    Logger.log('No raid rows with attendees JSON were found; total rows contain zeroes.');
+  }
 
   Logger.log('presence_details populated with ' + rowData.length + ' raid row(s).');
 }
@@ -832,14 +842,17 @@ function buildPresenceDetailsRows_(raids, sortedPlayers) {
   return rowData;
 }
 
-function buildPresenceTotalsRow_(rowData, playerCount) {
-  const totalRow = ['TOTAL', ''];
+function buildDatedPresenceTotalsRow_(rowData, playerCount, cutoffDateKey, label) {
+  const totalRow = [label, ''];
 
   for (let playerIndex = 0; playerIndex < playerCount; playerIndex++) {
     const presenceColumnIndex = playerIndex + 2;
     let totalPresence = 0;
     for (let rowIndex = 0; rowIndex < rowData.length; rowIndex++) {
-      totalPresence += Number(rowData[rowIndex][presenceColumnIndex]) || 0;
+      const raidDateKey = getPresenceDateKey_(rowData[rowIndex][1]);
+      if (raidDateKey !== null && raidDateKey >= cutoffDateKey) {
+        totalPresence += Number(rowData[rowIndex][presenceColumnIndex]) || 0;
+      }
     }
     totalRow.push(totalPresence);
   }
@@ -849,9 +862,9 @@ function buildPresenceTotalsRow_(rowData, playerCount) {
 
 /**
  * Copy per-player attendance totals from presence_details to column F of
- * Ratio Présence/Loot (Préloot). Player names are read from column A, row 3+.
+ * Ratio Présence/Loot (Préloot). Only raids dated 2026-09-01 or later count.
  */
-function update_ratio_sheet() {
+function update_attendance_on_ratio_sheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const presenceSheet = ss.getSheetByName('presence_details');
   if (!presenceSheet) {
@@ -869,27 +882,23 @@ function update_ratio_sheet() {
     throw new Error('presence_details does not contain player totals.');
   }
 
-  const firstColumnValues = presenceSheet
-    .getRange(2, 1, presenceLastRow - 1, 1)
-    .getDisplayValues();
-  let totalSheetRow = 0;
-  for (let rowIndex = firstColumnValues.length - 1; rowIndex >= 0; rowIndex--) {
-    if (String(firstColumnValues[rowIndex][0] || '').trim().toUpperCase() === 'TOTAL') {
-      totalSheetRow = rowIndex + 2;
-      break;
-    }
-  }
-  if (!totalSheetRow) {
-    throw new Error('TOTAL row not found in presence_details.');
-  }
-
   const presenceHeaders = presenceSheet
     .getRange(1, 1, 1, presenceLastColumn)
     .getDisplayValues()[0];
-  const presenceTotals = presenceSheet
-    .getRange(totalSheetRow, 1, 1, presenceLastColumn)
-    .getValues()[0];
-  const totalsByPlayer = buildPresenceTotalsMap_(presenceHeaders, presenceTotals);
+  const presenceRows = presenceSheet
+    .getRange(2, 1, presenceLastRow - 1, presenceLastColumn)
+    .getValues();
+  const cutoffDateKey = 20260901;
+  const totalsResult = buildDatedPresenceTotalsMap_(
+    presenceHeaders,
+    presenceRows,
+    cutoffDateKey
+  );
+  const totalsByPlayer = totalsResult.totalsByPlayer;
+  Logger.log(
+    'Ratio attendance cutoff: 01/09/2026. Included ' + totalsResult.includedRows +
+    ' raid(s); skipped ' + totalsResult.skippedRows + ' earlier/invalid row(s).'
+  );
 
   const ratioLastRow = ratioSheet.getLastRow();
   if (ratioLastRow < 3) {
@@ -925,7 +934,7 @@ function update_ratio_sheet() {
   };
 }
 
-function buildPresenceTotalsMap_(presenceHeaders, presenceTotals) {
+function buildDatedPresenceTotalsMap_(presenceHeaders, presenceRows, cutoffDateKey) {
   const totalsByPlayer = new Map();
 
   for (let columnIndex = 2; columnIndex < presenceHeaders.length; columnIndex++) {
@@ -934,10 +943,57 @@ function buildPresenceTotalsMap_(presenceHeaders, presenceTotals) {
     if (!playerKey) {
       continue;
     }
-    totalsByPlayer.set(playerKey, Number(presenceTotals[columnIndex]) || 0);
+    totalsByPlayer.set(playerKey, 0);
   }
 
-  return totalsByPlayer;
+  let includedRows = 0;
+  let skippedRows = 0;
+  for (let rowIndex = 0; rowIndex < presenceRows.length; rowIndex++) {
+    const row = presenceRows[rowIndex];
+    if (String(row[0] || '').trim().toUpperCase().indexOf('TOTAL') === 0) {
+      continue;
+    }
+
+    const raidDateKey = getPresenceDateKey_(row[1]);
+    if (raidDateKey === null || raidDateKey < cutoffDateKey) {
+      skippedRows++;
+      continue;
+    }
+
+    includedRows++;
+    for (let columnIndex = 2; columnIndex < presenceHeaders.length; columnIndex++) {
+      const playerKey = getRosterPlayerKey(presenceHeaders[columnIndex]);
+      if (playerKey && totalsByPlayer.has(playerKey)) {
+        totalsByPlayer.set(
+          playerKey,
+          totalsByPlayer.get(playerKey) + (Number(row[columnIndex]) || 0)
+        );
+      }
+    }
+  }
+
+  return {
+    totalsByPlayer: totalsByPlayer,
+    includedRows: includedRows,
+    skippedRows: skippedRows
+  };
+}
+
+function getPresenceDateKey_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return value.getFullYear() * 10000 + (value.getMonth() + 1) * 100 + value.getDate();
+  }
+
+  const text = String(value || '').trim();
+  let match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (match) {
+    return Number(match[3]) * 10000 + Number(match[2]) * 100 + Number(match[1]);
+  }
+  match = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (match) {
+    return Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]);
+  }
+  return null;
 }
 
 function buildRatioAttendanceValues_(playerRows, existingValues, totalsByPlayer) {
