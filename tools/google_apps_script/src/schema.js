@@ -156,7 +156,7 @@ var TABS = [
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
       { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, ex. Mage → Arcanes, Feu ou Givre.' },
       { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
-      { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' }
+      { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' }
     ]
   },
   {

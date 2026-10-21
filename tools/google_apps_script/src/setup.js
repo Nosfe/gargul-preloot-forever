@@ -311,7 +311,8 @@ function validateHeaderCompatibility_(tab, existingHeaders) {
   var i;
 
   for (i = 0; i < keys.length; i += 1) {
-    knownByIndex.push([keys[i], labels[i]]);
+    // A renamed column still matches its earlier label, so renaming a label never blocks setup.
+    knownByIndex.push([keys[i], labels[i]].concat(tab.columns[i].formerLabels || []));
   }
 
   for (i = 0; i < existingHeaders.length; i += 1) {

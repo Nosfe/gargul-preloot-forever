@@ -522,6 +522,19 @@
       });
 
       withHarness(function () {
+        seedCoreFlatTabs(['Roster']);
+        // Live Roster after a manual column cleanup: the Parse header still has its earlier label.
+        TracerHarness.seedSheet('Roster', [
+          ['Raider (nom exact en jeu)', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen (1-100)'],
+          ['Ana', 'Mage', 'Givre', 'Heal', 80]
+        ]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former Parse label is accepted');
+        equal(TracerHarness.getRows('Roster')[0][4], 'Parse WCL moyen', 'Parse header renamed to the current label');
+        equal(TracerHarness.getRows('Roster')[1][4], 80, 'Parse value kept');
+      });
+
+      withHarness(function () {
         rosterLookupTests();
       });
 
