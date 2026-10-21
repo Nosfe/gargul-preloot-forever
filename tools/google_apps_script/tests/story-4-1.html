@@ -55,7 +55,7 @@
       onOpen();
       var menu = TracerHarness.getLastMenu();
       equal(menu.caption, 'Loot priority', 'menu title');
-      equal(Boolean(menuItem(menu, 'Set up workbook')), true, 'menu has setup action');
+      equal(Boolean(menuItem(menu, 'Set up / refresh workbook')), true, 'menu has setup action');
       equal(Boolean(menuItem(menu, 'Sync attendance')), true, 'menu has attendance action');
       equal(Boolean(menuItem(menu, 'Export raid snapshot')), true, 'menu has snapshot action');
       equal(Boolean(menuItem(menu, 'Import raid ledger')), true, 'menu has ledger action');

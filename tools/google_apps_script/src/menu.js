@@ -10,7 +10,7 @@ function onOpen() {
 
   ui
     .createMenu('Loot priority')
-    .addItem('Set up workbook', 'setUpWorkbook')
+    .addItem('Set up / refresh workbook', 'setUpWorkbook')
     .addItem('Sync attendance', 'runAttendanceSync')
     .addItem('Export raid snapshot', 'exportRaidSnapshot')
     .addItem('Import raid ledger', 'importRaidLedger')

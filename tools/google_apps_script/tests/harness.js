@@ -14,6 +14,52 @@
     return index;
   }
 
+  function ensureSheetMeta_(sheet) {
+    if (!sheet.meta) {
+      sheet.meta = {
+        frozenRowCount: 0,
+        tabColorStyle: null,
+        dataValidations: [],
+        conditionalFormatRules: [],
+        bandedRanges: [],
+        columnWidths: {},
+        notes: {}
+      };
+    }
+    if (!Array.isArray(sheet.meta.dataValidations)) {
+      sheet.meta.dataValidations = [];
+    }
+    if (!Array.isArray(sheet.meta.conditionalFormatRules)) {
+      sheet.meta.conditionalFormatRules = [];
+    }
+    if (!Array.isArray(sheet.meta.bandedRanges)) {
+      sheet.meta.bandedRanges = [];
+    }
+    if (!sheet.meta.columnWidths) {
+      sheet.meta.columnWidths = {};
+    }
+    if (!sheet.meta.notes) {
+      sheet.meta.notes = {};
+    }
+  }
+
+  function createSheetRecord_(id, title, rows, frozenRowCount) {
+    return {
+      id: id,
+      title: title,
+      rows: clone(rows || []),
+      meta: {
+        frozenRowCount: Number(frozenRowCount || 0),
+        tabColorStyle: null,
+        dataValidations: [],
+        conditionalFormatRules: [],
+        bandedRanges: [],
+        columnWidths: {},
+        notes: {}
+      }
+    };
+  }
+
   function toCellValue_(cellData) {
     if (!cellData || !cellData.userEnteredValue) {
       return '';
@@ -28,6 +74,12 @@
       return cellData.userEnteredValue.boolValue;
     }
     return '';
+  }
+
+  function ensureRowLength_(row, minLength) {
+    while (row.length < minLength) {
+      row.push('');
+    }
   }
 
   function applyAddSheet_(request, storeById, nameIndex) {
@@ -53,16 +105,7 @@
       throw new Error('Sheet id already exists: ' + newId);
     }
 
-    storeById[String(newId)] = {
-      id: newId,
-      title: title,
-      rows: [],
-      meta: {
-        frozenRowCount: Number(gridProperties.frozenRowCount || 0),
-        dataValidations: [],
-        conditionalFormatRules: []
-      }
-    };
+    storeById[String(newId)] = createSheetRecord_(newId, title, [], Number(gridProperties.frozenRowCount || 0));
     nameIndex[title] = newId;
 
     return {
@@ -97,28 +140,6 @@
     return {};
   }
 
-  function ensureSheetMeta_(sheet) {
-    if (!sheet.meta) {
-      sheet.meta = {
-        frozenRowCount: 0,
-        dataValidations: [],
-        conditionalFormatRules: []
-      };
-    }
-    if (!Array.isArray(sheet.meta.dataValidations)) {
-      sheet.meta.dataValidations = [];
-    }
-    if (!Array.isArray(sheet.meta.conditionalFormatRules)) {
-      sheet.meta.conditionalFormatRules = [];
-    }
-  }
-
-  function ensureRowLength_(row, minLength) {
-    while (row.length < minLength) {
-      row.push('');
-    }
-  }
-
   function applyUpdateCells_(request, storeById) {
     var updateCells = request.updateCells || {};
     var start = updateCells.start || {};
@@ -132,6 +153,8 @@
       throw new Error('Unknown sheet id in updateCells: ' + sheetId);
     }
 
+    ensureSheetMeta_(sheet);
+
     rows.forEach(function (rowDef, rowOffset) {
       var targetRowIndex = rowIndex + rowOffset;
       while (sheet.rows.length <= targetRowIndex) {
@@ -143,7 +166,11 @@
       ensureRowLength_(targetRow, columnIndex + values.length);
 
       values.forEach(function (cellData, colOffset) {
-        targetRow[columnIndex + colOffset] = toCellValue_(cellData);
+        var colIndex = columnIndex + colOffset;
+        targetRow[colIndex] = toCellValue_(cellData);
+        if (Object.prototype.hasOwnProperty.call(cellData || {}, 'note')) {
+          sheet.meta.notes[targetRowIndex + ':' + colIndex] = String(cellData.note || '');
+        }
       });
     });
 
@@ -161,6 +188,10 @@
     }
 
     ensureSheetMeta_(sheet);
+    // Like the real API: a new rule replaces the one on the same range.
+    sheet.meta.dataValidations = sheet.meta.dataValidations.filter(function (entry) {
+      return JSON.stringify(entry.range) !== JSON.stringify(range);
+    });
     sheet.meta.dataValidations.push({
       range: clone(range),
       rule: clone(setDataValidation.rule || null)
@@ -194,6 +225,25 @@
     return {};
   }
 
+  function applyDeleteConditionalFormatRule_(request, storeById) {
+    var payload = request.deleteConditionalFormatRule || {};
+    var sheetId = payload.sheetId;
+    var index = Number(payload.index);
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in deleteConditionalFormatRule: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    if (index < 0 || index >= sheet.meta.conditionalFormatRules.length) {
+      throw new Error('Conditional format delete index out of bounds: ' + index);
+    }
+
+    sheet.meta.conditionalFormatRules.splice(index, 1);
+    return {};
+  }
+
   function applyUpdateSheetProperties_(request, storeById) {
     var updateSheetProperties = request.updateSheetProperties || {};
     var properties = updateSheetProperties.properties || {};
@@ -207,6 +257,98 @@
     ensureSheetMeta_(sheet);
     if (properties.gridProperties && typeof properties.gridProperties.frozenRowCount === 'number') {
       sheet.meta.frozenRowCount = properties.gridProperties.frozenRowCount;
+    }
+    if (Object.prototype.hasOwnProperty.call(properties, 'tabColorStyle')) {
+      sheet.meta.tabColorStyle = clone(properties.tabColorStyle || null);
+    }
+
+    return {};
+  }
+
+  function applyRepeatCell_(request, storeById) {
+    var repeatCell = request.repeatCell || {};
+    var range = repeatCell.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in repeatCell: ' + sheetId);
+    }
+    ensureSheetMeta_(sheet);
+    sheet.meta.lastRepeatCell = clone(repeatCell);
+    return {};
+  }
+
+  function applyUpdateDimensionProperties_(request, storeById) {
+    var payload = request.updateDimensionProperties || {};
+    var range = payload.range || {};
+    var properties = payload.properties || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in updateDimensionProperties: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    if (range.dimension === 'COLUMNS' && typeof properties.pixelSize === 'number') {
+      var start = Number(range.startIndex || 0);
+      var end = Number(range.endIndex || start);
+      for (var col = start; col < end; col += 1) {
+        sheet.meta.columnWidths[String(col)] = properties.pixelSize;
+      }
+    }
+
+    return {};
+  }
+
+  function applyAddBanding_(request, storeById) {
+    var payload = request.addBanding || {};
+    var bandedRange = payload.bandedRange || {};
+    var range = bandedRange.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in addBanding: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    var bandedRangeId = state.nextBandingId;
+    state.nextBandingId += 1;
+    var record = clone(bandedRange);
+    record.bandedRangeId = bandedRangeId;
+    sheet.meta.bandedRanges.push(record);
+
+    return {
+      addBanding: {
+        bandedRange: {
+          bandedRangeId: bandedRangeId
+        }
+      }
+    };
+  }
+
+  function applyDeleteBanding_(request, storeById) {
+    var payload = request.deleteBanding || {};
+    var targetId = payload.bandedRangeId;
+    var found = false;
+
+    Object.keys(storeById).forEach(function (id) {
+      var sheet = storeById[id];
+      ensureSheetMeta_(sheet);
+      var remaining = [];
+      sheet.meta.bandedRanges.forEach(function (entry) {
+        if (entry.bandedRangeId === targetId) {
+          found = true;
+        } else {
+          remaining.push(entry);
+        }
+      });
+      sheet.meta.bandedRanges = remaining;
+    });
+
+    if (!found) {
+      throw new Error('Unknown bandedRangeId in deleteBanding: ' + targetId);
     }
 
     return {};
@@ -243,8 +385,28 @@
         replies.push(applyAddConditionalFormatRule_(request, workingStore));
         return;
       }
+      if (request.deleteConditionalFormatRule) {
+        replies.push(applyDeleteConditionalFormatRule_(request, workingStore));
+        return;
+      }
       if (request.updateSheetProperties) {
         replies.push(applyUpdateSheetProperties_(request, workingStore));
+        return;
+      }
+      if (request.repeatCell) {
+        replies.push(applyRepeatCell_(request, workingStore));
+        return;
+      }
+      if (request.updateDimensionProperties) {
+        replies.push(applyUpdateDimensionProperties_(request, workingStore));
+        return;
+      }
+      if (request.addBanding) {
+        replies.push(applyAddBanding_(request, workingStore));
+        return;
+      }
+      if (request.deleteBanding) {
+        replies.push(applyDeleteBanding_(request, workingStore));
         return;
       }
 
@@ -258,6 +420,29 @@
       spreadsheetId: spreadsheetId,
       replies: replies
     };
+  }
+
+  function sheetsGet_(spreadsheetId, options) {
+    if (spreadsheetId !== state.spreadsheetId) {
+      throw new Error('Unexpected spreadsheet id in get: ' + spreadsheetId);
+    }
+
+    var sheets = Object.keys(state.storeById).map(function (id) {
+      var sheet = state.storeById[id];
+      ensureSheetMeta_(sheet);
+      return {
+        properties: {
+          sheetId: sheet.id,
+          title: sheet.title
+        },
+        conditionalFormats: clone(sheet.meta.conditionalFormatRules),
+        bandedRanges: clone(sheet.meta.bandedRanges).map(function (entry) {
+          return { bandedRangeId: entry.bandedRangeId };
+        })
+      };
+    });
+
+    return { sheets: sheets, fields: options && options.fields ? String(options.fields) : '' };
   }
 
   function createMenuBuilder(caption) {
@@ -343,6 +528,7 @@
       spreadsheetId: 'test-spreadsheet-id',
       locale: 'en_US',
       nextSheetId: 60000,
+      nextBandingId: 9000,
       lockHeld: false,
       forceLockBusy: false,
       alerts: [],
@@ -390,7 +576,8 @@
 
     global.Sheets = {
       Spreadsheets: {
-        batchUpdate: batchUpdate_
+        batchUpdate: batchUpdate_,
+        get: sheetsGet_
       }
     };
 
@@ -400,7 +587,6 @@
       }
     };
 
-    // Only the yyyy-MM-dd HH:mm:ss pattern used by menu.js is supported.
     global.Utilities = {
       formatDate: function (date, timeZone, pattern) {
         if (pattern !== 'yyyy-MM-dd HH:mm:ss') {
@@ -444,19 +630,19 @@
     return clone(state.lastMenu);
   }
 
-  function seedSheet(name, rows) {
+  function seedSheet(name, rows, options) {
+    if (Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
+      throw new Error('seedSheet cannot overwrite existing sheet: ' + name);
+    }
+
     var id = state.nextSheetId;
     state.nextSheetId += 1;
-    state.storeById[String(id)] = {
-      id: id,
-      title: name,
-      rows: clone(rows || []),
-      meta: {
-        frozenRowCount: 0,
-        dataValidations: [],
-        conditionalFormatRules: []
-      }
-    };
+
+    var frozen = options && typeof options.frozenRowCount === 'number'
+      ? options.frozenRowCount
+      : 0;
+
+    state.storeById[String(id)] = createSheetRecord_(id, name, rows || [], frozen);
     state.nameIndex[name] = id;
   }
 

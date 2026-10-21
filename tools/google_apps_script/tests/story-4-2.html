@@ -41,109 +41,179 @@
       }
     }
 
-    function seedContractTabs(prefixRoster) {
+    function headerRow(tabName) {
+      return TracerHarness.getRows(tabName)[0] || [];
+    }
+
+    function seedTechnicalHeaderTabs() {
       TABS.forEach(function (tab) {
-        var headers = tab.headers.slice();
-        if (prefixRoster && tab.name === 'Roster') {
-          headers = tab.headers.slice(0, tab.headers.length - 2);
-        }
-        TracerHarness.seedSheet(tab.name, [headers]);
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
       });
+    }
+
+    function formulaFromRule(rule) {
+      return rule.booleanRule.condition.values[0].userEnteredValue;
+    }
+
+    function validationForColumn(meta, columnIndex) {
+      for (var i = 0; i < meta.dataValidations.length; i += 1) {
+        var range = meta.dataValidations[i].range;
+        if (range.startColumnIndex === columnIndex) {
+          return meta.dataValidations[i].rule;
+        }
+      }
+      return null;
     }
 
     try {
       withHarness(function () {
         setUpWorkbook();
 
-        equal(TracerHarness.getRows('Config')[0].join(','), 'tierId,bisWindowId', 'Config headers created');
-        equal(TracerHarness.getRows('Roster')[0].join(','),
-          'raiderKey,class,spec,role,tankPriority,dpsParse,gainFraction',
-          'Roster headers created');
-        equal(TracerHarness.getRows('PatternItems')[0].join(','), 'itemID,itemName', 'PatternItems headers created');
+        equal(headerRow('Config').join(','), labelsOf_(tabByName_('Config')).join(','), 'Config uses readable labels');
+        equal(headerRow('Roster').join(','), labelsOf_(tabByName_('Roster')).join(','), 'Roster uses readable labels');
+        equal(headerRow('TierItems').join(','), labelsOf_(tabByName_('TierItems')).join(','), 'TierItems uses readable labels');
 
         var rosterMeta = TracerHarness.getSheetMeta('Roster');
         equal(rosterMeta.frozenRowCount, 1, 'Roster header row frozen');
-        equal(rosterMeta.dataValidations.length, 4, 'Roster validation count');
-        equal(rosterMeta.conditionalFormatRules.length, 1, 'Roster conditional format count');
+        equal(rosterMeta.dataValidations.length, 6, 'Roster validation count');
+        equal(rosterMeta.conditionalFormatRules.length, 10, 'Roster conditional format count');
+        equal(rosterMeta.bandedRanges.length, 1, 'Roster banding count');
 
         var rerollsMeta = TracerHarness.getSheetMeta('Rerolls');
         equal(rerollsMeta.conditionalFormatRules.length, 2, 'Rerolls conditional format count');
+        equal(rerollsMeta.bandedRanges.length, 1, 'Rerolls banding count');
 
-        var tierItemsMeta = TracerHarness.getSheetMeta('TierItems');
-        equal(tierItemsMeta.dataValidations.length, 1, 'TierItems validation count');
+        var tierMeta = TracerHarness.getSheetMeta('TierItems');
+        equal(tierMeta.dataValidations.length, 4, 'TierItems validation count');
+        equal(tierMeta.conditionalFormatRules.length, 11, 'TierItems conditional format count');
+        equal(tierMeta.bandedRanges.length, 1, 'TierItems banding count');
 
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup complete', 'first setup success alert');
-        contains(alert, 'Created tabs', 'first setup created tabs listed');
-        equal(TracerHarness.isLockHeld(), false, 'lock released after first setup');
-        equal(rosterMeta.conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue,
-          '=AND($A2<>"",SUMPRODUCT(--EXACT($A$2:$A,$A2))>1)', 'en_US formula uses commas');
+        truthy(TracerHarness.getSheetMeta('Roster').tabColorStyle, 'input tab has tabColorStyle');
+        truthy(TracerHarness.getSheetMeta('Raids').tabColorStyle, 'log tab has tabColorStyle');
+
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'success alert text');
+        equal(TracerHarness.isLockHeld(), false, 'lock released after setup');
+
+        contains(formulaFromRule(rosterMeta.conditionalFormatRules[0]), 'EXACT', 'duplicate-name highlight has top priority over class colours');
+        var mageRule = rosterMeta.conditionalFormatRules.filter(function (rule) {
+          return formulaFromRule(rule) === '=$B2="Mage"';
+        })[0];
+        equal(JSON.stringify(mageRule.booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('3FC7EB')), 'Mage colour');
+        equal(mageRule.ranges[0].startColumnIndex + ':' + mageRule.ranges[0].endColumnIndex, '0:2', 'class colour covers Raider and Classe');
+
+        var redRule = tierMeta.conditionalFormatRules.filter(function (rule) { return formulaFromRule(rule) === '=H2<0'; })[0];
+        var greenRule = tierMeta.conditionalFormatRules.filter(function (rule) { return formulaFromRule(rule) === '=H2>=1/50'; })[0];
+        equal(JSON.stringify(redRule.booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_('B3261E')), 'negative gain is red');
+        equal(greenRule.booleanRule.format.textFormat.bold, true, 'gain of 2% or more is bold');
+        equal(JSON.stringify(greenRule.booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_('1E7D32')), 'gain of 2% or more is green');
       });
 
       withHarness(function () {
         TracerHarness.setLocale('fr_FR');
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook setup complete', 'fr_FR setup succeeds');
-        equal(TracerHarness.getSheetMeta('Roster').conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue,
-          '=AND($A2<>"";SUMPRODUCT(--EXACT($A$2:$A;$A2))>1)', 'fr_FR formula uses semicolons');
-        equal(TracerHarness.getSheetMeta('Rerolls').conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue.indexOf(','),
-          -1, 'fr_FR Rerolls formula has no commas');
-      });
 
-      withHarness(function () {
-        setUpWorkbook();
-        var rosterMetaBefore = TracerHarness.getSheetMeta('Roster');
+        var rosterMeta = TracerHarness.getSheetMeta('Roster');
+        var allRosterFormulas = rosterMeta.conditionalFormatRules.map(formulaFromRule).join('\n');
+        contains(allRosterFormulas, ';', 'fr formula uses semicolon separator');
 
-        setUpWorkbook();
-
-        var rosterMetaAfter = TracerHarness.getSheetMeta('Roster');
-        equal(rosterMetaAfter.dataValidations.length, rosterMetaBefore.dataValidations.length,
-          'rerun does not duplicate validations');
-        equal(rosterMetaAfter.conditionalFormatRules.length, rosterMetaBefore.conditionalFormatRules.length,
-          'rerun does not duplicate conditional formats');
-
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'already set up', 'rerun idempotent alert');
-        equal(TracerHarness.isLockHeld(), false, 'lock released after rerun');
-      });
-
-      withHarness(function () {
-        seedContractTabs(true);
-        setUpWorkbook();
-
-        equal(TracerHarness.getRows('Roster')[0].join(','),
-          'raiderKey,class,spec,role,tankPriority,dpsParse,gainFraction',
-          'prefix contract adds trailing headers');
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Extended headers: Roster (+2).', 'prefix extension alert');
-      });
-
-      withHarness(function () {
-        var rosterHeaders = tabByName_('Roster').headers;
-        TABS.forEach(function (tab) {
-          if (tab.name !== 'Roster') {
-            TracerHarness.seedSheet(tab.name, [tab.headers.slice()]);
-          }
+        var rosterSpecRule = validationForColumn(rosterMeta, columnOf_(tabByName_('Roster'), 'spec'));
+        contains(rosterSpecRule.condition.values[0].userEnteredValue, ';', 'fr spec rule formula uses semicolon separator');
+        equal(rosterSpecRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr spec rule formula has no commas');
+        ['Roster', 'Rerolls', 'TierItems'].forEach(function (name) {
+          TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
+            equal(formulaFromRule(rule).indexOf(','), -1, 'fr ' + name + ' rule has no commas');
+          });
         });
-        TracerHarness.seedSheet('Roster', [rosterHeaders.concat(['']), ['Ana', '', '', '', '', '', '', 'owner note']]);
-        setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'already set up', 'padded header row is not a conflict');
       });
 
       withHarness(function () {
-        TracerHarness.seedSheet('Config', [['tierId', 'badHeader']]);
+        setUpWorkbook();
+        var before = {
+          rosterRules: TracerHarness.getSheetMeta('Roster').conditionalFormatRules.length,
+          rosterValidations: TracerHarness.getSheetMeta('Roster').dataValidations.length,
+          rosterBandings: TracerHarness.getSheetMeta('Roster').bandedRanges.length,
+          tierRules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length,
+          tierBandings: TracerHarness.getSheetMeta('TierItems').bandedRanges.length
+        };
+
+        setUpWorkbook();
+        var after = {
+          rosterRules: TracerHarness.getSheetMeta('Roster').conditionalFormatRules.length,
+          rosterValidations: TracerHarness.getSheetMeta('Roster').dataValidations.length,
+          rosterBandings: TracerHarness.getSheetMeta('Roster').bandedRanges.length,
+          tierRules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length,
+          tierBandings: TracerHarness.getSheetMeta('TierItems').bandedRanges.length
+        };
+
+        equal(after.rosterRules, before.rosterRules, 'rerun keeps Roster rule count stable');
+        equal(after.rosterValidations, before.rosterValidations, 'rerun keeps Roster validation count stable');
+        equal(after.rosterBandings, before.rosterBandings, 'rerun keeps Roster banding count stable');
+        equal(after.tierRules, before.tierRules, 'rerun keeps TierItems rule count stable');
+        equal(after.tierBandings, before.tierBandings, 'rerun keeps TierItems banding count stable');
+      });
+
+      withHarness(function () {
+        TABS.forEach(function (tab) {
+          if (tab.name === 'Roster') {
+            TracerHarness.seedSheet(tab.name, [
+              keysOf_(tab),
+              ['Ana', 'Mage', 'Givre', 'Heal', 'MT1', 80, 0.03]
+            ]);
+            return;
+          }
+          TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+        });
+        TracerHarness.seedSheet('Marker', [['stable']]);
+
+        setUpWorkbook();
+
+        equal(headerRow('Roster').join(','), labelsOf_(tabByName_('Roster')).join(','), 'technical headers migrate to labels');
+        equal(TracerHarness.getRows('Roster')[1].join(','), 'Ana,Mage,Givre,Heal,MT1,80,0.03', 'setup preserves existing roster row values');
+      });
+
+      withHarness(function () {
+        TracerHarness.seedSheet('Config', [['tierId', 'Unexpected']]);
         TracerHarness.seedSheet('Marker', [['stable']]);
 
         setUpWorkbook();
 
         var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'conflict surfaces error');
-        contains(alert, 'Header conflict in tab "Config"', 'conflict identifies tab');
-        contains(alert, '[tierId, badHeader]', 'conflict shows existing headers');
-        contains(alert, '[tierId, bisWindowId]', 'conflict shows expected headers');
-        equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'existing rows unchanged on conflict');
-        equal(TracerHarness.getRows('Roster').length, 0, 'atomic abort creates no missing tabs');
+        contains(alert, 'Workbook setup failed', 'conflict returns failure alert');
+        contains(alert, 'Header conflict in tab "Config"', 'conflict names tab');
+        contains(alert, '[tierId, Unexpected]', 'conflict shows existing headers');
+        contains(alert, 'Palier actif (ID)', 'conflict shows expected labels');
+        equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'conflict keeps existing values unchanged');
+        equal(TracerHarness.getRows('Roster').length, 0, 'conflict abort is atomic');
         equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
+      });
+
+      withHarness(function () {
+        setUpWorkbook();
+
+        var rosterMeta = TracerHarness.getSheetMeta('Roster');
+        var tierMeta = TracerHarness.getSheetMeta('TierItems');
+
+        var rosterFormulas = rosterMeta.conditionalFormatRules.map(formulaFromRule);
+        var tierFormulas = tierMeta.conditionalFormatRules.map(formulaFromRule);
+
+        truthy(rosterFormulas.indexOf('=$B2="Mage"') !== -1, 'Roster has class color rule for Mage');
+        truthy(tierFormulas.indexOf('=$E2="Mage"') !== -1, 'TierItems has class color rule for Mage');
+        truthy(tierFormulas.indexOf('=H2<0') !== -1, 'TierItems has negative gain red rule');
+        truthy(tierFormulas.indexOf('=H2>=1/50') !== -1, 'TierItems has >=2% gain green/bold rule');
+
+        var roleRule = validationForColumn(rosterMeta, columnOf_(tabByName_('Roster'), 'role'));
+        var roleValues = roleRule.condition.values.map(function (entry) { return entry.userEnteredValue; }).join('|');
+        contains(roleValues, 'Heal', 'Role validation allows Heal');
+        equal(roleValues.indexOf('HEALER') === -1, true, 'Role validation rejects HEALER label');
+      });
+
+      withHarness(function () {
+        var specPattern = new RegExp(classSpecRegex_());
+        equal(specPattern.test('Mage:Givre'), true, 'spec check accepts Mage Givre');
+        equal(specPattern.test('Mage:Ombre'), false, 'spec check rejects Mage Ombre');
+        equal(specPattern.test('Prêtre:Sacré'), true, 'spec check keeps French accents');
+        equal(classNames_().indexOf('Démoniste') !== -1, true, 'class names keep accents');
+        equal(labelsOf_(tabByName_('Roster'))[2], 'Spé', 'labels keep accents');
       });
 
       withHarness(function () {
