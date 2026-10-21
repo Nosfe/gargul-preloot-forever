@@ -70,6 +70,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildHeaderStyleRequests_(sheetId, tab))
       .concat(buildColumnWidthRequests_(sheetId, tab))
       .concat(buildTabColorRequests_(sheetId, tab))
+      .concat(buildBoldDataRequests_(sheetId, tab))
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
@@ -211,6 +212,20 @@ function buildDeleteColumnRequest_(sheetId, index) {
       }
     }
   };
+}
+
+// Bold text on every data cell of Roster and Rerolls (rows 2+); only the bold flag is touched.
+function buildBoldDataRequests_(sheetId, tab) {
+  if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+    return [];
+  }
+  return [{
+    repeatCell: {
+      range: { sheetId: sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: tab.columns.length },
+      cell: { userEnteredFormat: { textFormat: { bold: true } } },
+      fields: 'userEnteredFormat.textFormat.bold'
+    }
+  }];
 }
 
 // Moves tabs into TAB_ORDER, using the final id of each title after this batch's adds and deletes.

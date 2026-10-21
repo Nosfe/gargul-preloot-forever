@@ -535,6 +535,14 @@
       });
 
       withHarness(function () {
+        var bold = buildSetupRequests_(Object.create(null), { sheets: [] }, ',').filter(function (request) {
+          return request.repeatCell && request.repeatCell.fields === 'userEnteredFormat.textFormat.bold';
+        });
+        equal(bold.length, 2, 'bold data cells on Roster and Rerolls only');
+        equal(bold[0].repeatCell.range.startRowIndex, 1, 'bold starts below the header');
+      });
+
+      withHarness(function () {
         rosterLookupTests();
       });
 
