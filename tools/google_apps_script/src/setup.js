@@ -49,6 +49,20 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
     var existing = existingHeadersByName[tab.name];
     var sheetId = tab.sheetId;
 
+    if (tab.name === 'TierItems' && existing) {
+      var legacySlot = inspectLegacySlotColumn_(existing);
+      if (legacySlot.hasData) {
+        throw new Error(
+          'Cannot remove Emplacement column in tab "TierItems" because it has data in column ' +
+          columnLetter_(legacySlot.columnIndex) + '. Clear that column first.'
+        );
+      }
+      if (legacySlot.shouldDelete) {
+        requests.push(buildDeleteColumnRequest_(existing.sheetId, legacySlot.columnIndex));
+        existing.headers = removeIndex_(existing.headers, legacySlot.columnIndex);
+      }
+    }
+
     if (!existing) {
       requests = requests.concat(buildCreateTabRequests_(tab));
     } else {
@@ -64,12 +78,19 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildValueFormatRequests_(sheetId, tab))
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
+    if (tab.name === 'TierItems' && shouldSeedTierSections_(existing)) {
+      requests = requests.concat(buildTierSectionSeedRequests_(sheetId));
+    }
+
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
 
     requests = requests
       .concat(buildBandingRequests_(sheetId, tab))
       .concat(buildConditionalFormatRequestsForTab_(sheetId, tab, separator));
   }
+
+  // Views read the live Roster names, so this part of the plan is not pure.
+  requests = requests.concat(buildViewRequests_(separator));
 
   return { requests: requests };
 }
@@ -88,7 +109,7 @@ function readExistingHeadersByName_() {
 
     var lastColumn = sheet.getLastColumn();
     if (lastColumn <= 0) {
-      headersByName[tab.name] = { sheetId: sheet.getSheetId(), headers: [] };
+      headersByName[tab.name] = { sheetId: sheet.getSheetId(), headers: [], rows: [], hasDataRows: false };
       continue;
     }
 
@@ -106,11 +127,105 @@ function readExistingHeadersByName_() {
 
     headersByName[tab.name] = {
       sheetId: sheet.getSheetId(),
-      headers: headers
+      headers: headers,
+      rows: rows,
+      hasDataRows: hasAnyDataRows_(rows)
     };
   }
 
   return headersByName;
+}
+
+// True when any row below the header contains at least one non-empty value.
+function hasAnyDataRows_(rows) {
+  for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    var row = rows[rowIndex] || [];
+    for (var col = 0; col < row.length; col += 1) {
+      if (row[col] !== '' && row[col] !== null && row[col] !== undefined) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Detects the legacy slot/Emplacement column and whether it contains data below row 1.
+function inspectLegacySlotColumn_(existing) {
+  var headers = existing.headers || [];
+  var index = -1;
+
+  for (var i = 0; i < headers.length; i += 1) {
+    if (headers[i] === 'slot' || headers[i] === 'Emplacement') {
+      index = i;
+      break;
+    }
+  }
+
+  if (index === -1) {
+    return { shouldDelete: false, hasData: false, columnIndex: -1 };
+  }
+
+  var rows = existing.rows || [];
+  for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    var row = rows[rowIndex] || [];
+    if (row[index] !== '' && row[index] !== null && row[index] !== undefined) {
+      return { shouldDelete: false, hasData: true, columnIndex: index };
+    }
+  }
+
+  return { shouldDelete: true, hasData: false, columnIndex: index };
+}
+
+// Removes one item from an array by index.
+function removeIndex_(items, indexToRemove) {
+  var result = [];
+  for (var i = 0; i < items.length; i += 1) {
+    if (i !== indexToRemove) {
+      result.push(items[i]);
+    }
+  }
+  return result;
+}
+
+// Deletes one sheet column by zero-based index.
+function buildDeleteColumnRequest_(sheetId, zeroBasedIndex) {
+  return {
+    deleteDimension: {
+      range: {
+        sheetId: sheetId,
+        dimension: 'COLUMNS',
+        startIndex: zeroBasedIndex,
+        endIndex: zeroBasedIndex + 1
+      }
+    }
+  };
+}
+
+// Seeds TierItems role titles only when there are no existing data rows.
+function shouldSeedTierSections_(existing) {
+  return !existing || !existing.hasDataRows;
+}
+
+// Writes the five TierItems role section title rows below the header.
+function buildTierSectionSeedRequests_(sheetId) {
+  var rows = ROLE_OPTIONS.map(function (roleName) {
+    return {
+      values: [
+        { userEnteredValue: { stringValue: roleName } },
+        { userEnteredValue: { stringValue: '' } }
+      ]
+    };
+  });
+
+  return [
+    {
+      updateCells: {
+        start: { sheetId: sheetId, rowIndex: 1, columnIndex: 0 },
+        rows: rows,
+        fields: 'userEnteredValue'
+      }
+    }
+  ];
 }
 
 // Each existing header cell must hold its column's label or its old technical key (first 4.2 version).
@@ -275,7 +390,13 @@ function buildColumnWidthRequests_(sheetId, tab) {
 
 // Green tabs = filled by the owner; grey-blue tabs = written by the script.
 function buildTabColorRequests_(sheetId, tab) {
-  var color = tab.group === 'log' ? rgbHex_('93A7B6') : rgbHex_('97B97C');
+  var color = rgbHex_('97B97C');
+  if (tab.group === 'log') {
+    color = rgbHex_('93A7B6');
+  }
+  if (tab.group === 'view') {
+    color = rgbHex_('5F7FA2');
+  }
 
   return [
     {
@@ -600,6 +721,26 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
         gainColumn + 1,
         '=' + gainLetter + '2>=1/50',
         { textFormat: { foregroundColor: rgbHex_('1E7D32'), bold: true } },
+        separator
+      )
+    );
+
+    // Section title rows: a role name from ROLE_OPTIONS in column A and no item ID.
+    var titleColumnLetter = columnLetter_(columnOf_(tab, 'tierId'));
+    var itemIdColumnLetter = columnLetter_(columnOf_(tab, 'itemID'));
+    var titleTests = ROLE_OPTIONS.map(function (role) {
+      return '$' + titleColumnLetter + '2="' + role + '"';
+    }).join(',');
+    requests.push(
+      buildConditionalFormatRequest_(
+        sheetId,
+        0,
+        labelsOf_(tab).length,
+        '=AND(OR(' + titleTests + '),$' + itemIdColumnLetter + '2="")',
+        {
+          backgroundColor: rgbHex_('253746'),
+          textFormat: { foregroundColor: rgbHex_('FFFFFF'), bold: true }
+        },
         separator
       )
     );

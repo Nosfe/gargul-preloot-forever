@@ -15,6 +15,12 @@ var CLASS_SPECS = [
   { name: 'Druide', specs: ['Équilibre', 'Combat farouche', 'Restauration'], colorHex: 'FF7C0A', textHex: '1F1F1F' }
 ];
 
+// Read-only tabs rebuilt by setup on each run.
+var VIEW_TABS = [
+  { name: 'Présence', sheetId: 1101, group: 'view' },
+  { name: 'Butin', sheetId: 1102, group: 'view' }
+];
+
 // Column contract for every data tab, in creation order.
 // Code reads columns by `key` (stable); `label` is what people see in row 1; `note` shows on hover.
 // group: 'input' = filled by the owner, 'log' = written by the script (different tab colour).
@@ -122,7 +128,6 @@ var TABS = [
       { key: 'tierId', label: 'Palier', note: 'Palier de l\'objet.' },
       { key: 'itemID', label: 'Objet (ID)', note: 'ID de l\'objet (Wowhead).' },
       { key: 'itemName', label: 'Objet', note: 'Nom de l\'objet.' },
-      { key: 'slot', label: 'Emplacement', note: 'Emplacement d\'équipement, ex. Tête, Arme.' },
       { key: 'class', label: 'Classe', note: 'Classe concernée (liste).' },
       { key: 'spec', label: 'Spé', note: 'Une des trois spés de la classe.' },
       { key: 'status', label: 'Statut', note: 'BIS, ALT_BIS, IMPACT, TIER, CLASS_BOUND ou NORMAL pour cette spé.' },

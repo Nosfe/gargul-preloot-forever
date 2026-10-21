@@ -18,12 +18,15 @@
     if (!sheet.meta) {
       sheet.meta = {
         frozenRowCount: 0,
+        frozenColumnCount: 0,
         tabColorStyle: null,
         dataValidations: [],
         conditionalFormatRules: [],
         bandedRanges: [],
         columnWidths: {},
-        notes: {}
+        notes: {},
+        merges: [],
+        borders: []
       };
     }
     if (!Array.isArray(sheet.meta.dataValidations)) {
@@ -41,21 +44,32 @@
     if (!sheet.meta.notes) {
       sheet.meta.notes = {};
     }
+    if (!Array.isArray(sheet.meta.merges)) {
+      sheet.meta.merges = [];
+    }
+    if (!Array.isArray(sheet.meta.borders)) {
+      sheet.meta.borders = [];
+    }
   }
 
-  function createSheetRecord_(id, title, rows, frozenRowCount) {
+  function createSheetRecord_(id, title, rows, frozenRowCount, frozenColumnCount) {
     return {
       id: id,
       title: title,
       rows: clone(rows || []),
       meta: {
         frozenRowCount: Number(frozenRowCount || 0),
+        frozenColumnCount: Number(frozenColumnCount || 0),
+        // New Sheets tabs have 26 columns (A-Z); writes beyond the grid are rejected like the real API.
+        columnCount: 26,
         tabColorStyle: null,
         dataValidations: [],
         conditionalFormatRules: [],
         bandedRanges: [],
         columnWidths: {},
-        notes: {}
+        notes: {},
+        merges: [],
+        borders: []
       }
     };
   }
@@ -72,6 +86,9 @@
     }
     if (Object.prototype.hasOwnProperty.call(cellData.userEnteredValue, 'boolValue')) {
       return cellData.userEnteredValue.boolValue;
+    }
+    if (Object.prototype.hasOwnProperty.call(cellData.userEnteredValue, 'formulaValue')) {
+      return cellData.userEnteredValue.formulaValue;
     }
     return '';
   }
@@ -105,7 +122,16 @@
       throw new Error('Sheet id already exists: ' + newId);
     }
 
-    storeById[String(newId)] = createSheetRecord_(newId, title, [], Number(gridProperties.frozenRowCount || 0));
+    storeById[String(newId)] = createSheetRecord_(
+      newId,
+      title,
+      [],
+      Number(gridProperties.frozenRowCount || 0),
+      Number(gridProperties.frozenColumnCount || 0)
+    );
+    if (typeof gridProperties.columnCount === 'number') {
+      storeById[String(newId)].meta.columnCount = gridProperties.columnCount;
+    }
     nameIndex[title] = newId;
 
     return {
@@ -114,7 +140,8 @@
           sheetId: newId,
           title: title,
           gridProperties: {
-            frozenRowCount: Number(gridProperties.frozenRowCount || 0)
+            frozenRowCount: Number(gridProperties.frozenRowCount || 0),
+            frozenColumnCount: Number(gridProperties.frozenColumnCount || 0)
           }
         }
       }
@@ -143,7 +170,8 @@
   function applyUpdateCells_(request, storeById) {
     var updateCells = request.updateCells || {};
     var start = updateCells.start || {};
-    var sheetId = start.sheetId;
+    // A request targets either `start` (write) or `range` (clear).
+    var sheetId = updateCells.range ? updateCells.range.sheetId : start.sheetId;
     var rowIndex = Number(start.rowIndex || 0);
     var columnIndex = Number(start.columnIndex || 0);
     var rows = updateCells.rows || [];
@@ -154,6 +182,20 @@
     }
 
     ensureSheetMeta_(sheet);
+
+    if (updateCells.range && updateCells.fields === '*' && !updateCells.rows) {
+      sheet.rows = [];
+      sheet.meta.notes = {};
+      sheet.meta.borders = [];
+      return {};
+    }
+
+    rows.forEach(function (rowDef) {
+      var width = ((rowDef && rowDef.values) || []).length;
+      if (columnIndex + width > (sheet.meta.columnCount || 26)) {
+        throw new Error('updateCells beyond grid in ' + sheet.title + ': column ' + (columnIndex + width));
+      }
+    });
 
     rows.forEach(function (rowDef, rowOffset) {
       var targetRowIndex = rowIndex + rowOffset;
@@ -258,6 +300,12 @@
     if (properties.gridProperties && typeof properties.gridProperties.frozenRowCount === 'number') {
       sheet.meta.frozenRowCount = properties.gridProperties.frozenRowCount;
     }
+    if (properties.gridProperties && typeof properties.gridProperties.frozenColumnCount === 'number') {
+      sheet.meta.frozenColumnCount = properties.gridProperties.frozenColumnCount;
+    }
+    if (properties.gridProperties && typeof properties.gridProperties.columnCount === 'number') {
+      sheet.meta.columnCount = properties.gridProperties.columnCount;
+    }
     if (Object.prototype.hasOwnProperty.call(properties, 'tabColorStyle')) {
       sheet.meta.tabColorStyle = clone(properties.tabColorStyle || null);
     }
@@ -354,6 +402,96 @@
     return {};
   }
 
+  function applyDeleteDimension_(request, storeById) {
+    var payload = request.deleteDimension || {};
+    var range = payload.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in deleteDimension: ' + sheetId);
+    }
+
+    if (range.dimension !== 'COLUMNS') {
+      throw new Error('Fake deleteDimension currently supports only COLUMNS.');
+    }
+
+    var start = Number(range.startIndex || 0);
+    var end = Number(range.endIndex || start);
+    var deleteCount = Math.max(0, end - start);
+
+    if (deleteCount <= 0) {
+      return {};
+    }
+
+    sheet.rows = sheet.rows.map(function (row) {
+      var next = (row || []).slice();
+      next.splice(start, deleteCount);
+      return next;
+    });
+
+    ensureSheetMeta_(sheet);
+    var nextWidths = {};
+    Object.keys(sheet.meta.columnWidths).forEach(function (key) {
+      var index = Number(key);
+      if (index < start) {
+        nextWidths[String(index)] = sheet.meta.columnWidths[key];
+      } else if (index >= end) {
+        nextWidths[String(index - deleteCount)] = sheet.meta.columnWidths[key];
+      }
+    });
+    sheet.meta.columnWidths = nextWidths;
+
+    return {};
+  }
+
+  function applyMergeCells_(request, storeById) {
+    var payload = request.mergeCells || {};
+    var range = payload.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in mergeCells: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    if (Number(range.endColumnIndex) > (sheet.meta.columnCount || 26)) {
+      throw new Error('mergeCells beyond grid in ' + sheet.title + ': column ' + range.endColumnIndex);
+    }
+    sheet.meta.merges.push(clone(range));
+    return {};
+  }
+
+  function applyUnmergeCells_(request, storeById) {
+    var payload = request.unmergeCells || {};
+    var range = payload.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in unmergeCells: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    sheet.meta.merges = [];
+    return {};
+  }
+
+  function applyUpdateBorders_(request, storeById) {
+    var payload = request.updateBorders || {};
+    var range = payload.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in updateBorders: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    sheet.meta.borders.push(clone(payload));
+    return {};
+  }
+
   function batchUpdate_(body, spreadsheetId) {
     if (spreadsheetId !== state.spreadsheetId) {
       throw new Error('Unexpected spreadsheet id: ' + spreadsheetId);
@@ -407,6 +545,22 @@
       }
       if (request.deleteBanding) {
         replies.push(applyDeleteBanding_(request, workingStore));
+        return;
+      }
+      if (request.deleteDimension) {
+        replies.push(applyDeleteDimension_(request, workingStore));
+        return;
+      }
+      if (request.mergeCells) {
+        replies.push(applyMergeCells_(request, workingStore));
+        return;
+      }
+      if (request.unmergeCells) {
+        replies.push(applyUnmergeCells_(request, workingStore));
+        return;
+      }
+      if (request.updateBorders) {
+        replies.push(applyUpdateBorders_(request, workingStore));
         return;
       }
 
@@ -642,7 +796,11 @@
       ? options.frozenRowCount
       : 0;
 
-    state.storeById[String(id)] = createSheetRecord_(id, name, rows || [], frozen);
+    var frozenColumns = options && typeof options.frozenColumnCount === 'number'
+      ? options.frozenColumnCount
+      : 0;
+
+    state.storeById[String(id)] = createSheetRecord_(id, name, rows || [], frozen, frozenColumns);
     state.nameIndex[name] = id;
   }
 
