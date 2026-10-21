@@ -4,6 +4,9 @@
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
 <script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/roster.js"></script>
 <script src="../src/attendance.js"></script>
 <script src="../src/snapshot.js"></script>
 <script src="../src/ledger.js"></script>
@@ -52,6 +55,7 @@
       onOpen();
       var menu = TracerHarness.getLastMenu();
       equal(menu.caption, 'Loot priority', 'menu title');
+      equal(Boolean(menuItem(menu, 'Set up workbook')), true, 'menu has setup action');
       equal(Boolean(menuItem(menu, 'Sync attendance')), true, 'menu has attendance action');
       equal(Boolean(menuItem(menu, 'Export raid snapshot')), true, 'menu has snapshot action');
       equal(Boolean(menuItem(menu, 'Import raid ledger')), true, 'menu has ledger action');

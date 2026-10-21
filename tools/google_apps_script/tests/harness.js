@@ -34,6 +34,7 @@
     var properties = (request.addSheet && request.addSheet.properties) || {};
     var title = properties.title;
     var requestedId = properties.sheetId;
+    var gridProperties = properties.gridProperties || {};
 
     if (!title) {
       throw new Error('addSheet requires properties.title');
@@ -55,7 +56,12 @@
     storeById[String(newId)] = {
       id: newId,
       title: title,
-      rows: []
+      rows: [],
+      meta: {
+        frozenRowCount: Number(gridProperties.frozenRowCount || 0),
+        dataValidations: [],
+        conditionalFormatRules: []
+      }
     };
     nameIndex[title] = newId;
 
@@ -63,7 +69,10 @@
       addSheet: {
         properties: {
           sheetId: newId,
-          title: title
+          title: title,
+          gridProperties: {
+            frozenRowCount: Number(gridProperties.frozenRowCount || 0)
+          }
         }
       }
     };
@@ -88,6 +97,121 @@
     return {};
   }
 
+  function ensureSheetMeta_(sheet) {
+    if (!sheet.meta) {
+      sheet.meta = {
+        frozenRowCount: 0,
+        dataValidations: [],
+        conditionalFormatRules: []
+      };
+    }
+    if (!Array.isArray(sheet.meta.dataValidations)) {
+      sheet.meta.dataValidations = [];
+    }
+    if (!Array.isArray(sheet.meta.conditionalFormatRules)) {
+      sheet.meta.conditionalFormatRules = [];
+    }
+  }
+
+  function ensureRowLength_(row, minLength) {
+    while (row.length < minLength) {
+      row.push('');
+    }
+  }
+
+  function applyUpdateCells_(request, storeById) {
+    var updateCells = request.updateCells || {};
+    var start = updateCells.start || {};
+    var sheetId = start.sheetId;
+    var rowIndex = Number(start.rowIndex || 0);
+    var columnIndex = Number(start.columnIndex || 0);
+    var rows = updateCells.rows || [];
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in updateCells: ' + sheetId);
+    }
+
+    rows.forEach(function (rowDef, rowOffset) {
+      var targetRowIndex = rowIndex + rowOffset;
+      while (sheet.rows.length <= targetRowIndex) {
+        sheet.rows.push([]);
+      }
+
+      var targetRow = sheet.rows[targetRowIndex];
+      var values = (rowDef && rowDef.values) || [];
+      ensureRowLength_(targetRow, columnIndex + values.length);
+
+      values.forEach(function (cellData, colOffset) {
+        targetRow[columnIndex + colOffset] = toCellValue_(cellData);
+      });
+    });
+
+    return {};
+  }
+
+  function applySetDataValidation_(request, storeById) {
+    var setDataValidation = request.setDataValidation || {};
+    var range = setDataValidation.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in setDataValidation: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    sheet.meta.dataValidations.push({
+      range: clone(range),
+      rule: clone(setDataValidation.rule || null)
+    });
+
+    return {};
+  }
+
+  function applyAddConditionalFormatRule_(request, storeById) {
+    var addConditionalFormatRule = request.addConditionalFormatRule || {};
+    var rule = addConditionalFormatRule.rule || {};
+    var ranges = rule.ranges || [];
+    var index = Number(addConditionalFormatRule.index || 0);
+
+    if (!ranges.length || typeof ranges[0].sheetId !== 'number') {
+      throw new Error('addConditionalFormatRule requires a range with sheetId');
+    }
+
+    var sheetId = ranges[0].sheetId;
+    var sheet = storeById[String(sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in addConditionalFormatRule: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    if (index < 0 || index > sheet.meta.conditionalFormatRules.length) {
+      throw new Error('Conditional format index out of bounds: ' + index);
+    }
+
+    sheet.meta.conditionalFormatRules.splice(index, 0, clone(rule));
+    return {};
+  }
+
+  function applyUpdateSheetProperties_(request, storeById) {
+    var updateSheetProperties = request.updateSheetProperties || {};
+    var properties = updateSheetProperties.properties || {};
+    var sheetId = properties.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in updateSheetProperties: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    if (properties.gridProperties && typeof properties.gridProperties.frozenRowCount === 'number') {
+      sheet.meta.frozenRowCount = properties.gridProperties.frozenRowCount;
+    }
+
+    return {};
+  }
+
   function batchUpdate_(body, spreadsheetId) {
     if (spreadsheetId !== state.spreadsheetId) {
       throw new Error('Unexpected spreadsheet id: ' + spreadsheetId);
@@ -105,6 +229,22 @@
       }
       if (request.appendCells) {
         replies.push(applyAppendCells_(request, workingStore));
+        return;
+      }
+      if (request.updateCells) {
+        replies.push(applyUpdateCells_(request, workingStore));
+        return;
+      }
+      if (request.setDataValidation) {
+        replies.push(applySetDataValidation_(request, workingStore));
+        return;
+      }
+      if (request.addConditionalFormatRule) {
+        replies.push(applyAddConditionalFormatRule_(request, workingStore));
+        return;
+      }
+      if (request.updateSheetProperties) {
+        replies.push(applyUpdateSheetProperties_(request, workingStore));
         return;
       }
 
@@ -167,6 +307,22 @@
           },
           getName: function () {
             return sheetRecord.title;
+          },
+          getLastColumn: function () {
+            var max = 0;
+            sheetRecord.rows.forEach(function (row) {
+              if (Array.isArray(row) && row.length > max) {
+                max = row.length;
+              }
+            });
+            return max;
+          },
+          getDataRange: function () {
+            return {
+              getValues: function () {
+                return clone(sheetRecord.rows);
+              }
+            };
           }
         };
       }
@@ -284,6 +440,32 @@
     return clone(state.lastMenu);
   }
 
+  function seedSheet(name, rows) {
+    var id = state.nextSheetId;
+    state.nextSheetId += 1;
+    state.storeById[String(id)] = {
+      id: id,
+      title: name,
+      rows: clone(rows || []),
+      meta: {
+        frozenRowCount: 0,
+        dataValidations: [],
+        conditionalFormatRules: []
+      }
+    };
+    state.nameIndex[name] = id;
+  }
+
+  function getSheetMeta(name) {
+    if (!Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
+      return null;
+    }
+    var sheetId = state.nameIndex[name];
+    var sheet = state.storeById[String(sheetId)];
+    ensureSheetMeta_(sheet);
+    return clone(sheet.meta);
+  }
+
   function isLockHeld() {
     return state.lockHeld;
   }
@@ -299,6 +481,8 @@
     getAlerts: getAlerts,
     clearAlerts: clearAlerts,
     getLastMenu: getLastMenu,
+    seedSheet: seedSheet,
+    getSheetMeta: getSheetMeta,
     isLockHeld: isLockHeld,
     setLockBusy: setLockBusy
   };

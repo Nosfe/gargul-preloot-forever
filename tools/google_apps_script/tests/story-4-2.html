@@ -1,0 +1,202 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.2 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/roster.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function truthy(value, label) {
+      assertions += 1;
+      if (!value) {
+        throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function seedContractTabs(prefixRoster) {
+      TABS.forEach(function (tab) {
+        var headers = tab.headers.slice();
+        if (prefixRoster && tab.name === 'Roster') {
+          headers = tab.headers.slice(0, tab.headers.length - 2);
+        }
+        TracerHarness.seedSheet(tab.name, [headers]);
+      });
+    }
+
+    try {
+      withHarness(function () {
+        setUpWorkbook();
+
+        equal(TracerHarness.getRows('Config')[0].join(','), 'tierId,bisWindowId', 'Config headers created');
+        equal(TracerHarness.getRows('Roster')[0].join(','),
+          'raiderKey,class,spec,role,tankPriority,dpsParse,gainFraction',
+          'Roster headers created');
+        equal(TracerHarness.getRows('PatternItems')[0].join(','), 'itemID,itemName', 'PatternItems headers created');
+
+        var rosterMeta = TracerHarness.getSheetMeta('Roster');
+        equal(rosterMeta.frozenRowCount, 1, 'Roster header row frozen');
+        equal(rosterMeta.dataValidations.length, 4, 'Roster validation count');
+        equal(rosterMeta.conditionalFormatRules.length, 1, 'Roster conditional format count');
+
+        var rerollsMeta = TracerHarness.getSheetMeta('Rerolls');
+        equal(rerollsMeta.conditionalFormatRules.length, 2, 'Rerolls conditional format count');
+
+        var tierItemsMeta = TracerHarness.getSheetMeta('TierItems');
+        equal(tierItemsMeta.dataValidations.length, 1, 'TierItems validation count');
+
+        var alert = TracerHarness.getAlerts().slice(-1)[0];
+        contains(alert, 'Workbook setup complete', 'first setup success alert');
+        contains(alert, 'Created tabs', 'first setup created tabs listed');
+        equal(TracerHarness.isLockHeld(), false, 'lock released after first setup');
+      });
+
+      withHarness(function () {
+        setUpWorkbook();
+        var rosterMetaBefore = TracerHarness.getSheetMeta('Roster');
+
+        setUpWorkbook();
+
+        var rosterMetaAfter = TracerHarness.getSheetMeta('Roster');
+        equal(rosterMetaAfter.dataValidations.length, rosterMetaBefore.dataValidations.length,
+          'rerun does not duplicate validations');
+        equal(rosterMetaAfter.conditionalFormatRules.length, rosterMetaBefore.conditionalFormatRules.length,
+          'rerun does not duplicate conditional formats');
+
+        var alert = TracerHarness.getAlerts().slice(-1)[0];
+        contains(alert, 'already set up', 'rerun idempotent alert');
+        equal(TracerHarness.isLockHeld(), false, 'lock released after rerun');
+      });
+
+      withHarness(function () {
+        seedContractTabs(true);
+        setUpWorkbook();
+
+        equal(TracerHarness.getRows('Roster')[0].join(','),
+          'raiderKey,class,spec,role,tankPriority,dpsParse,gainFraction',
+          'prefix contract adds trailing headers');
+        var alert = TracerHarness.getAlerts().slice(-1)[0];
+        contains(alert, 'Extended headers: Roster (+2).', 'prefix extension alert');
+      });
+
+      withHarness(function () {
+        var rosterHeaders = tabByName_('Roster').headers;
+        TABS.forEach(function (tab) {
+          if (tab.name !== 'Roster') {
+            TracerHarness.seedSheet(tab.name, [tab.headers.slice()]);
+          }
+        });
+        TracerHarness.seedSheet('Roster', [rosterHeaders.concat(['']), ['Ana', '', '', '', '', '', '', 'owner note']]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'already set up', 'padded header row is not a conflict');
+      });
+
+      withHarness(function () {
+        TracerHarness.seedSheet('Config', [['tierId', 'badHeader']]);
+        TracerHarness.seedSheet('Marker', [['stable']]);
+
+        setUpWorkbook();
+
+        var alert = TracerHarness.getAlerts().slice(-1)[0];
+        contains(alert, 'Workbook setup failed', 'conflict surfaces error');
+        contains(alert, 'Header conflict in tab "Config"', 'conflict identifies tab');
+        contains(alert, '[tierId, badHeader]', 'conflict shows existing headers');
+        contains(alert, '[tierId, bisWindowId]', 'conflict shows expected headers');
+        equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'existing rows unchanged on conflict');
+        equal(TracerHarness.getRows('Roster').length, 0, 'atomic abort creates no missing tabs');
+        equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
+      });
+
+      withHarness(function () {
+        var index = buildRosterIndex_(
+          [['raiderKey'], ['Ana'], ['ana']],
+          [['rerollName', 'mainKey'], ['AnaAlt', 'Ana']]
+        );
+
+        equal(findRaiderKey_(index, 'Ana'), 'Ana', 'exact key lookup for Ana');
+        equal(findRaiderKey_(index, 'ana'), 'ana', 'exact key lookup for ana');
+        equal(findRaiderKey_(index, 'ANA'), null, 'lookup does not case-fold');
+        equal(resolveAttendanceKey_(index, 'AnaAlt'), 'Ana', 'attendance resolves reroll to main');
+        equal(resolveAttendanceKey_(index, 'Ana'), 'Ana', 'attendance keeps direct raider key');
+      });
+
+      withHarness(function () {
+        var duplicateIndex = buildRosterIndex_(
+          [['raiderKey'], ['Ana'], ['Ana']],
+          [['rerollName', 'mainKey']]
+        );
+        truthy(duplicateIndex.errors.length > 0, 'duplicate roster key reports error');
+        contains(duplicateIndex.errors[0], 'duplicate key "Ana"', 'duplicate key includes key name');
+
+        TracerHarness.seedSheet('Roster', [['raiderKey'], ['Ana'], ['Ana']]);
+        TracerHarness.seedSheet('Rerolls', [['rerollName', 'mainKey']]);
+
+        var threw = false;
+        try {
+          requireRosterIndex_();
+        } catch (error) {
+          threw = true;
+          contains(error.message, 'Roster index errors', 'requireRosterIndex_ throws aggregated errors');
+          contains(error.message, 'duplicate key "Ana" at rows 2 and 3', 'requireRosterIndex_ names key and both rows');
+        }
+        equal(threw, true, 'requireRosterIndex_ throws on duplicate');
+      });
+
+      withHarness(function () {
+        var badReroll = buildRosterIndex_(
+          [['raiderKey'], ['Ana'], ['Mira']],
+          [['rerollName', 'mainKey'], ['Ana', 'Ana'], ['AltOne', 'MissingMain'], ['AltOne', 'Mira']]
+        );
+
+        equal(badReroll.errors.length, 3, 'bad reroll scenarios produce three errors');
+        contains(badReroll.errors[0], 'must not match a roster key', 'reroll name collision error');
+        contains(badReroll.errors[1], 'is not in roster keys', 'missing main key error');
+        contains(badReroll.errors[2], 'duplicate rerollName', 'duplicate reroll error');
+      });
+
+      withHarness(function () {
+        var whitespaceIndex = buildRosterIndex_(
+          [['raiderKey'], ['Ana ']],
+          [['rerollName', 'mainKey']]
+        );
+
+        equal(whitespaceIndex.errors.length, 1, 'whitespace key rejected');
+        contains(whitespaceIndex.errors[0], 'leading/trailing whitespace', 'whitespace error mentions reason');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>
