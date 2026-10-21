@@ -1,5 +1,6 @@
 var LOCK_TIMEOUT_MS = 1000;
 
+// Runs fn while holding the document lock. Not re-entrant: take it once per action.
 function withDocumentLock_(fn) {
   var lock = LockService.getDocumentLock();
   if (!lock.tryLock(LOCK_TIMEOUT_MS)) {
@@ -13,6 +14,7 @@ function withDocumentLock_(fn) {
   }
 }
 
+// The only write path: builds requests inside the lock, then sends them as one all-or-nothing batchUpdate.
 function applyBatch_(buildRequests) {
   return withDocumentLock_(function () {
     var requests = buildRequests();

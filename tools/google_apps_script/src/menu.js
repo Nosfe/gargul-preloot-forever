@@ -1,7 +1,10 @@
 var DIAGNOSTICS_SHEET_NAME = 'Diagnostics';
+// Fixed id lets the sheet be created and written in the same batch.
 var DIAGNOSTICS_SHEET_ID = 41041;
+// Never created: the forced-failure write targets it.
 var DIAGNOSTICS_MISSING_SHEET_ID = 919191;
 
+// Simple trigger: builds the owner menu each time the workbook opens.
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
 
@@ -29,6 +32,7 @@ function runDiagnosticsTestFailedWrite() {
   runDiagnostics_(true);
 }
 
+// Appends one row; forceFailure adds a write to a missing sheet so Sheets rejects the whole batch.
 function runDiagnostics_(forceFailure) {
   var ui = SpreadsheetApp.getUi();
 

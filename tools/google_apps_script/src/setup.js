@@ -1,8 +1,10 @@
+// Menu action: creates or extends the data tabs in one locked batch; safe to run again.
 function setUpWorkbook() {
   var ui = SpreadsheetApp.getUi();
   var plan = null;
 
   try {
+    // Read and plan inside the lock so another action cannot change the tabs in between.
     applyBatch_(function () {
       var existingHeadersByName = readExistingHeadersByName_();
       plan = buildSetupPlan_(existingHeadersByName);
@@ -28,10 +30,12 @@ function setUpWorkbook() {
   }
 }
 
+// Requests only, without the summary lists.
 function buildSetupRequests_(existingHeadersByName) {
   return buildSetupPlan_(existingHeadersByName).requests;
 }
 
+// Missing tab -> create it with rules; header prefix -> append the missing headers; anything else throws (nothing written).
 function buildSetupPlan_(existingHeadersByName) {
   var requests = [];
   var createdTabs = [];
@@ -41,6 +45,7 @@ function buildSetupPlan_(existingHeadersByName) {
     var tab = TABS[i];
     var existing = existingHeadersByName[tab.name];
 
+    // Rules are added only at creation so a re-run never duplicates them.
     if (!existing) {
       createdTabs.push(tab.name);
       requests = requests
@@ -72,6 +77,7 @@ function buildSetupPlan_(existingHeadersByName) {
   };
 }
 
+// Row 1 of each contract tab that already exists, keyed by tab name.
 function readExistingHeadersByName_() {
   var spreadsheet = SpreadsheetApp.getActive();
   var headersByName = Object.create(null);
@@ -113,6 +119,7 @@ function readExistingHeadersByName_() {
   return headersByName;
 }
 
+// Existing headers must be an exact prefix of the contract.
 function validateHeaderCompatibility_(tab, existingHeaders) {
   if (existingHeaders.length > tab.headers.length) {
     throw headerConflictError_(tab.name, existingHeaders, tab.headers);
@@ -149,6 +156,7 @@ function buildCreateTabRequests_(tab) {
   ];
 }
 
+// Writes header names into row 1 starting at startColumn (0-based).
 function buildHeaderAppendRequest_(sheetId, startColumn, headers) {
   return {
     updateCells: {
@@ -173,6 +181,7 @@ function buildHeaderAppendRequest_(sheetId, startColumn, headers) {
   };
 }
 
+// Strict dropdowns and ranges matching the Interchange v1 limits; blank cells stay allowed.
 function buildValidationRequestsForTab_(tab) {
   var requests = [];
 
@@ -252,6 +261,7 @@ function buildValidationRequestsForTab_(tab) {
   return requests;
 }
 
+// Whole column below the header (no endRowIndex = to the bottom of the sheet).
 function buildDataValidationRequest_(sheetId, columnIndex, rule) {
   return {
     setDataValidation: {
@@ -266,9 +276,12 @@ function buildDataValidationRequest_(sheetId, columnIndex, rule) {
   };
 }
 
+// Live highlighting of bad names. EXACT is used because COUNTIF ignores case;
+// INDIRECT is required because conditional formats cannot reference another tab directly.
 function buildConditionalFormatRequestsForTab_(tab) {
   var requests = [];
 
+  // Roster: duplicate raiderKey.
   if (tab.name === 'Roster') {
     requests.push(
       buildConditionalFormatRequest_(
@@ -280,6 +293,7 @@ function buildConditionalFormatRequestsForTab_(tab) {
     );
   }
 
+  // Rerolls: alt name repeated or equal to a raider (column A); main not in Roster (column B).
   if (tab.name === 'Rerolls') {
     requests.push(
       buildConditionalFormatRequest_(
@@ -303,6 +317,7 @@ function buildConditionalFormatRequestsForTab_(tab) {
   return requests;
 }
 
+// Light red background on matching cells, rows 2 and below.
 function buildConditionalFormatRequest_(sheetId, startColumnIndex, endColumnIndex, formula) {
   return {
     addConditionalFormatRule: {

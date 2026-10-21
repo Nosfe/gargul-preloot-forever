@@ -1,4 +1,9 @@
+// Exact-name roster lookup shared by the attendance (4.4) and ledger (4.7) imports.
+// Names are compared verbatim: no case-folding, no realm stripping (AD-3).
+
+// Builds the lookup from raw tab values (header row first); collects every problem instead of stopping at the first.
 function buildRosterIndex_(rosterRows, rerollRows) {
+  // Prototype-free maps so names like "constructor" or "__proto__" are ordinary keys.
   var raiders = Object.create(null);
   var rerollToMain = Object.create(null);
   var errors = [];
@@ -33,6 +38,7 @@ function buildRosterIndex_(rosterRows, rerollRows) {
     raiders[rawKey] = { row: rowIndex + 1 };
   }
 
+  // Rerolls alts credit their main's attendance only; awards never resolve through them.
   for (rowIndex = 1; rowIndex < rerollRows.length; rowIndex += 1) {
     row = rerollRows[rowIndex] || [];
     var rerollName = normalizeKeyValue_(row[rerollNameColumn]);
@@ -82,6 +88,7 @@ function buildRosterIndex_(rosterRows, rerollRows) {
       continue;
     }
 
+    // Keep only the first mapping of a duplicated alt; the error already blocks callers.
     if (duplicateReroll) {
       continue;
     }
@@ -96,6 +103,7 @@ function buildRosterIndex_(rosterRows, rerollRows) {
   };
 }
 
+// Reads Roster and Rerolls from the workbook; a missing tab is reported as an error.
 function readRosterIndex_() {
   var spreadsheet = SpreadsheetApp.getActive();
   var errors = [];
@@ -118,6 +126,7 @@ function readRosterIndex_() {
   return index;
 }
 
+// For import actions: refuse to write anything while the roster has errors.
 function requireRosterIndex_() {
   var index = readRosterIndex_();
   if (index.errors.length) {
@@ -126,6 +135,7 @@ function requireRosterIndex_() {
   return index;
 }
 
+// Award recipients: exact roster key or null.
 function findRaiderKey_(index, name) {
   if (!index || !index.raiders) {
     return null;
@@ -138,6 +148,7 @@ function findRaiderKey_(index, name) {
   return name;
 }
 
+// Attendance participants: exact roster key, else the main of an exact Rerolls alt, else null.
 function resolveAttendanceKey_(index, name) {
   var raiderKey = findRaiderKey_(index, name);
   if (raiderKey) {
@@ -162,6 +173,7 @@ function normalizeKeyValue_(value) {
   return String(value);
 }
 
+// Leading/trailing spaces are typos that would silently break exact matching.
 function isTrimMismatch_(value) {
   return value !== value.trim();
 }
