@@ -224,6 +224,17 @@
     return {};
   }
 
+  // True when two GridRanges share a cell; a missing bound is unbounded.
+  function rangesOverlap_(a, b) {
+    function axis(aStart, aEnd, bStart, bEnd) {
+      var lo = Math.max(aStart || 0, bStart || 0);
+      var hi = Math.min(aEnd === undefined ? Infinity : aEnd, bEnd === undefined ? Infinity : bEnd);
+      return lo < hi;
+    }
+    return axis(a.startRowIndex, a.endRowIndex, b.startRowIndex, b.endRowIndex) &&
+      axis(a.startColumnIndex, a.endColumnIndex, b.startColumnIndex, b.endColumnIndex);
+  }
+
   function applySetDataValidation_(request, storeById) {
     var setDataValidation = request.setDataValidation || {};
     var range = setDataValidation.range || {};
@@ -235,10 +246,17 @@
     }
 
     ensureSheetMeta_(sheet);
-    // Like the real API: a new rule replaces the one on the same range.
+    // Like the real API: a new rule replaces the one on the same range; a clear (no rule) removes every overlapping rule.
+    var isClear = !setDataValidation.rule;
     sheet.meta.dataValidations = sheet.meta.dataValidations.filter(function (entry) {
+      if (isClear) {
+        return !rangesOverlap_(entry.range, range);
+      }
       return JSON.stringify(entry.range) !== JSON.stringify(range);
     });
+    if (isClear) {
+      return {};
+    }
     sheet.meta.dataValidations.push({
       range: clone(range),
       rule: clone(setDataValidation.rule || null)
@@ -471,6 +489,54 @@
     return {};
   }
 
+  function applyInsertDimension_(request, storeById) {
+    var payload = request.insertDimension || {};
+    var range = payload.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in insertDimension: ' + sheetId);
+    }
+
+    if (range.dimension !== 'COLUMNS') {
+      throw new Error('Fake insertDimension currently supports only COLUMNS.');
+    }
+
+    var start = Number(range.startIndex || 0);
+    var end = Number(range.endIndex || start);
+    var insertCount = Math.max(0, end - start);
+
+    if (insertCount <= 0) {
+      return {};
+    }
+
+    sheet.rows = sheet.rows.map(function (row) {
+      var next = (row || []).slice();
+      var blanks = [];
+      for (var i = 0; i < insertCount; i += 1) {
+        blanks.push('');
+      }
+      Array.prototype.splice.apply(next, [start, 0].concat(blanks));
+      return next;
+    });
+
+    ensureSheetMeta_(sheet);
+    sheet.meta.columnCount = Number(sheet.meta.columnCount || 26) + insertCount;
+
+    var nextWidths = {};
+    Object.keys(sheet.meta.columnWidths).forEach(function (key) {
+      var index = Number(key);
+      if (index < start) {
+        nextWidths[String(index)] = sheet.meta.columnWidths[key];
+      } else {
+        nextWidths[String(index + insertCount)] = sheet.meta.columnWidths[key];
+      }
+    });
+    sheet.meta.columnWidths = nextWidths;
+
+    return {};
+  }
+
   function applyMergeCells_(request, storeById) {
     var payload = request.mergeCells || {};
     var range = payload.range || {};
@@ -593,6 +659,10 @@
       }
       if (request.deleteDimension) {
         replies.push(applyDeleteDimension_(request, workingStore));
+        return;
+      }
+      if (request.insertDimension) {
+        replies.push(applyInsertDimension_(request, workingStore));
         return;
       }
       if (request.mergeCells) {

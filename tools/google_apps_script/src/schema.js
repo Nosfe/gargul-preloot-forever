@@ -1,18 +1,81 @@
 // Roster roles shown to the owner; story 4.6 maps them to Interchange v1 (TANK, HEALER, DPS).
 var ROLE_OPTIONS = ['Tank', 'Heal', 'Melee DPS', 'Ranged DPS', 'Caster DPS'];
 
+// Display values and colours for role dropdowns in Roster and Rerolls.
+var ROLE_DISPLAY = {
+  'Tank': { value: '🛡️ Tank', colorHex: 'C9D6E3', textHex: '1F1F1F' },
+  'Heal': { value: '✚ Heal', colorHex: 'C8E6C9', textHex: '1F1F1F' },
+  'Melee DPS': { value: '⚔️ Melee DPS', colorHex: 'F4C7C3', textHex: '1F1F1F' },
+  'Ranged DPS': { value: '🏹 Ranged DPS', colorHex: 'E0CDB5', textHex: '1F1F1F' },
+  'Caster DPS': { value: '🔮 Caster DPS', colorHex: 'D9C8F0', textHex: '1F1F1F' }
+};
+
 // One source for the class dropdown, the class colours and the spec check (French client names).
 // colorHex is the WoW class colour used as cell background; textHex keeps the text readable on it.
 var CLASS_SPECS = [
-  { name: 'Guerrier', specs: ['Armes', 'Fureur', 'Protection'], colorHex: 'C69B6D', textHex: '1F1F1F' },
-  { name: 'Paladin', specs: ['Sacré', 'Protection', 'Vindicte'], colorHex: 'F48CBA', textHex: '1F1F1F' },
-  { name: 'Chasseur', specs: ['Maîtrise des bêtes', 'Précision', 'Survie'], colorHex: 'AAD372', textHex: '1F1F1F' },
-  { name: 'Voleur', specs: ['Assassinat', 'Combat', 'Finesse'], colorHex: 'FFF468', textHex: '1F1F1F' },
-  { name: 'Prêtre', specs: ['Discipline', 'Sacré', 'Ombre'], colorHex: 'FFFFFF', textHex: '1F1F1F' },
-  { name: 'Chaman', specs: ['Élémentaire', 'Amélioration', 'Restauration'], colorHex: '0070DD', textHex: 'FFFFFF' },
-  { name: 'Mage', specs: ['Arcanes', 'Feu', 'Givre'], colorHex: '3FC7EB', textHex: '1F1F1F' },
-  { name: 'Démoniste', specs: ['Affliction', 'Démonologie', 'Destruction'], colorHex: '8788EE', textHex: '1F1F1F' },
-  { name: 'Druide', specs: ['Équilibre', 'Combat farouche', 'Restauration'], colorHex: 'FF7C0A', textHex: '1F1F1F' }
+  {
+    name: 'Guerrier',
+    specs: ['Armes', 'Fureur', 'Protection'],
+    specIcons: { 'Armes': '⚔️', 'Fureur': '💢', 'Protection': '🛡️' },
+    colorHex: 'C69B6D',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Paladin',
+    specs: ['Sacré', 'Protection', 'Vindicte'],
+    specIcons: { 'Sacré': '✨', 'Protection': '🛡️', 'Vindicte': '⚖️' },
+    colorHex: 'F48CBA',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Chasseur',
+    specs: ['Maîtrise des bêtes', 'Précision', 'Survie'],
+    specIcons: { 'Maîtrise des bêtes': '🐾', 'Précision': '🎯', 'Survie': '🌲' },
+    colorHex: 'AAD372',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Voleur',
+    specs: ['Assassinat', 'Combat', 'Finesse'],
+    specIcons: { 'Assassinat': '🗡️', 'Combat': '⚔️', 'Finesse': '🌫️' },
+    colorHex: 'FFF468',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Prêtre',
+    specs: ['Discipline', 'Sacré', 'Ombre'],
+    specIcons: { 'Discipline': '📿', 'Sacré': '✨', 'Ombre': '🌑' },
+    colorHex: 'FFFFFF',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Chaman',
+    specs: ['Élémentaire', 'Amélioration', 'Restauration'],
+    specIcons: { 'Élémentaire': '⚡', 'Amélioration': '🌪️', 'Restauration': '💧' },
+    colorHex: '0070DD',
+    textHex: 'FFFFFF'
+  },
+  {
+    name: 'Mage',
+    specs: ['Arcanes', 'Feu', 'Givre'],
+    specIcons: { 'Arcanes': '🔮', 'Feu': '🔥', 'Givre': '❄️' },
+    colorHex: '3FC7EB',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Démoniste',
+    specs: ['Affliction', 'Démonologie', 'Destruction'],
+    specIcons: { 'Affliction': '☠️', 'Démonologie': '😈', 'Destruction': '💥' },
+    colorHex: '8788EE',
+    textHex: '1F1F1F'
+  },
+  {
+    name: 'Druide',
+    specs: ['Équilibre', 'Combat farouche', 'Restauration'],
+    specIcons: { 'Équilibre': '🌙', 'Combat farouche': '🐻', 'Restauration': '🌿' },
+    colorHex: 'FF7C0A',
+    textHex: '1F1F1F'
+  }
 ];
 
 // Spec grid contract: ordered columns after Objet (ID) and Objet.
@@ -60,9 +123,9 @@ var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
 });
 
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
-var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
+var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Raids', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
-  .concat(['Raids', 'PatternItems', 'Config', 'RaidReports', 'Diagnostics', '_Listes']);
+  .concat(['Config', '_Listes']);
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
@@ -79,7 +142,9 @@ var TABS = [
     group: 'input',
     columns: [
       { key: 'tierId', label: 'Palier actif (ID)', note: 'Identifiant du palier en cours, ex. forever-t1. Rempli par l\'officier en ligne 2.' },
-      { key: 'bisWindowId', label: 'Fenêtre BiS active (ID)', note: 'Identifiant de la fenêtre BiS en cours, ex. forever-t1-w1. Change à chaque reset BiS.' }
+      { key: 'bisWindowId', label: 'Fenêtre BiS active (ID)', note: 'Identifiant de la fenêtre BiS active, ex. forever-t1-w1.' },
+      { key: 'bisWindowStart', label: 'Début fenêtre BiS', note: 'Date de reset qui ouvre la fenêtre BiS active. Les raids à partir de cette date sont dans la fenêtre.' },
+      { key: 'openRaidId', label: 'Raid ouvert (ID)', note: 'Identifiant du raid ouvert pour la saisie courante.' }
     ]
   },
   {
@@ -91,9 +156,7 @@ var TABS = [
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
       { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, ex. Mage → Arcanes, Feu ou Givre.' },
       { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
-      { key: 'tankPriority', label: 'Priorité tank', note: 'Tanks seulement : MT1 passe avant MT2. Vide pour les autres.' },
-      { key: 'dpsParse', label: 'Parse WCL moyen (1-100)', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
-      { key: 'gainFraction', label: 'Gain simulé du raider (%)', note: 'Gain DPS/HPS simulé du raider, saisi en %, ex. 5 %. Sert au score Impact.' }
+      { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' }
     ]
   },
   {
@@ -102,41 +165,24 @@ var TABS = [
     group: 'input',
     columns: [
       { key: 'rerollName', label: 'Reroll (nom exact)', note: 'Nom exact du reroll. Sa présence compte pour le personnage principal, jamais son loot.' },
+      { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
+      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, avec emoji.' },
+      { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
+      { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'mainKey', label: 'Personnage principal', note: 'Nom exact du personnage principal, tel qu\'écrit dans Roster.' }
     ]
   },
   {
+    // New id: the old Raids (1004) is deleted in the same batch that creates this one.
     name: 'Raids',
-    sheetId: 1004,
+    sheetId: 1014,
     group: 'log',
     columns: [
       { key: 'raidId', label: 'Raid (ID)', note: 'Identifiant unique du raid. Écrit par le script.' },
-      { key: 'tierId', label: 'Palier', note: 'Palier du raid. Écrit par le script.' },
-      { key: 'bisWindowId', label: 'Fenêtre BiS', note: 'Fenêtre BiS du raid. Écrit par le script.' },
       { key: 'instance', label: 'Instance', note: 'Nom de l\'instance. Écrit par le script.' },
       { key: 'raidDate', label: 'Date du raid', note: 'Date du raid. Écrit par le script.' },
-      { key: 'status', label: 'Statut', note: 'Ouvert jusqu\'à l\'import du butin, puis fermé. Écrit par le script.' }
-    ]
-  },
-  {
-    // Maps a WCL report to the raid it credits; a known reportCode makes a re-import a no-op.
-    name: 'RaidReports',
-    sheetId: 1005,
-    group: 'log',
-    columns: [
-      { key: 'reportCode', label: 'Rapport WCL', note: 'Code du rapport Warcraft Logs importé. Écrit par le script.' },
-      { key: 'raidId', label: 'Raid (ID)', note: 'Raid crédité par ce rapport. Écrit par le script.' },
-      { key: 'importedAt', label: 'Importé le', note: 'Date et heure de l\'import. Écrit par le script.' }
-    ]
-  },
-  {
-    // Items whose awards are always treated as NONE.
-    name: 'PatternItems',
-    sheetId: 1010,
-    group: 'input',
-    columns: [
-      { key: 'itemID', label: 'Objet (ID)', note: 'ID d\'un patron ou dessin : son attribution ne compte jamais.' },
-      { key: 'itemName', label: 'Objet', note: 'Nom du patron ou dessin.' }
+      { key: 'reportCodes', label: 'Rapports WCL', note: 'Codes de rapports importés pour ce raid, séparés par des espaces.' },
+      { key: 'importedAt', label: 'Importé le', note: 'Date et heure du dernier import de rapport pour ce raid.' }
     ]
   }
 ];

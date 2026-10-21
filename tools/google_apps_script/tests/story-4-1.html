@@ -41,15 +41,6 @@
       return null;
     }
 
-    function firstSubMenu(menu) {
-      for (var i = 0; i < menu.items.length; i += 1) {
-        if (menu.items[i].type === 'submenu') {
-          return menu.items[i].menu;
-        }
-      }
-      return null;
-    }
-
     try {
       TracerHarness.install();
 
@@ -61,58 +52,87 @@
       equal(Boolean(menuItem(menu, 'Export raid snapshot')), true, 'menu has snapshot action');
       equal(Boolean(menuItem(menu, 'Import raid ledger')), true, 'menu has ledger action');
       equal(Boolean(menuItem(menu, 'Archive tier and activate next')), true, 'menu has tier action');
-      var diagnosticsMenu = firstSubMenu(menu);
-      equal(Boolean(diagnosticsMenu), true, 'menu has Diagnostics submenu');
-      equal(diagnosticsMenu.caption, 'Diagnostics', 'submenu caption');
-      equal(Boolean(menuItem(diagnosticsMenu, 'Test write')), true, 'Diagnostics has Test write');
-      equal(Boolean(menuItem(diagnosticsMenu, 'Test failed write')), true, 'Diagnostics has Test failed write');
-      menu.items.concat(diagnosticsMenu.items).forEach(function (entry) {
+      equal(menu.items.filter(function (entry) { return entry.type === 'submenu'; }).length, 0,
+        'menu has no Diagnostics submenu');
+      menu.items.forEach(function (entry) {
         if (entry.type === 'item') {
           equal(typeof window[entry.functionName], 'function', 'handler exists for ' + entry.label);
         }
       });
 
-      TracerHarness.clearAlerts();
-      runDiagnosticsTestWrite();
-      equal(TracerHarness.getRows('Diagnostics').length, 1, 'first diagnostics write appends first row');
-      equal(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(TracerHarness.getRows('Diagnostics')[0][0]), true,
-        'row has a local timestamp');
-      equal(TracerHarness.getRows('Diagnostics')[0][1], 'test-write', 'row has the test-write marker');
-      contains(TracerHarness.getAlerts().slice(-1)[0], 'completed', 'successful write alert');
-      equal(TracerHarness.isLockHeld(), false, 'lock released after first write');
+      TracerHarness.seedSheet('BatchProbe', [['flag']], { sheetId: 42001 });
+      var probeSheetId = SpreadsheetApp.getActive().getSheetByName('BatchProbe').getSheetId();
 
       TracerHarness.clearAlerts();
-      runDiagnosticsTestWrite();
-      equal(TracerHarness.getRows('Diagnostics').length, 2, 'second diagnostics write appends second row');
-      contains(TracerHarness.getAlerts().slice(-1)[0], 'completed', 'second successful write alert');
-      equal(TracerHarness.isLockHeld(), false, 'lock released after second write');
+      applyBatch_(function () {
+        return [{
+          appendCells: {
+            sheetId: probeSheetId,
+            rows: [{ values: [{ userEnteredValue: { stringValue: 'ok-write' } }] }],
+            fields: 'userEnteredValue'
+          }
+        }];
+      });
+      equal(TracerHarness.getRows('BatchProbe').length, 2, 'applyBatch write appends one row');
+      equal(TracerHarness.getRows('BatchProbe')[1][0], 'ok-write', 'applyBatch write keeps row value');
+      equal(TracerHarness.isLockHeld(), false, 'lock released after successful applyBatch');
 
-      var rowsBeforeFailure = TracerHarness.getRows('Diagnostics').length;
-      TracerHarness.clearAlerts();
-      runDiagnosticsTestFailedWrite();
-      equal(TracerHarness.getRows('Diagnostics').length, rowsBeforeFailure,
-        'forced failure keeps row count unchanged');
-      contains(TracerHarness.getAlerts().slice(-1)[0], 'Diagnostics failed',
-        'forced failure alert');
-      equal(TracerHarness.isLockHeld(), false, 'lock released after failed write');
+      var rowsBeforeFailure = TracerHarness.getRows('BatchProbe').length;
+      var failed = false;
+      try {
+        applyBatch_(function () {
+          return [
+            {
+              appendCells: {
+                sheetId: probeSheetId,
+                rows: [{ values: [{ userEnteredValue: { stringValue: 'should-rollback' } }] }],
+                fields: 'userEnteredValue'
+              }
+            },
+            {
+              appendCells: {
+                sheetId: 919191,
+                rows: [{ values: [{ userEnteredValue: { stringValue: 'fail' } }] }],
+                fields: 'userEnteredValue'
+              }
+            }
+          ];
+        });
+      } catch (error) {
+        failed = true;
+      }
+      equal(failed, true, 'forced batch failure throws');
+      equal(TracerHarness.getRows('BatchProbe').length, rowsBeforeFailure, 'forced failure is atomic');
+      equal(TracerHarness.isLockHeld(), false, 'lock released after failed applyBatch');
 
       TracerHarness.setLockBusy(true);
-      var rowsBeforeBusy = TracerHarness.getRows('Diagnostics').length;
-      TracerHarness.clearAlerts();
-      runDiagnosticsTestWrite();
-      equal(TracerHarness.getRows('Diagnostics').length, rowsBeforeBusy, 'busy lock prevents write');
-      contains(TracerHarness.getAlerts().slice(-1)[0], 'Another action is already running',
-        'busy lock alert');
+      var rowsBeforeBusy = TracerHarness.getRows('BatchProbe').length;
+      var busyError = '';
+      try {
+        applyBatch_(function () {
+          return [{
+            appendCells: {
+              sheetId: probeSheetId,
+              rows: [{ values: [{ userEnteredValue: { stringValue: 'blocked' } }] }],
+              fields: 'userEnteredValue'
+            }
+          }];
+        });
+      } catch (error) {
+        busyError = error.message;
+      }
+      contains(busyError, 'Another action is already running', 'busy lock throws lock message');
+      equal(TracerHarness.getRows('BatchProbe').length, rowsBeforeBusy, 'busy lock prevents write');
       TracerHarness.setLockBusy(false);
       equal(TracerHarness.isLockHeld(), false, 'lock remains free after busy-lock attempt');
 
-      var rowsBeforeStubs = TracerHarness.getRows('Diagnostics').length;
+      var rowsBeforeStubs = TracerHarness.getRows('BatchProbe').length;
       TracerHarness.clearAlerts();
       runAttendanceSync();
       exportRaidSnapshot();
       importRaidLedger();
       archiveTierAndActivateNext();
-      equal(TracerHarness.getRows('Diagnostics').length, rowsBeforeStubs, 'stubs do not write');
+      equal(TracerHarness.getRows('BatchProbe').length, rowsBeforeStubs, 'stubs do not write');
       var alerts = TracerHarness.getAlerts();
       equal(alerts.length, 4, 'one alert per stub');
       contains(alerts[0], '4.4', 'attendance stub references story 4.4');

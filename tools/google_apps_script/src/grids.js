@@ -27,6 +27,10 @@ function buildGridRequests_(argSeparator) {
 // Reads all sheets that affect 4.2 grid migration and refresh behavior.
 function gridSheetStates_(spreadsheet) {
   return {
+    raids: readSheetState_(spreadsheet, 'Raids'),
+    raidReports: readSheetState_(spreadsheet, 'RaidReports'),
+    patternItems: readSheetState_(spreadsheet, 'PatternItems'),
+    diagnostics: readSheetState_(spreadsheet, 'Diagnostics'),
     attendance: readSheetState_(spreadsheet, 'Attendance'),
     bench: readSheetState_(spreadsheet, 'Bench'),
     awards: readSheetState_(spreadsheet, GRID_TABS.awards.name),
@@ -73,6 +77,16 @@ function trimmedHeaderRow_(rows) {
 
 // Aborts when migration would delete owner data from legacy tabs.
 function assertGridMigrationIsSafe_(states) {
+  if (isLegacyRaidsSheet_(states.raids) && hasAnyDataRows_(states.raids.rows || [])) {
+    throw new Error('Cannot run setup: tab "Raids" has data rows.');
+  }
+  if (states.raidReports.exists && hasAnyDataRows_(states.raidReports.rows || [])) {
+    throw new Error('Cannot run setup: tab "RaidReports" has data rows.');
+  }
+  if (states.patternItems.exists && hasAnyDataRows_(states.patternItems.rows || [])) {
+    throw new Error('Cannot run setup: tab "PatternItems" has data rows.');
+  }
+
   if (states.attendance.exists && hasAnyDataRows_(states.attendance.rows || [])) {
     throw new Error('Cannot run setup: tab "Attendance" has data rows.');
   }
@@ -90,6 +104,46 @@ function assertGridMigrationIsSafe_(states) {
       hasAnyDataRows_((states.tierItems.rows || []).slice(2))) {
     throw new Error('Cannot run setup: tab "TierItems" has item rows; move them to the Objets tabs first.');
   }
+
+  states.itemTabs.forEach(function (itemTabState) {
+    // hasAnyDataRows_ skips its first row, so slice from row 3 to check rows 4+.
+    if (itemTabHasLegacyOrder_(itemTabState) && hasAnyDataRows_((itemTabState.rows || []).slice(2))) {
+      throw new Error('Cannot run setup: tab "' + itemTabState.name + '" has item rows.');
+    }
+  });
+}
+
+// Detects the old Raids layout that still has Palier/Fenêtre BiS/Statut columns.
+function isLegacyRaidsSheet_(state) {
+  if (!state.exists) {
+    return false;
+  }
+
+  var headers = state.headers || [];
+  return headers.indexOf('Palier') !== -1 || headers.indexOf('tierId') !== -1 ||
+    headers.indexOf('Fenêtre BiS') !== -1 || headers.indexOf('bisWindowId') !== -1 ||
+    headers.indexOf('Statut') !== -1 || headers.indexOf('status') !== -1;
+}
+
+// Detects Objets tabs still using row-3 Gain then Statut order.
+function itemTabHasLegacyOrder_(state) {
+  if (!state.exists) {
+    return false;
+  }
+
+  var rows = state.rows || [];
+  if (rows.length < 3) {
+    return false;
+  }
+
+  var labels = rows[2] || [];
+  for (var column = 2; column + 1 < labels.length; column += 2) {
+    if (labels[column] === 'Gain (%)' && labels[column + 1] === 'Statut') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // Detects the old flat Awards layout from its row-1 contract header.
@@ -138,6 +192,19 @@ function legacyTierItemsHasItemRows_(state) {
 function buildGridMigrationDeleteRequests_(states) {
   var requests = [];
 
+  if (isLegacyRaidsSheet_(states.raids)) {
+    requests.push(buildDeleteSheetRequest_(states.raids.sheetId));
+  }
+  if (states.raidReports.exists) {
+    requests.push(buildDeleteSheetRequest_(states.raidReports.sheetId));
+  }
+  if (states.patternItems.exists) {
+    requests.push(buildDeleteSheetRequest_(states.patternItems.sheetId));
+  }
+  if (states.diagnostics.exists) {
+    requests.push(buildDeleteSheetRequest_(states.diagnostics.sheetId));
+  }
+
   if (states.presence.exists && states.presence.sheetId === 1101) {
     requests.push(buildDeleteSheetRequest_(states.presence.sheetId));
   }
@@ -185,7 +252,7 @@ function buildListsTabRequests_(listsState, argSeparator) {
           sheetId: LISTS_TAB.sheetId,
           title: LISTS_TAB.name,
           hidden: true,
-          gridProperties: { columnCount: 8 }
+          gridProperties: { columnCount: 12 }
         }
       }
     });
@@ -196,7 +263,7 @@ function buildListsTabRequests_(listsState, argSeparator) {
       properties: {
         sheetId: sheetId,
         hidden: true,
-        gridProperties: { columnCount: 8 }
+        gridProperties: { columnCount: Math.max(12, listsState.exists ? Number(listsState.maxColumns || 0) : 0) }
       },
       fields: 'hidden,gridProperties.columnCount'
     }
@@ -206,6 +273,14 @@ function buildListsTabRequests_(listsState, argSeparator) {
     updateCells: {
       start: { sheetId: sheetId, rowIndex: 1, columnIndex: 0 },
       rows: buildListsRows_(separator),
+      fields: 'userEnteredValue'
+    }
+  });
+
+  requests.push({
+    updateCells: {
+      start: { sheetId: sheetId, rowIndex: 1, columnIndex: 9 },
+      rows: buildRerollsListsRows_(separator),
       fields: 'userEnteredValue'
     }
   });
@@ -225,9 +300,9 @@ function buildListsRows_(argSeparator) {
     var entry = classIndex < CLASS_SPECS.length ? CLASS_SPECS[classIndex] : null;
     var values = [
       { userEnteredValue: { stringValue: entry ? entry.name : '' } },
-      { userEnteredValue: { stringValue: entry ? entry.specs[0] : '' } },
-      { userEnteredValue: { stringValue: entry ? entry.specs[1] : '' } },
-      { userEnteredValue: { stringValue: entry ? entry.specs[2] : '' } },
+      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[0]) : '' } },
+      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[1]) : '' } },
+      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[2]) : '' } },
       { userEnteredValue: { stringValue: '' } },
       {
         userEnteredValue: {
@@ -236,6 +311,27 @@ function buildListsRows_(argSeparator) {
       }
     ];
     rows.push({ values: values });
+  }
+
+  return rows;
+}
+
+// Builds rows 2..201 of _Listes column J: class lookup for Rerolls that spills specs into J:L.
+function buildRerollsListsRows_(argSeparator) {
+  var separator = argSeparator || ',';
+  var rows = [];
+  var classLetter = columnLetter_(columnOf_(tabByName_('Rerolls'), 'class'));
+
+  for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
+    rows.push({
+      values: [
+        {
+          userEnteredValue: {
+            formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Rerolls!' + classLetter + rowNumber + ',$A$2:$A$10,$B$2:$D$10),"")', separator)
+          }
+        }
+      ]
+    });
   }
 
   return rows;
@@ -758,6 +854,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
   }
   requests = requests.concat(buildTierGainRuleRequests_(sheetId, separator, specs));
   requests = requests.concat(buildTierStatusValidationRequests_(sheetId, specs));
+  requests = requests.concat(buildTierStatusTextFormatRequests_(sheetId, specs));
   requests = requests.concat(buildTierGainFormatRequests_(sheetId, specs));
 
   return requests;
@@ -783,15 +880,15 @@ function buildTierHeaderRows_(specs) {
   var roleEndByName = Object.create(null);
 
   specs.forEach(function (entry, index) {
-    var gainColumn = 2 + (index * 2);
-    row2[gainColumn] = { userEnteredValue: { stringValue: entry.label } };
-    row3[gainColumn] = { userEnteredValue: { stringValue: 'Gain (%)' } };
-    row3[gainColumn + 1] = { userEnteredValue: { stringValue: 'Statut' } };
+    var statusColumn = 2 + (index * 2);
+    row2[statusColumn] = { userEnteredValue: { stringValue: entry.label } };
+    row3[statusColumn] = { userEnteredValue: { stringValue: 'Statut' } };
+    row3[statusColumn + 1] = { userEnteredValue: { stringValue: 'Gain (%)' } };
 
     if (!Object.prototype.hasOwnProperty.call(roleStartByName, entry.role)) {
-      roleStartByName[entry.role] = gainColumn;
+      roleStartByName[entry.role] = statusColumn;
     }
-    roleEndByName[entry.role] = gainColumn + 2;
+    roleEndByName[entry.role] = statusColumn + 2;
   });
 
   Object.keys(roleStartByName).forEach(function (roleName) {
@@ -894,9 +991,9 @@ function buildTierWidthRequests_(sheetId, specs) {
   ];
 
   specs.forEach(function (_, index) {
-    var gainColumn = 2 + (index * 2);
-    requests.push(buildColumnWidthRequest_(sheetId, gainColumn, gainColumn + 1, 105));
-    requests.push(buildColumnWidthRequest_(sheetId, gainColumn + 1, gainColumn + 2, 120));
+    var statusColumn = 2 + (index * 2);
+    requests.push(buildColumnWidthRequest_(sheetId, statusColumn, statusColumn + 1, 120));
+    requests.push(buildColumnWidthRequest_(sheetId, statusColumn + 1, statusColumn + 2, 105));
   });
 
   return requests;
@@ -907,7 +1004,7 @@ function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var gainColumn = 2 + (index * 2);
+    var gainColumn = 2 + (index * 2) + 1;
     var gainLetter = columnLetter_(gainColumn);
 
     requests.push(
@@ -943,7 +1040,14 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var statusColumn = 2 + (index * 2) + 1;
+    var statusColumn = 2 + (index * 2);
+    // Clear both columns of the pair: before the swap the Statut dropdown sat on today's Gain column.
+    requests.push(buildDataValidationRequestByRange_(sheetId, {
+      startRowIndex: 3,
+      startColumnIndex: statusColumn,
+      endColumnIndex: statusColumn + 2
+    }));
+
     requests.push(buildDataValidationRequestByRange_(sheetId, {
       startRowIndex: 3,
       startColumnIndex: statusColumn,
@@ -953,16 +1057,14 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
         type: 'ONE_OF_LIST',
         values: [
           { userEnteredValue: 'BIS' },
-          { userEnteredValue: 'ALT_BIS' },
           { userEnteredValue: 'IMPACT' },
-          { userEnteredValue: 'TIER' },
           { userEnteredValue: 'CLASS_BOUND' },
           { userEnteredValue: 'NORMAL' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Statut : BIS, ALT_BIS, IMPACT, TIER, CLASS_BOUND ou NORMAL.'
+      inputMessage: 'Statut : BIS, IMPACT, CLASS_BOUND ou NORMAL.'
     }));
   });
 
@@ -974,7 +1076,7 @@ function buildTierGainFormatRequests_(sheetId, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var gainColumn = 2 + (index * 2);
+    var gainColumn = 2 + (index * 2) + 1;
     requests.push({
       repeatCell: {
         range: {
@@ -988,6 +1090,35 @@ function buildTierGainFormatRequests_(sheetId, specs) {
             numberFormat: {
               type: 'PERCENT',
               pattern: '0.0%'
+            }
+          }
+        },
+        fields: 'userEnteredFormat.numberFormat'
+      }
+    });
+  });
+
+  return requests;
+}
+
+// Applies plain-text format on all statut columns from row 4 onward.
+function buildTierStatusTextFormatRequests_(sheetId, specs) {
+  var requests = [];
+
+  specs.forEach(function (_, index) {
+    var statusColumn = 2 + (index * 2);
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId: sheetId,
+          startRowIndex: 3,
+          startColumnIndex: statusColumn,
+          endColumnIndex: statusColumn + 1
+        },
+        cell: {
+          userEnteredFormat: {
+            numberFormat: {
+              type: 'TEXT'
             }
           }
         },

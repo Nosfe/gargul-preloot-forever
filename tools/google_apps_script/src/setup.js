@@ -44,12 +44,19 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   // Grids first: they delete obsolete tabs and create _Listes, which the Roster Spé dropdown references.
   // Grids read live sheet data inside the lock, so this part of the plan is not pure.
   var requests = buildGridRequests_(separator);
+  requests = requests.concat(buildLegacyTabMigrationRequests_(existingHeadersByName));
+  var effectiveHeadersByName = effectiveHeadersByName_(existingHeadersByName);
+  var deletedSheetIds = deletedSheetIdsFromRequests_(requests);
   var metadataBySheetId = sheetMetadataById_(sheetsMetadata);
 
   for (var i = 0; i < TABS.length; i += 1) {
     var tab = TABS[i];
-    var existing = existingHeadersByName[tab.name];
+    var existing = effectiveHeadersByName[tab.name];
     var sheetId = tab.sheetId;
+
+    if (existing && deletedSheetIds[existing.sheetId]) {
+      existing = null;
+    }
 
     if (!existing) {
       requests = requests.concat(buildCreateTabRequests_(tab));
@@ -63,7 +70,6 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildHeaderStyleRequests_(sheetId, tab))
       .concat(buildColumnWidthRequests_(sheetId, tab))
       .concat(buildTabColorRequests_(sheetId, tab))
-      .concat(buildValueFormatRequests_(sheetId, tab))
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
@@ -73,9 +79,138 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildConditionalFormatRequestsForTab_(sheetId, tab, separator));
   }
 
+  requests = requests.concat(buildRoleAndSpecRewriteRequests_(effectiveHeadersByName));
+
   requests = requests.concat(buildTabOrderRequests_(requests));
 
   return { requests: requests };
+}
+
+// Returns the sheet ids deleted by requests already queued in the same batch.
+function deletedSheetIdsFromRequests_(requests) {
+  var ids = Object.create(null);
+  requests.forEach(function (request) {
+    if (request.deleteSheet && typeof request.deleteSheet.sheetId === 'number') {
+      ids[request.deleteSheet.sheetId] = true;
+    }
+  });
+  return ids;
+}
+
+// Applies this batch's Roster/Rerolls column migrations to the read headers and rows, so the header check
+// and the role/spec rewrite see the real post-migration columns.
+function effectiveHeadersByName_(existingHeadersByName) {
+  var next = Object.create(null);
+  Object.keys(existingHeadersByName || {}).forEach(function (name) {
+    next[name] = existingHeadersByName[name];
+  });
+
+  var roster = next.Roster;
+  if (roster && isLegacyRosterHeaders_(roster.headers || [])) {
+    var removed = legacyRosterColumns_(roster.headers);
+    var keep = function (_, index) { return removed.indexOf(index) === -1; };
+    next.Roster = {
+      sheetId: roster.sheetId,
+      headers: roster.headers.filter(keep),
+      rows: (roster.rows || []).map(function (row) { return (row || []).filter(keep); }),
+      hasDataRows: roster.hasDataRows
+    };
+  }
+
+  var rerolls = next.Rerolls;
+  if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
+    next.Rerolls = {
+      sheetId: rerolls.sheetId,
+      // Exactly two old columns, so the new contract labels are the post-insert headers.
+      headers: labelsOf_(tabByName_('Rerolls')),
+      rows: (rerolls.rows || []).map(function (row) {
+        var copy = (row || []).slice();
+        copy.splice(1, 0, '', '', '', '');
+        return copy;
+      }),
+      hasDataRows: rerolls.hasDataRows
+    };
+  }
+
+  return next;
+}
+
+// Indexes of the removed Roster columns (tank priority, raider gain), highest first.
+function legacyRosterColumns_(headers) {
+  return [
+    indexOfHeader_(headers, ['tankPriority', 'Priorité tank']),
+    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)'])
+  ].filter(function (index) { return index !== -1; }).sort(function (a, b) { return b - a; });
+}
+
+// Adds delete/insert column migrations needed before writing reshaped headers.
+function buildLegacyTabMigrationRequests_(existingHeadersByName) {
+  var requests = [];
+  var roster = existingHeadersByName.Roster;
+  var rerolls = existingHeadersByName.Rerolls;
+
+  if (roster && isLegacyRosterHeaders_(roster.headers || [])) {
+    legacyRosterColumns_(roster.headers).forEach(function (index) {
+      requests.push(buildDeleteColumnRequest_(roster.sheetId, index));
+    });
+  }
+
+  if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
+    requests.push({
+      insertDimension: {
+        range: {
+          sheetId: rerolls.sheetId,
+          dimension: 'COLUMNS',
+          startIndex: 1,
+          endIndex: 5
+        },
+        inheritFromBefore: true
+      }
+    });
+  }
+
+  return requests;
+}
+
+// True when Roster still has the removed tank-priority or raider-gain columns.
+function isLegacyRosterHeaders_(headers) {
+  return indexOfHeader_(headers, ['tankPriority', 'Priorité tank']) !== -1 ||
+    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)']) !== -1;
+}
+
+// True when Rerolls is exactly the 2-column pre-polish contract; any extra column falls through to the header check.
+function isLegacyRerollsHeaders_(headers) {
+  if (!headers || headers.length !== 2) {
+    return false;
+  }
+  return (headers[0] === 'rerollName' || headers[0] === 'Reroll (nom exact)') &&
+    (headers[1] === 'mainKey' || headers[1] === 'Personnage principal');
+}
+
+// First index in headers that matches any candidate, else -1.
+function indexOfHeader_(headers, candidates) {
+  for (var i = 0; i < headers.length; i += 1) {
+    for (var j = 0; j < candidates.length; j += 1) {
+      if (headers[i] === candidates[j]) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+// Builds one deleteDimension request for a single column.
+function buildDeleteColumnRequest_(sheetId, index) {
+  return {
+    deleteDimension: {
+      range: {
+        sheetId: sheetId,
+        dimension: 'COLUMNS',
+        startIndex: index,
+        endIndex: index + 1
+      }
+    }
+  };
 }
 
 // Moves tabs into TAB_ORDER, using the final id of each title after this batch's adds and deletes.
@@ -305,8 +440,6 @@ function buildColumnWidthRequests_(sheetId, tab) {
     class: 130,
     spec: 170,
     role: 150,
-    gainFraction: 140,
-    simGainFraction: 140,
     dpsParse: 145,
     itemName: 220
   };
@@ -353,45 +486,11 @@ function buildTabColorRequests_(sheetId, tab) {
   ];
 }
 
-// Gains are stored as fractions (0.05) and displayed as percents (5.0%).
-function buildValueFormatRequests_(sheetId, tab) {
-  var requests = [];
-  var gainColumn = null;
-
-  if (tab.name === 'Roster') {
-    gainColumn = columnOf_(tab, 'gainFraction');
-  }
-
-  if (gainColumn !== null) {
-    requests.push({
-      repeatCell: {
-        range: {
-          sheetId: sheetId,
-          startRowIndex: 1,
-          startColumnIndex: gainColumn,
-          endColumnIndex: gainColumn + 1
-        },
-        cell: {
-          userEnteredFormat: {
-            numberFormat: {
-              type: 'PERCENT',
-              pattern: '0.0%'
-            }
-          }
-        },
-        fields: 'userEnteredFormat.numberFormat'
-      }
-    });
-  }
-
-  return requests;
-}
-
 // Strict validation (invalid input is refused); blank cells stay allowed. Re-setting a range replaces its old rule.
 function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
   var requests = [];
 
-  if (tab.name === 'Roster') {
+  if (tab.name === 'Roster' || tab.name === 'Rerolls') {
     requests.push(
       buildDataValidationRequest_(sheetId, columnOf_(tab, 'class'), {
         condition: {
@@ -406,33 +505,23 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
       })
     );
 
-    requests = requests.concat(buildRosterSpecValidationRequests_(sheetId, tab));
-  }
+    requests = requests.concat(
+      tab.name === 'Roster'
+        ? buildSpecValidationRequests_(sheetId, tab, 'F', 'H')
+        : buildSpecValidationRequests_(sheetId, tab, 'J', 'L')
+    );
 
-  if (tab.name === 'Roster') {
     requests.push(
       buildDataValidationRequest_(sheetId, columnOf_(tab, 'role'), {
         condition: {
           type: 'ONE_OF_LIST',
           values: ROLE_OPTIONS.map(function (value) {
-            return { userEnteredValue: value };
+            return { userEnteredValue: ROLE_DISPLAY[value].value };
           })
         },
         strict: true,
         showCustomUi: true,
-        inputMessage: 'Choisir Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.'
-      })
-    );
-
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'tankPriority'), {
-        condition: {
-          type: 'ONE_OF_LIST',
-          values: [{ userEnteredValue: 'MT1' }, { userEnteredValue: 'MT2' }]
-        },
-        strict: true,
-        showCustomUi: true,
-        inputMessage: 'Priorité tank : MT1 ou MT2.'
+        inputMessage: 'Choisir un rôle parmi les options proposées.'
       })
     );
 
@@ -446,25 +535,14 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
         inputMessage: 'Parse WCL moyen entre 1 et 100.'
       })
     );
-
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'gainFraction'), {
-        condition: {
-          type: 'NUMBER_BETWEEN',
-          values: [{ userEnteredValue: '0' }, { userEnteredValue: '1' }]
-        },
-        strict: true,
-        inputMessage: 'Gain simulé du raider entre 0 % et 100 %.'
-      })
-    );
   }
   return requests;
 }
 
-// Adds strict dependent spec dropdowns for Roster rows 2..201 from _Listes!F:H of the same row.
-function buildRosterSpecValidationRequests_(sheetId, rosterTab) {
+// Adds strict dependent spec dropdowns for rows 2..201 from one _Listes helper range per row.
+function buildSpecValidationRequests_(sheetId, tab, helperStartLetter, helperEndLetter) {
   var requests = [];
-  var specColumnIndex = columnOf_(rosterTab, 'spec');
+  var specColumnIndex = columnOf_(tab, 'spec');
 
   // Clear the whole column first: the earlier version put a typed-spec check on it.
   requests.push({
@@ -491,7 +569,7 @@ function buildRosterSpecValidationRequests_(sheetId, rosterTab) {
         rule: {
           condition: {
             type: 'ONE_OF_RANGE',
-            values: [{ userEnteredValue: "='_Listes'!$F" + rowNumber + ':$H' + rowNumber }]
+            values: [{ userEnteredValue: "='_Listes'!$" + helperStartLetter + rowNumber + ':$' + helperEndLetter + rowNumber }]
           },
           strict: true,
           showCustomUi: true,
@@ -581,10 +659,24 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
         sheetId,
         columnOf_(tab, 'class'),
         columnOf_(tab, 'raiderKey'),
-        columnOf_(tab, 'class') + 1,
+        columnOf_(tab, 'spec') + 1,
         separator
       )
     );
+    requests = requests.concat(buildRoleColorRules_(sheetId, columnOf_(tab, 'role'), separator));
+  }
+
+  if (tab.name === 'Rerolls') {
+    requests = requests.concat(
+      buildClassColorRules_(
+        sheetId,
+        columnOf_(tab, 'class'),
+        columnOf_(tab, 'rerollName'),
+        columnOf_(tab, 'spec') + 1,
+        separator
+      )
+    );
+    requests = requests.concat(buildRoleColorRules_(sheetId, columnOf_(tab, 'role'), separator));
   }
 
   if (tab.name === 'Roster') {
@@ -601,12 +693,14 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   }
 
   if (tab.name === 'Rerolls') {
+    var rerollNameLetter = columnLetter_(columnOf_(tab, 'rerollName'));
+    var mainKeyLetter = columnLetter_(columnOf_(tab, 'mainKey'));
     requests.push(
       buildConditionalFormatRequest_(
         sheetId,
         0,
         1,
-        '=AND($A2<>"",SUMPRODUCT(--EXACT($A$2:$A,$A2))+SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$A2))>1)',
+        '=AND($' + rerollNameLetter + '2<>"",SUMPRODUCT(--EXACT($' + rerollNameLetter + '$2:$' + rerollNameLetter + ',$' + rerollNameLetter + '2))+SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$' + rerollNameLetter + '2))>1)',
         { backgroundColor: rgbHex_('FFE5E5') },
         separator
       )
@@ -615,9 +709,9 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
     requests.push(
       buildConditionalFormatRequest_(
         sheetId,
-        1,
-        2,
-        '=AND($B2<>"",SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$B2))=0)',
+        columnOf_(tab, 'mainKey'),
+        columnOf_(tab, 'mainKey') + 1,
+        '=AND($' + mainKeyLetter + '2<>"",SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$' + mainKeyLetter + '2))=0)',
         { backgroundColor: rgbHex_('FFE5E5') },
         separator
       )
@@ -625,6 +719,131 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   }
 
   return requests;
+}
+
+// One rule per displayed role value on the role column.
+function buildRoleColorRules_(sheetId, roleColumn, argSeparator) {
+  var roleLetter = columnLetter_(roleColumn);
+  var requests = [];
+
+  ROLE_OPTIONS.forEach(function (role) {
+    var display = ROLE_DISPLAY[role];
+    requests.push(
+      buildConditionalFormatRequest_(
+        sheetId,
+        roleColumn,
+        roleColumn + 1,
+        '=$' + roleLetter + '2="' + display.value + '"',
+        {
+          backgroundColor: rgbHex_(display.colorHex),
+          textFormat: {
+            foregroundColor: rgbHex_(display.textHex)
+          }
+        },
+        argSeparator
+      )
+    );
+  });
+
+  return requests;
+}
+
+// Rewrites plain role/spec values to emoji display values without touching other cells.
+function buildRoleAndSpecRewriteRequests_(existingHeadersByName) {
+  var requests = [];
+  requests = requests.concat(buildRoleAndSpecRewriteForTab_(existingHeadersByName.Roster, tabByName_('Roster')));
+  requests = requests.concat(buildRoleAndSpecRewriteForTab_(existingHeadersByName.Rerolls, tabByName_('Rerolls')));
+  return requests;
+}
+
+// Builds per-cell rewrite requests for one tab state.
+function buildRoleAndSpecRewriteForTab_(state, tab) {
+  if (!state || !Array.isArray(state.rows) || !state.rows.length) {
+    return [];
+  }
+
+  var requests = [];
+  var classIndex = columnOf_(tab, 'class');
+  var specIndex = columnOf_(tab, 'spec');
+  var roleIndex = columnOf_(tab, 'role');
+
+  for (var rowIndex = 1; rowIndex < state.rows.length; rowIndex += 1) {
+    var row = state.rows[rowIndex] || [];
+    var className = normalizeCellString_(row[classIndex]);
+    var specValue = normalizeCellString_(row[specIndex]);
+    var roleValue = normalizeCellString_(row[roleIndex]);
+
+    var roleDisplay = roleDisplayValue_(roleValue);
+    if (roleDisplay && roleDisplay !== roleValue) {
+      requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, roleIndex, roleDisplay));
+    }
+
+    var specDisplay = specDisplayValue_(className, specValue);
+    if (specDisplay && specDisplay !== specValue) {
+      requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, specIndex, specDisplay));
+    }
+  }
+
+  return requests;
+}
+
+// One updateCells request that rewrites a single value.
+function buildCellRewriteRequest_(sheetId, rowIndex, columnIndex, value) {
+  return {
+    updateCells: {
+      start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
+      rows: [{ values: [{ userEnteredValue: { stringValue: value } }] }],
+      fields: 'userEnteredValue'
+    }
+  };
+}
+
+// Normalized string form of one cell value.
+function normalizeCellString_(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value);
+}
+
+// Returns the emoji role value for plain inputs, or null when unchanged/unknown.
+function roleDisplayValue_(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(ROLE_DISPLAY, value)) {
+    return ROLE_DISPLAY[value].value;
+  }
+
+  for (var i = 0; i < ROLE_OPTIONS.length; i += 1) {
+    var role = ROLE_OPTIONS[i];
+    if (ROLE_DISPLAY[role].value === value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+// Returns emoji + spec when class/spec are known plain values, else null.
+function specDisplayValue_(className, specValue) {
+  if (!className || !specValue) {
+    return null;
+  }
+
+  for (var i = 0; i < CLASS_SPECS.length; i += 1) {
+    var entry = CLASS_SPECS[i];
+    if (entry.name !== className) {
+      continue;
+    }
+    if (!entry.specIcons || !Object.prototype.hasOwnProperty.call(entry.specIcons, specValue)) {
+      return null;
+    }
+    return entry.specIcons[specValue] + ' ' + specValue;
+  }
+
+  return null;
 }
 
 // One rule per class: colours the given columns when the row's class matches.
