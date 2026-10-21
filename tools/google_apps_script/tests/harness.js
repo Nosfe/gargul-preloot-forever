@@ -294,6 +294,9 @@
       getId: function () {
         return state.spreadsheetId;
       },
+      getSpreadsheetLocale: function () {
+        return state.locale;
+      },
       getSheetByName: function (name) {
         if (!Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
           return null;
@@ -338,6 +341,7 @@
 
     state = {
       spreadsheetId: 'test-spreadsheet-id',
+      locale: 'en_US',
       nextSheetId: 60000,
       lockHeld: false,
       forceLockBusy: false,
@@ -466,6 +470,10 @@
     return clone(sheet.meta);
   }
 
+  function setLocale(locale) {
+    state.locale = locale;
+  }
+
   function isLockHeld() {
     return state.lockHeld;
   }
@@ -483,6 +491,7 @@
     getLastMenu: getLastMenu,
     seedSheet: seedSheet,
     getSheetMeta: getSheetMeta,
+    setLocale: setLocale,
     isLockHeld: isLockHeld,
     setLockBusy: setLockBusy
   };

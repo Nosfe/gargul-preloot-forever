@@ -7,7 +7,7 @@ function setUpWorkbook() {
     // Read and plan inside the lock so another action cannot change the tabs in between.
     applyBatch_(function () {
       var existingHeadersByName = readExistingHeadersByName_();
-      plan = buildSetupPlan_(existingHeadersByName);
+      plan = buildSetupPlan_(existingHeadersByName, formulaArgSeparator_());
       return plan.requests;
     });
 
@@ -31,12 +31,23 @@ function setUpWorkbook() {
 }
 
 // Requests only, without the summary lists.
-function buildSetupRequests_(existingHeadersByName) {
-  return buildSetupPlan_(existingHeadersByName).requests;
+function buildSetupRequests_(existingHeadersByName, argSeparator) {
+  return buildSetupPlan_(existingHeadersByName, argSeparator).requests;
+}
+
+// Rule formulas are parsed like typed input, so locales with a decimal comma (e.g. fr_FR) need ';'.
+function formulaArgSeparator_() {
+  var locale = String(SpreadsheetApp.getActive().getSpreadsheetLocale() || '').replace('_', '-');
+  try {
+    return (1.5).toLocaleString(locale).indexOf(',') !== -1 ? ';' : ',';
+  } catch (error) {
+    return ',';
+  }
 }
 
 // Missing tab -> create it with rules; header prefix -> append the missing headers; anything else throws (nothing written).
-function buildSetupPlan_(existingHeadersByName) {
+function buildSetupPlan_(existingHeadersByName, argSeparator) {
+  var separator = argSeparator || ',';
   var requests = [];
   var createdTabs = [];
   var extendedTabs = [];
@@ -51,7 +62,7 @@ function buildSetupPlan_(existingHeadersByName) {
       requests = requests
         .concat(buildCreateTabRequests_(tab))
         .concat(buildValidationRequestsForTab_(tab))
-        .concat(buildConditionalFormatRequestsForTab_(tab));
+        .concat(buildConditionalFormatRequestsForTab_(tab, separator));
       continue;
     }
 
@@ -278,7 +289,7 @@ function buildDataValidationRequest_(sheetId, columnIndex, rule) {
 
 // Live highlighting of bad names. EXACT is used because COUNTIF ignores case;
 // INDIRECT is required because conditional formats cannot reference another tab directly.
-function buildConditionalFormatRequestsForTab_(tab) {
+function buildConditionalFormatRequestsForTab_(tab, argSeparator) {
   var requests = [];
 
   // Roster: duplicate raiderKey.
@@ -314,7 +325,12 @@ function buildConditionalFormatRequestsForTab_(tab) {
     );
   }
 
-  return requests;
+  return requests.map(function (request) {
+    var condition = request.addConditionalFormatRule.rule.booleanRule.condition;
+    // The formulas hold no commas inside strings, so a plain swap is safe.
+    condition.values[0].userEnteredValue = condition.values[0].userEnteredValue.split(',').join(argSeparator || ',');
+    return request;
+  });
 }
 
 // Light red background on matching cells, rows 2 and below.

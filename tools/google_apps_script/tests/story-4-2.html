@@ -76,6 +76,18 @@
         contains(alert, 'Workbook setup complete', 'first setup success alert');
         contains(alert, 'Created tabs', 'first setup created tabs listed');
         equal(TracerHarness.isLockHeld(), false, 'lock released after first setup');
+        equal(rosterMeta.conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue,
+          '=AND($A2<>"",SUMPRODUCT(--EXACT($A$2:$A,$A2))>1)', 'en_US formula uses commas');
+      });
+
+      withHarness(function () {
+        TracerHarness.setLocale('fr_FR');
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook setup complete', 'fr_FR setup succeeds');
+        equal(TracerHarness.getSheetMeta('Roster').conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue,
+          '=AND($A2<>"";SUMPRODUCT(--EXACT($A$2:$A;$A2))>1)', 'fr_FR formula uses semicolons');
+        equal(TracerHarness.getSheetMeta('Rerolls').conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue.indexOf(','),
+          -1, 'fr_FR Rerolls formula has no commas');
       });
 
       withHarness(function () {
