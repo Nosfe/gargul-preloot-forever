@@ -106,7 +106,8 @@
         equal(TracerHarness.getRows('Butin').length, 0, 'Butin deleted');
         equal(TracerHarness.getRows('Présence')[0][0], 'Raid (ID)', 'Présence grid created');
         equal(TracerHarness.getRows('Awards')[1][0], 'Date', 'Awards grid created');
-        equal(TracerHarness.getRows('TierItems')[2][0], 'Objet (ID)', 'TierItems grid created');
+        equal(TracerHarness.getSheetMeta('TierItems'), null, 'TierItems replaced');
+        equal(TracerHarness.getRows('Objets Tank')[2][0], 'Objet (ID)', 'Objets Tank grid created');
       });
 
       withHarness(function () {
@@ -337,14 +338,53 @@
 
         setUpWorkbook();
 
-        var tierRows = TracerHarness.getRows('TierItems');
-        var tierMeta = TracerHarness.getSheetMeta('TierItems');
-        equal(tierMeta.columnCount, 58, 'TierItems has 58 columns');
-        equal(tierRows[0][2], 'Tank', 'TierItems row 1 role group starts with Tank');
-        equal(tierRows[1][2], 'Guerrier Protection', 'TierItems row 2 first spec label');
-        equal(tierRows[2][2], 'Gain (%)', 'TierItems row 3 gain label');
-        truthy(tierMeta.dataValidations.length > 10, 'TierItems status validations exist');
-        truthy(tierMeta.conditionalFormatRules.length > 10, 'TierItems gain rules exist');
+        var tierRows = TracerHarness.getRows('Objets Caster DPS');
+        var tierMeta = TracerHarness.getSheetMeta('Objets Caster DPS');
+        equal(tierMeta.columnCount, 26, 'Objets Caster DPS needs 20 columns, so it keeps the 26-column default');
+        equal(tierRows[0][2], 'Caster DPS', 'row 1 role header');
+        equal(tierRows[1][2], 'Mage Arcanes', 'row 2 first Caster spec label');
+        equal(tierRows[1].filter(function (v) { return v; }).length, 9, '9 Caster DPS spec labels');
+        equal(tierRows[2][2], 'Gain (%)', 'row 3 gain label');
+        equal(tierMeta.dataValidations.length, 9, 'one Statut dropdown per Caster spec');
+        equal(tierMeta.conditionalFormatRules.length, 18, 'red and green rules per Caster spec');
+        equal(tierMeta.frozenRowCount + ':' + tierMeta.frozenColumnCount, '3:2', 'rows 1-3 and A-B frozen');
+
+        var specCount = 0;
+        ITEM_TABS.forEach(function (itemTab) {
+          specCount += TracerHarness.getRows(itemTab.name)[1].filter(function (v) { return v; }).length;
+        });
+        equal(specCount, 28, 'the five Objets tabs hold all 28 specs');
+        equal(TracerHarness.getRows('Objets Melee DPS')[1].indexOf('Druide Combat farouche (félin)') !== -1, true, 'feral cat under Melee DPS');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Diagnostics', [['x']]);
+        var order = buildSetupRequests_(readExistingHeadersByName_(), { sheets: [] }, ',')
+          .filter(function (request) {
+            return request.updateSheetProperties && request.updateSheetProperties.fields === 'index';
+          })
+          .map(function (request) {
+            var id = request.updateSheetProperties.properties.sheetId;
+            var sheet = null;
+            ['Roster', 'Rerolls', 'Raids', 'PatternItems', 'Config', 'RaidReports', 'Diagnostics'].forEach(function (name) {
+              var s = SpreadsheetApp.getActive().getSheetByName(name);
+              if (s && s.getSheetId() === id) { sheet = name; }
+            });
+            return sheet || id;
+          });
+        // Flat tabs already exist, so their current ids are used; new grids use their fixed ids.
+        equal(order.join(','),
+          'Roster,Rerolls,1011,1012,1021,1022,1023,1024,1025,Raids,PatternItems,Config,RaidReports,Diagnostics,1020',
+          'tabs ordered with technical ones last');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('TierItems', [['', '', 'Tank'], ['', '', 'Guerrier Protection'], ['Objet (ID)', 'Objet', 'Gain (%)'], ['19019', 'Thunderfury', 0.03]]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'move them to the Objets tabs', 'single grid with items aborts');
+        equal(TracerHarness.getRows('TierItems')[3][0], '19019', 'single grid items kept');
       });
 
       withHarness(function () {
@@ -374,7 +414,7 @@
         var before = {
           merges: TracerHarness.getSheetMeta('Awards').merges.length,
           borders: TracerHarness.getSheetMeta('Awards').borders.length,
-          rules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length
+          rules: TracerHarness.getSheetMeta('Objets Heal').conditionalFormatRules.length
         };
 
         setUpWorkbook();
@@ -382,7 +422,7 @@
         var after = {
           merges: TracerHarness.getSheetMeta('Awards').merges.length,
           borders: TracerHarness.getSheetMeta('Awards').borders.length,
-          rules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length
+          rules: TracerHarness.getSheetMeta('Objets Heal').conditionalFormatRules.length
         };
 
         equal(after.merges, before.merges, 'rerun keeps merge count stable');
@@ -430,15 +470,15 @@
         equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,NONE', 'Bob block Traitement dropdown (column I)');
         equal(awardsMeta.merges.map(function (m) { return m.startColumnIndex + '-' + m.endColumnIndex; }).join(','), '0-5,5-10', 'Awards blocks A-E and F-J');
 
-        var tierRows = TracerHarness.getRows('TierItems');
-        var roles = tierRows[0].filter(function (v) { return v; }).join(',');
-        equal(roles, 'Tank,Heal,Melee DPS,Ranged DPS,Caster DPS', 'TierItems role groups in order');
-        equal(tierRows[1].filter(function (v) { return v; }).length, 28, 'TierItems has 28 spec labels');
-        var tierFormulas = TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.map(function (rule) {
+        var tierRows = TracerHarness.getRows('Objets Tank');
+        equal(tierRows[0][2], 'Tank', 'Objets Tank role header');
+        equal(tierRows[1].filter(function (v) { return v; }).join(','),
+          'Guerrier Protection,Paladin Protection,Druide Combat farouche (tank)', 'Tank specs as mapped');
+        var tierFormulas = TracerHarness.getSheetMeta('Objets Tank').conditionalFormatRules.map(function (rule) {
           return rule.booleanRule.condition.values[0].userEnteredValue;
         });
         equal(tierFormulas.indexOf('=C4<0') !== -1 && tierFormulas.indexOf('=C4>=1/50') !== -1, true, 'first gain column has red and green rules');
-        equal(tierFormulas.length, 56, 'one red and one green rule per gain column');
+        equal(tierFormulas.length, 6, 'one red and one green rule per Tank gain column');
 
         var lists = TracerHarness.getRows('_Listes');
         var mageRow = lists.filter(function (row) { return row[0] === 'Mage'; })[0];
@@ -481,7 +521,7 @@
         TracerHarness.setLocale('fr_FR');
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'fr_FR setup succeeds');
-        ['Roster', 'Rerolls', 'TierItems'].forEach(function (name) {
+        ['Roster', 'Rerolls', 'Objets Caster DPS'].forEach(function (name) {
           TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
             equal(rule.booleanRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr ' + name + ' rule has no commas');
           });
@@ -496,7 +536,7 @@
         var alert = TracerHarness.getAlerts().slice(-1)[0];
         contains(alert, 'Header conflict in tab "Config"', 'conflict names tab');
         equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'conflict keeps existing values unchanged');
-        equal(TracerHarness.getSheetMeta('TierItems'), null, 'conflict abort is atomic');
+        equal(TracerHarness.getSheetMeta('Objets Tank'), null, 'conflict abort is atomic');
         equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
       });
 

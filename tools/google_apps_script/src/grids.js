@@ -15,7 +15,11 @@ function buildGridRequests_(argSeparator) {
   requests = requests.concat(buildListsTabRequests_(states.lists, separator));
   requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator));
   requests = requests.concat(buildAwardsGridRequests_(states.awards, rosterNames));
-  requests = requests.concat(buildTierItemsGridRequests_(states.tierItems, metadataBySheetId, separator));
+  ITEM_TABS.forEach(function (itemTab, index) {
+    requests = requests.concat(
+      buildTierItemsGridRequests_(states.itemTabs[index], metadataBySheetId, separator, itemTab)
+    );
+  });
 
   return requests;
 }
@@ -27,6 +31,7 @@ function gridSheetStates_(spreadsheet) {
     bench: readSheetState_(spreadsheet, 'Bench'),
     awards: readSheetState_(spreadsheet, GRID_TABS.awards.name),
     tierItems: readSheetState_(spreadsheet, GRID_TABS.tierItems.name),
+    itemTabs: ITEM_TABS.map(function (itemTab) { return readSheetState_(spreadsheet, itemTab.name); }),
     presence: readSheetState_(spreadsheet, GRID_TABS.presence.name),
     butin: readSheetState_(spreadsheet, 'Butin'),
     lists: readSheetState_(spreadsheet, LISTS_TAB.name)
@@ -79,6 +84,11 @@ function assertGridMigrationIsSafe_(states) {
   }
   if (isLegacyTierItemsSheet_(states.tierItems) && legacyTierItemsHasItemRows_(states.tierItems)) {
     throw new Error('Cannot run setup: tab "TierItems" has item rows.');
+  }
+  // Former single spec grid: items start at row 4.
+  if (states.tierItems.exists && !isLegacyTierItemsSheet_(states.tierItems) &&
+      hasAnyDataRows_((states.tierItems.rows || []).slice(2))) {
+    throw new Error('Cannot run setup: tab "TierItems" has item rows; move them to the Objets tabs first.');
   }
 }
 
@@ -143,7 +153,8 @@ function buildGridMigrationDeleteRequests_(states) {
   if (isLegacyAwardsSheet_(states.awards)) {
     requests.push(buildDeleteSheetRequest_(states.awards.sheetId));
   }
-  if (isLegacyTierItemsSheet_(states.tierItems)) {
+  // TierItems is replaced by the per-role Objets tabs, whichever layout it has.
+  if (states.tierItems.exists) {
     requests.push(buildDeleteSheetRequest_(states.tierItems.sheetId));
   }
 
@@ -637,20 +648,21 @@ function buildAwardsWidthRequests_(sheetId, blockCount) {
   return requests;
 }
 
-// Creates or refreshes the TierItems spec grid and its rules.
-function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator) {
+// Creates or refreshes one role's item grid (Objets <role>) and its rules.
+function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator, itemTab) {
   var separator = argSeparator || ',';
   var requests = [];
-  var existingGrid = tierState.exists && !isLegacyTierItemsSheet_(tierState);
-  var sheetId = existingGrid ? tierState.sheetId : GRID_TABS.tierItems.sheetId;
-  var totalColumns = 2 + (SPEC_COLUMNS.length * 2);
+  var specs = SPEC_COLUMNS.filter(function (entry) { return entry.role === itemTab.role; });
+  var existingGrid = tierState.exists;
+  var sheetId = existingGrid ? tierState.sheetId : itemTab.sheetId;
+  var totalColumns = 2 + (specs.length * 2);
 
   if (!existingGrid) {
     requests.push({
       addSheet: {
         properties: {
-          sheetId: GRID_TABS.tierItems.sheetId,
-          title: GRID_TABS.tierItems.name
+          sheetId: itemTab.sheetId,
+          title: itemTab.name
         }
       }
     });
@@ -685,7 +697,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator)
   requests.push({
     updateCells: {
       start: { sheetId: sheetId, rowIndex: 0, columnIndex: 0 },
-      rows: buildTierHeaderRows_(),
+      rows: buildTierHeaderRows_(specs),
       fields: 'userEnteredValue'
     }
   });
@@ -737,23 +749,23 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator)
     }
   });
 
-  requests = requests.concat(buildTierSpecLabelStyleRequests_(sheetId));
-  requests = requests.concat(buildTierMergeRequests_(sheetId));
-  requests = requests.concat(buildTierWidthRequests_(sheetId));
+  requests = requests.concat(buildTierSpecLabelStyleRequests_(sheetId, specs));
+  requests = requests.concat(buildTierMergeRequests_(sheetId, specs));
+  requests = requests.concat(buildTierWidthRequests_(sheetId, specs));
   // Only an existing grid has old rules to remove; a recreated tab may reuse nothing.
   if (existingGrid) {
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
   }
-  requests = requests.concat(buildTierGainRuleRequests_(sheetId, separator));
-  requests = requests.concat(buildTierStatusValidationRequests_(sheetId));
-  requests = requests.concat(buildTierGainFormatRequests_(sheetId));
+  requests = requests.concat(buildTierGainRuleRequests_(sheetId, separator, specs));
+  requests = requests.concat(buildTierStatusValidationRequests_(sheetId, specs));
+  requests = requests.concat(buildTierGainFormatRequests_(sheetId, specs));
 
   return requests;
 }
 
-// Builds the three TierItems header rows.
-function buildTierHeaderRows_() {
-  var totalColumns = 2 + (SPEC_COLUMNS.length * 2);
+// Builds the three item-grid header rows for the given specs.
+function buildTierHeaderRows_(specs) {
+  var totalColumns = 2 + (specs.length * 2);
   var row1 = [];
   var row2 = [];
   var row3 = [];
@@ -770,7 +782,7 @@ function buildTierHeaderRows_() {
   var roleStartByName = Object.create(null);
   var roleEndByName = Object.create(null);
 
-  SPEC_COLUMNS.forEach(function (entry, index) {
+  specs.forEach(function (entry, index) {
     var gainColumn = 2 + (index * 2);
     row2[gainColumn] = { userEnteredValue: { stringValue: entry.label } };
     row3[gainColumn] = { userEnteredValue: { stringValue: 'Gain (%)' } };
@@ -790,13 +802,13 @@ function buildTierHeaderRows_() {
 }
 
 // Styles each spec label pair on row 2 with its class colour.
-function buildTierSpecLabelStyleRequests_(sheetId) {
+function buildTierSpecLabelStyleRequests_(sheetId, specs) {
   var classColorByName = Object.create(null);
   CLASS_SPECS.forEach(function (entry) {
     classColorByName[entry.name] = { bg: entry.colorHex, text: entry.textHex };
   });
 
-  return SPEC_COLUMNS.map(function (entry, index) {
+  return specs.map(function (entry, index) {
     var gainColumn = 2 + (index * 2);
     var colors = classColorByName[entry.className] || { bg: 'FFFFFF', text: '1F1F1F' };
 
@@ -827,16 +839,16 @@ function buildTierSpecLabelStyleRequests_(sheetId) {
 }
 
 // Merges role headers and spec headers to match the two-row grid hierarchy.
-function buildTierMergeRequests_(sheetId) {
+function buildTierMergeRequests_(sheetId, specs) {
   var requests = [];
   var index = 0;
 
-  while (index < SPEC_COLUMNS.length) {
-    var roleName = SPEC_COLUMNS[index].role;
+  while (index < specs.length) {
+    var roleName = specs[index].role;
     var roleStart = 2 + (index * 2);
     var roleEnd = roleStart;
 
-    while (index < SPEC_COLUMNS.length && SPEC_COLUMNS[index].role === roleName) {
+    while (index < specs.length && specs[index].role === roleName) {
       roleEnd = 2 + (index * 2) + 2;
       index += 1;
     }
@@ -855,7 +867,7 @@ function buildTierMergeRequests_(sheetId) {
     });
   }
 
-  SPEC_COLUMNS.forEach(function (_, specIndex) {
+  specs.forEach(function (_, specIndex) {
     var gainColumn = 2 + (specIndex * 2);
     requests.push({
       mergeCells: {
@@ -874,14 +886,14 @@ function buildTierMergeRequests_(sheetId) {
   return requests;
 }
 
-// Sets TierItems column widths for item fields and per-spec pairs.
-function buildTierWidthRequests_(sheetId) {
+// Sets one Objets tab's column widths for item fields and per-spec pairs.
+function buildTierWidthRequests_(sheetId, specs) {
   var requests = [
     buildColumnWidthRequest_(sheetId, 0, 1, 120),
     buildColumnWidthRequest_(sheetId, 1, 2, 220)
   ];
 
-  SPEC_COLUMNS.forEach(function (_, index) {
+  specs.forEach(function (_, index) {
     var gainColumn = 2 + (index * 2);
     requests.push(buildColumnWidthRequest_(sheetId, gainColumn, gainColumn + 1, 105));
     requests.push(buildColumnWidthRequest_(sheetId, gainColumn + 1, gainColumn + 2, 120));
@@ -891,10 +903,10 @@ function buildTierWidthRequests_(sheetId) {
 }
 
 // Builds one negative and one >=2% conditional format rule for each gain column.
-function buildTierGainRuleRequests_(sheetId, argSeparator) {
+function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
   var requests = [];
 
-  SPEC_COLUMNS.forEach(function (_, index) {
+  specs.forEach(function (_, index) {
     var gainColumn = 2 + (index * 2);
     var gainLetter = columnLetter_(gainColumn);
 
@@ -927,10 +939,10 @@ function buildTierGainRuleRequests_(sheetId, argSeparator) {
 }
 
 // Adds per-spec status dropdowns from row 4 to the sheet bottom.
-function buildTierStatusValidationRequests_(sheetId) {
+function buildTierStatusValidationRequests_(sheetId, specs) {
   var requests = [];
 
-  SPEC_COLUMNS.forEach(function (_, index) {
+  specs.forEach(function (_, index) {
     var statusColumn = 2 + (index * 2) + 1;
     requests.push(buildDataValidationRequestByRange_(sheetId, {
       startRowIndex: 3,
@@ -958,10 +970,10 @@ function buildTierStatusValidationRequests_(sheetId) {
 }
 
 // Applies percent number format on all gain columns from row 4 onward.
-function buildTierGainFormatRequests_(sheetId) {
+function buildTierGainFormatRequests_(sheetId, specs) {
   var requests = [];
 
-  SPEC_COLUMNS.forEach(function (_, index) {
+  specs.forEach(function (_, index) {
     var gainColumn = 2 + (index * 2);
     requests.push({
       repeatCell: {

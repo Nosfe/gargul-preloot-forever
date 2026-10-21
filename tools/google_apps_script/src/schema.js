@@ -47,12 +47,22 @@ var SPEC_COLUMNS = [
   { role: 'Caster DPS', className: 'Druide', spec: 'Équilibre', label: 'Druide Équilibre' }
 ];
 
-// Grid tabs rebuilt or refreshed by setup.
+// Grid tabs rebuilt or refreshed by setup. tierItems is the former single grid, kept only so setup can remove it.
 var GRID_TABS = {
   presence: { name: 'Présence', sheetId: 1011 },
   awards: { name: 'Awards', sheetId: 1012 },
   tierItems: { name: 'TierItems', sheetId: 1013 }
 };
+
+// One item grid per role, same layout as the former TierItems, restricted to the role's specs.
+var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
+  return { role: role, name: 'Objets ' + role, sheetId: 1021 + index };
+});
+
+// Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
+var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
+  .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
+  .concat(['Raids', 'PatternItems', 'Config', 'RaidReports', 'Diagnostics', '_Listes']);
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };

@@ -73,7 +73,45 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildConditionalFormatRequestsForTab_(sheetId, tab, separator));
   }
 
+  requests = requests.concat(buildTabOrderRequests_(requests));
+
   return { requests: requests };
+}
+
+// Moves tabs into TAB_ORDER, using the final id of each title after this batch's adds and deletes.
+function buildTabOrderRequests_(plannedRequests) {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var createdIdByTitle = Object.create(null);
+  var deletedIds = Object.create(null);
+
+  plannedRequests.forEach(function (request) {
+    if (request.addSheet) {
+      createdIdByTitle[request.addSheet.properties.title] = request.addSheet.properties.sheetId;
+    }
+    if (request.deleteSheet) {
+      deletedIds[request.deleteSheet.sheetId] = true;
+    }
+  });
+
+  var requests = [];
+  TAB_ORDER.forEach(function (title) {
+    var sheetId = createdIdByTitle[title];
+    if (sheetId === undefined) {
+      var sheet = spreadsheet.getSheetByName(title);
+      if (!sheet || deletedIds[sheet.getSheetId()]) {
+        return;
+      }
+      sheetId = sheet.getSheetId();
+    }
+    requests.push({
+      updateSheetProperties: {
+        properties: { sheetId: sheetId, index: requests.length },
+        fields: 'index'
+      }
+    });
+  });
+
+  return requests;
 }
 
 // Row 1 of each contract tab that already exists, keyed by tab name.
