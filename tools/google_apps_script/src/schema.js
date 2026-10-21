@@ -15,11 +15,47 @@ var CLASS_SPECS = [
   { name: 'Druide', specs: ['Équilibre', 'Combat farouche', 'Restauration'], colorHex: 'FF7C0A', textHex: '1F1F1F' }
 ];
 
-// Read-only tabs rebuilt by setup on each run.
-var VIEW_TABS = [
-  { name: 'Présence', sheetId: 1101, group: 'view' },
-  { name: 'Butin', sheetId: 1102, group: 'view' }
+// Spec grid contract: ordered columns after Objet (ID) and Objet.
+var SPEC_COLUMNS = [
+  { role: 'Tank', className: 'Guerrier', spec: 'Protection', label: 'Guerrier Protection' },
+  { role: 'Tank', className: 'Paladin', spec: 'Protection', label: 'Paladin Protection' },
+  { role: 'Tank', className: 'Druide', spec: 'Combat farouche', label: 'Druide Combat farouche (tank)' },
+  { role: 'Heal', className: 'Paladin', spec: 'Sacré', label: 'Paladin Sacré' },
+  { role: 'Heal', className: 'Prêtre', spec: 'Discipline', label: 'Prêtre Discipline' },
+  { role: 'Heal', className: 'Prêtre', spec: 'Sacré', label: 'Prêtre Sacré' },
+  { role: 'Heal', className: 'Chaman', spec: 'Restauration', label: 'Chaman Restauration' },
+  { role: 'Heal', className: 'Druide', spec: 'Restauration', label: 'Druide Restauration' },
+  { role: 'Melee DPS', className: 'Guerrier', spec: 'Armes', label: 'Guerrier Armes' },
+  { role: 'Melee DPS', className: 'Guerrier', spec: 'Fureur', label: 'Guerrier Fureur' },
+  { role: 'Melee DPS', className: 'Paladin', spec: 'Vindicte', label: 'Paladin Vindicte' },
+  { role: 'Melee DPS', className: 'Voleur', spec: 'Assassinat', label: 'Voleur Assassinat' },
+  { role: 'Melee DPS', className: 'Voleur', spec: 'Combat', label: 'Voleur Combat' },
+  { role: 'Melee DPS', className: 'Voleur', spec: 'Finesse', label: 'Voleur Finesse' },
+  { role: 'Melee DPS', className: 'Chaman', spec: 'Amélioration', label: 'Chaman Amélioration' },
+  { role: 'Melee DPS', className: 'Druide', spec: 'Combat farouche', label: 'Druide Combat farouche (félin)' },
+  { role: 'Ranged DPS', className: 'Chasseur', spec: 'Maîtrise des bêtes', label: 'Chasseur Maîtrise des bêtes' },
+  { role: 'Ranged DPS', className: 'Chasseur', spec: 'Précision', label: 'Chasseur Précision' },
+  { role: 'Ranged DPS', className: 'Chasseur', spec: 'Survie', label: 'Chasseur Survie' },
+  { role: 'Caster DPS', className: 'Mage', spec: 'Arcanes', label: 'Mage Arcanes' },
+  { role: 'Caster DPS', className: 'Mage', spec: 'Feu', label: 'Mage Feu' },
+  { role: 'Caster DPS', className: 'Mage', spec: 'Givre', label: 'Mage Givre' },
+  { role: 'Caster DPS', className: 'Démoniste', spec: 'Affliction', label: 'Démoniste Affliction' },
+  { role: 'Caster DPS', className: 'Démoniste', spec: 'Démonologie', label: 'Démoniste Démonologie' },
+  { role: 'Caster DPS', className: 'Démoniste', spec: 'Destruction', label: 'Démoniste Destruction' },
+  { role: 'Caster DPS', className: 'Prêtre', spec: 'Ombre', label: 'Prêtre Ombre' },
+  { role: 'Caster DPS', className: 'Chaman', spec: 'Élémentaire', label: 'Chaman Élémentaire' },
+  { role: 'Caster DPS', className: 'Druide', spec: 'Équilibre', label: 'Druide Équilibre' }
 ];
+
+// Grid tabs rebuilt or refreshed by setup.
+var GRID_TABS = {
+  presence: { name: 'Présence', sheetId: 1011 },
+  awards: { name: 'Awards', sheetId: 1012 },
+  tierItems: { name: 'TierItems', sheetId: 1013 }
+};
+
+// Hidden helper tab for dependent dropdown values.
+var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
 // Column contract for every data tab, in creation order.
 // Code reads columns by `key` (stable); `label` is what people see in row 1; `note` shows on hover.
@@ -84,57 +120,6 @@ var TABS = [
     ]
   },
   {
-    name: 'Attendance',
-    sheetId: 1006,
-    group: 'log',
-    columns: [
-      { key: 'raidId', label: 'Raid (ID)', note: 'Raid concerné. Écrit par le script.' },
-      { key: 'raiderKey', label: 'Raider présent', note: 'Présent à plus de 25 % des combats de boss. Écrit par le script.' }
-    ]
-  },
-  {
-    name: 'Bench',
-    sheetId: 1007,
-    group: 'input',
-    columns: [
-      { key: 'raidId', label: 'Raid (ID)', note: 'Raid concerné.' },
-      { key: 'raiderKey', label: 'Raider sur le banc', note: 'Raider sur le banc pour ce raid ; compte comme une présence.' }
-    ]
-  },
-  {
-    // tierId and bisWindowId are copied from the raid so loot-count formulas need no join.
-    name: 'Awards',
-    sheetId: 1008,
-    group: 'log',
-    columns: [
-      { key: 'checksum', label: 'Checksum Gargul', note: 'Identifiant Gargul de l\'attribution. Écrit par le script.' },
-      { key: 'raidId', label: 'Raid (ID)', note: 'Raid de l\'attribution. Écrit par le script.' },
-      { key: 'tierId', label: 'Palier', note: 'Palier du raid. Écrit par le script.' },
-      { key: 'bisWindowId', label: 'Fenêtre BiS', note: 'Fenêtre BiS du raid. Écrit par le script.' },
-      { key: 'raiderKey', label: 'Gagnant', note: 'Nom exact du gagnant. Écrit par le script.' },
-      { key: 'itemID', label: 'Objet (ID)', note: 'ID de l\'objet attribué. Écrit par le script.' },
-      { key: 'rollType', label: 'Type de roll', note: 'Type de roll Gargul (- = sans roll). Écrit par le script.' },
-      { key: 'os', label: 'Off-spec', note: '1 = attribué en off-spec (ne compte pas). Écrit par le script.' },
-      { key: 'date', label: 'Date', note: 'Date de l\'attribution. Écrit par le script.' },
-      { key: 'time', label: 'Heure', note: 'Heure de l\'attribution. Écrit par le script.' },
-      { key: 'treatment', label: 'Traitement', note: 'BIS, IMPACT ou NONE : ce que l\'attribution compte. Écrit par le script.' }
-    ]
-  },
-  {
-    name: 'TierItems',
-    sheetId: 1009,
-    group: 'input',
-    columns: [
-      { key: 'tierId', label: 'Palier', note: 'Palier de l\'objet.' },
-      { key: 'itemID', label: 'Objet (ID)', note: 'ID de l\'objet (Wowhead).' },
-      { key: 'itemName', label: 'Objet', note: 'Nom de l\'objet.' },
-      { key: 'class', label: 'Classe', note: 'Classe concernée (liste).' },
-      { key: 'spec', label: 'Spé', note: 'Une des trois spés de la classe.' },
-      { key: 'status', label: 'Statut', note: 'BIS, ALT_BIS, IMPACT, TIER, CLASS_BOUND ou NORMAL pour cette spé.' },
-      { key: 'simGainFraction', label: 'Gain simulé (%)', note: 'Gain simulé de l\'objet pour cette spé, saisi en %. Rouge si négatif, vert et gras à partir de 2 %.' }
-    ]
-  },
-  {
     // Items whose awards are always treated as NONE.
     name: 'PatternItems',
     sheetId: 1010,
@@ -179,14 +164,6 @@ function notesOf_(tab) {
 
 function classNames_() {
   return CLASS_SPECS.map(function (entry) { return entry.name; });
-}
-
-// Spec check pattern, e.g. ^(Mage:(Arcanes|Feu|Givre)|...)$, matched against "Classe:Spé".
-function classSpecRegex_() {
-  var parts = CLASS_SPECS.map(function (entry) {
-    return entry.name + ':(' + entry.specs.join('|') + ')';
-  });
-  return '^(' + parts.join('|') + ')$';
 }
 
 // 0-based column index by stable key; throws on a typo so a wrong column is never read.

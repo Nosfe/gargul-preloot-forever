@@ -26,7 +26,8 @@
         columnWidths: {},
         notes: {},
         merges: [],
-        borders: []
+        borders: [],
+        hidden: false
       };
     }
     if (!Array.isArray(sheet.meta.dataValidations)) {
@@ -50,6 +51,9 @@
     if (!Array.isArray(sheet.meta.borders)) {
       sheet.meta.borders = [];
     }
+    if (typeof sheet.meta.hidden !== 'boolean') {
+      sheet.meta.hidden = false;
+    }
   }
 
   function createSheetRecord_(id, title, rows, frozenRowCount, frozenColumnCount) {
@@ -69,7 +73,8 @@
         columnWidths: {},
         notes: {},
         merges: [],
-        borders: []
+        borders: [],
+        hidden: false
       }
     };
   }
@@ -309,6 +314,28 @@
     if (Object.prototype.hasOwnProperty.call(properties, 'tabColorStyle')) {
       sheet.meta.tabColorStyle = clone(properties.tabColorStyle || null);
     }
+    if (Object.prototype.hasOwnProperty.call(properties, 'hidden')) {
+      sheet.meta.hidden = Boolean(properties.hidden);
+    }
+
+    return {};
+  }
+
+  // Fake deleteSheet request: removes the sheet record and its name.
+  function applyDeleteSheet_(request, storeById, nameIndex) {
+    var payload = request.deleteSheet || {};
+    var sheetId = payload.sheetId;
+    var key = String(sheetId);
+    var sheet = storeById[key];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in deleteSheet: ' + sheetId);
+    }
+
+    delete storeById[key];
+    if (Object.prototype.hasOwnProperty.call(nameIndex, sheet.title)) {
+      delete nameIndex[sheet.title];
+    }
 
     return {};
   }
@@ -488,7 +515,20 @@
     }
 
     ensureSheetMeta_(sheet);
-    sheet.meta.borders.push(clone(payload));
+    var key = JSON.stringify(payload.range || {});
+    var existingIndex = -1;
+    for (var i = 0; i < sheet.meta.borders.length; i += 1) {
+      var current = sheet.meta.borders[i] || {};
+      if (JSON.stringify(current.range || {}) === key) {
+        existingIndex = i;
+        break;
+      }
+    }
+    if (existingIndex >= 0) {
+      sheet.meta.borders[existingIndex] = clone(payload);
+    } else {
+      sheet.meta.borders.push(clone(payload));
+    }
     return {};
   }
 
@@ -529,6 +569,10 @@
       }
       if (request.updateSheetProperties) {
         replies.push(applyUpdateSheetProperties_(request, workingStore));
+        return;
+      }
+      if (request.deleteSheet) {
+        replies.push(applyDeleteSheet_(request, workingStore, workingNameIndex));
         return;
       }
       if (request.repeatCell) {
@@ -665,6 +709,11 @@
                 return clone(sheetRecord.rows);
               }
             };
+          },
+          // Grid width (columnCount), 26 by default like a new Sheets tab.
+          getMaxColumns: function () {
+            ensureSheetMeta_(sheetRecord);
+            return Number(sheetRecord.meta.columnCount || 26);
           }
         };
       }
@@ -785,12 +834,21 @@
   }
 
   function seedSheet(name, rows, options) {
+    // Re-seeding an existing tab replaces its rows and keeps its id, so one sheet never has two records.
     if (Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
-      throw new Error('seedSheet cannot overwrite existing sheet: ' + name);
+      state.storeById[String(state.nameIndex[name])].rows = clone(rows || []);
+      return;
     }
 
-    var id = state.nextSheetId;
-    state.nextSheetId += 1;
+    var id = options && typeof options.sheetId === 'number' ? options.sheetId : state.nextSheetId;
+    if (Object.prototype.hasOwnProperty.call(state.storeById, String(id))) {
+      throw new Error('seedSheet id already exists: ' + id);
+    }
+    if (!options || typeof options.sheetId !== 'number') {
+      state.nextSheetId += 1;
+    } else if (id >= state.nextSheetId) {
+      state.nextSheetId = id + 1;
+    }
 
     var frozen = options && typeof options.frozenRowCount === 'number'
       ? options.frozenRowCount

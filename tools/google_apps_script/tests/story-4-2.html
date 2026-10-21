@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <meta charset="utf-8">
 <title>Story 4.2 tests</title>
 <pre id="result">Tests did not run.</pre>
@@ -6,7 +6,7 @@
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
-<script src="../src/views.js"></script>
+<script src="../src/grids.js"></script>
 <script src="../src/roster.js"></script>
 <script>
   (function () {
@@ -19,17 +19,17 @@
       }
     }
 
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
     function truthy(value, label) {
       assertions += 1;
       if (!value) {
         throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
       }
     }
 
@@ -42,425 +42,185 @@
       }
     }
 
-    function headerRow(tabName) {
-      return TracerHarness.getRows(tabName)[0] || [];
+    // Seeds every flat contract tab with its key header row, except the names in `skip`.
+    function seedCoreFlatTabs(skip) {
+      TABS.forEach(function (tab) {
+        if ((skip || []).indexOf(tab.name) !== -1) {
+          return;
+        }
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
     }
 
-    function formulaFromRule(rule) {
-      return rule.booleanRule.condition.values[0].userEnteredValue;
+    function seedLegacyMigrationWorkbook(skip) {
+      seedCoreFlatTabs(skip);
+      TracerHarness.seedSheet('Attendance', [['raidId', 'raiderKey']]);
+      TracerHarness.seedSheet('Bench', [['raidId', 'raiderKey']]);
+      TracerHarness.seedSheet('Awards', [['checksum', 'raidId', 'tierId', 'bisWindowId', 'raiderKey', 'itemID', 'rollType', 'os', 'date', 'time', 'treatment']]);
+      TracerHarness.seedSheet('TierItems', [
+        ['tierId', 'itemID', 'itemName', 'class', 'spec', 'status', 'simGainFraction'],
+        ['Tank', '', '', '', '', '', ''],
+        ['Heal', '', '', '', '', '', '']
+      ]);
+      TracerHarness.seedSheet('Présence', [['legacy']], { sheetId: 1101 });
+      TracerHarness.seedSheet('Butin', [['legacy']], { sheetId: 1102 });
     }
 
     function validationForColumn(meta, columnIndex) {
       for (var i = 0; i < meta.dataValidations.length; i += 1) {
         var range = meta.dataValidations[i].range;
-        if (range.startColumnIndex === columnIndex) {
+        // Skip range clears (no rule).
+        if (range.startColumnIndex === columnIndex && meta.dataValidations[i].rule) {
           return meta.dataValidations[i].rule;
         }
       }
       return null;
     }
 
-    function cellAt(sheetName, rowIndex, columnIndex) {
-      var rows = TracerHarness.getRows(sheetName);
-      var row = rows[rowIndex] || [];
-      return row[columnIndex] === undefined ? '' : row[columnIndex];
-    }
+    function rosterLookupTests() {
+      var index = buildRosterIndex_(
+        [['raiderKey'], ['Ana'], ['ana']],
+        [['rerollName', 'mainKey'], ['AnaAlt', 'Ana']]
+      );
 
-    function buildPresenceReference(raidsRows, attendanceRows, benchRows, rosterRows) {
-      var raids = raidsRows.slice(1).filter(function (row) { return row[0] !== ''; });
-      raids.sort(function (left, right) {
-        return String(left[4]).localeCompare(String(right[4]));
-      });
-
-      var raiders = rosterRows.slice(1)
-        .map(function (row) { return String(row[0] || ''); })
-        .filter(function (name) { return name !== ''; })
-        .sort(function (left, right) { return left.localeCompare(right); });
-
-      var matrix = raids.map(function (raid) {
-        var raidId = raid[0];
-        return raiders.map(function (raider) {
-          var attended = attendanceRows.slice(1).some(function (entry) {
-            return entry[0] === raidId && entry[1] === raider;
-          });
-          if (attended) {
-            return 1;
-          }
-          var benched = benchRows.slice(1).some(function (entry) {
-            return entry[0] === raidId && entry[1] === raider;
-          });
-          return benched ? 'B' : 0;
-        });
-      });
-
-      return {
-        raids: raids,
-        raiders: raiders,
-        matrix: matrix,
-        totals: raiders.map(function (_, columnIndex) {
-          return matrix.reduce(function (sum, values) {
-            return sum + (values[columnIndex] === 0 ? 0 : 1);
-          }, 0);
-        })
-      };
-    }
-
-    function buildButinReference(awardsRows, tierItemsRows, raiderName) {
-      var itemNameById = Object.create(null);
-      tierItemsRows.slice(1).forEach(function (row) {
-        if (row[1] !== '' && row[1] !== null && row[1] !== undefined) {
-          itemNameById[String(row[1])] = row[2] || '';
-        }
-      });
-
-      return awardsRows.slice(1)
-        .filter(function (row) { return row[4] === raiderName; })
-        .map(function (row) {
-          var itemId = String(row[5] || '');
-          return [row[8] + ' ' + row[9], itemNameById[itemId] || '', row[5], row[10]];
-        })
-        .sort(function (left, right) {
-          return String(right[0]).localeCompare(String(left[0]));
-        });
+      equal(findRaiderKey_(index, 'Ana'), 'Ana', 'exact key lookup for Ana');
+      equal(findRaiderKey_(index, 'ana'), 'ana', 'exact key lookup for ana');
+      equal(findRaiderKey_(index, 'ANA'), null, 'lookup does not case-fold');
+      equal(resolveAttendanceKey_(index, 'AnaAlt'), 'Ana', 'attendance resolves reroll to main');
+      equal(resolveAttendanceKey_(index, 'Ana'), 'Ana', 'attendance keeps direct raider key');
     }
 
     try {
       withHarness(function () {
-        setUpWorkbook();
-
-        equal(headerRow('Config').join(','), labelsOf_(tabByName_('Config')).join(','), 'Config uses readable labels');
-        equal(headerRow('Roster').join(','), labelsOf_(tabByName_('Roster')).join(','), 'Roster uses readable labels');
-        equal(headerRow('TierItems').join(','), labelsOf_(tabByName_('TierItems')).join(','), 'TierItems uses readable labels');
-
-        var rosterMeta = TracerHarness.getSheetMeta('Roster');
-        equal(rosterMeta.frozenRowCount, 1, 'Roster header row frozen');
-        equal(rosterMeta.dataValidations.length, 6, 'Roster validation count');
-        equal(rosterMeta.conditionalFormatRules.length, 10, 'Roster conditional format count');
-        equal(rosterMeta.bandedRanges.length, 1, 'Roster banding count');
-
-        var rerollsMeta = TracerHarness.getSheetMeta('Rerolls');
-        equal(rerollsMeta.conditionalFormatRules.length, 2, 'Rerolls conditional format count');
-        equal(rerollsMeta.bandedRanges.length, 1, 'Rerolls banding count');
-
-        var tierMeta = TracerHarness.getSheetMeta('TierItems');
-        equal(tierMeta.dataValidations.length, 4, 'TierItems validation count');
-        equal(tierMeta.conditionalFormatRules.length, 12, 'TierItems conditional format count');
-        equal(tierMeta.bandedRanges.length, 1, 'TierItems banding count');
-
-        truthy(TracerHarness.getSheetMeta('Roster').tabColorStyle, 'input tab has tabColorStyle');
-        truthy(TracerHarness.getSheetMeta('Raids').tabColorStyle, 'log tab has tabColorStyle');
-
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'success alert text');
-        equal(TracerHarness.isLockHeld(), false, 'lock released after setup');
-
-        contains(formulaFromRule(rosterMeta.conditionalFormatRules[0]), 'EXACT', 'duplicate-name highlight has top priority over class colours');
-        var mageRule = rosterMeta.conditionalFormatRules.filter(function (rule) {
-          return formulaFromRule(rule) === '=$B2="Mage"';
-        })[0];
-        equal(JSON.stringify(mageRule.booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('3FC7EB')), 'Mage colour');
-        equal(mageRule.ranges[0].startColumnIndex + ':' + mageRule.ranges[0].endColumnIndex, '0:2', 'class colour covers Raider and Classe');
-
-        var redRule = tierMeta.conditionalFormatRules.filter(function (rule) { return formulaFromRule(rule) === '=G2<0'; })[0];
-        var greenRule = tierMeta.conditionalFormatRules.filter(function (rule) { return formulaFromRule(rule) === '=G2>=1/50'; })[0];
-        var titleRule = tierMeta.conditionalFormatRules.filter(function (rule) {
-          return formulaFromRule(rule).indexOf('Melee DPS') !== -1;
-        })[0];
-        equal(JSON.stringify(redRule.booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_('B3261E')), 'negative gain is red');
-        equal(greenRule.booleanRule.format.textFormat.bold, true, 'gain of 2% or more is bold');
-        equal(JSON.stringify(greenRule.booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_('1E7D32')), 'gain of 2% or more is green');
-        equal(titleRule.booleanRule.format.textFormat.bold, true, 'title-row rule keeps bold text');
-
-        var presenceMeta = TracerHarness.getSheetMeta('Présence');
-        var butinMeta = TracerHarness.getSheetMeta('Butin');
-        equal(presenceMeta.frozenRowCount, 2, 'Présence freezes header and total rows');
-        equal(presenceMeta.frozenColumnCount, 3, 'Présence freezes first three columns');
-        equal(butinMeta.frozenRowCount, 2, 'Butin freezes the first two rows');
-        truthy(TracerHarness.getRows('Présence').length > 0, 'Présence is created');
-        truthy(Boolean(butinMeta), 'Butin is created');
-        contains(cellAt('Présence', 2, 0), 'SORT(FILTER(HSTACK(', 'Présence raid sorting formula is written');
-      });
-
-      withHarness(function () {
-        TracerHarness.setLocale('fr_FR');
-        setUpWorkbook();
-
-        var rosterMeta = TracerHarness.getSheetMeta('Roster');
-        var allRosterFormulas = rosterMeta.conditionalFormatRules.map(formulaFromRule).join('\n');
-        contains(allRosterFormulas, ';', 'fr formula uses semicolon separator');
-
-        var rosterSpecRule = validationForColumn(rosterMeta, columnOf_(tabByName_('Roster'), 'spec'));
-        contains(rosterSpecRule.condition.values[0].userEnteredValue, ';', 'fr spec rule formula uses semicolon separator');
-        equal(rosterSpecRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr spec rule formula has no commas');
-        ['Roster', 'Rerolls', 'TierItems'].forEach(function (name) {
-          TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
-            equal(formulaFromRule(rule).indexOf(','), -1, 'fr ' + name + ' rule has no commas');
-          });
-        });
-      });
-
-      withHarness(function () {
-        setUpWorkbook();
-        var before = {
-          rosterRules: TracerHarness.getSheetMeta('Roster').conditionalFormatRules.length,
-          rosterValidations: TracerHarness.getSheetMeta('Roster').dataValidations.length,
-          rosterBandings: TracerHarness.getSheetMeta('Roster').bandedRanges.length,
-          tierRules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length,
-          tierBandings: TracerHarness.getSheetMeta('TierItems').bandedRanges.length
-        };
-
-        setUpWorkbook();
-        var after = {
-          rosterRules: TracerHarness.getSheetMeta('Roster').conditionalFormatRules.length,
-          rosterValidations: TracerHarness.getSheetMeta('Roster').dataValidations.length,
-          rosterBandings: TracerHarness.getSheetMeta('Roster').bandedRanges.length,
-          tierRules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length,
-          tierBandings: TracerHarness.getSheetMeta('TierItems').bandedRanges.length
-        };
-
-        equal(after.rosterRules, before.rosterRules, 'rerun keeps Roster rule count stable');
-        equal(after.rosterValidations, before.rosterValidations, 'rerun keeps Roster validation count stable');
-        equal(after.rosterBandings, before.rosterBandings, 'rerun keeps Roster banding count stable');
-        equal(after.tierRules, before.tierRules, 'rerun keeps TierItems rule count stable');
-        equal(after.tierBandings, before.tierBandings, 'rerun keeps TierItems banding count stable');
-      });
-
-      withHarness(function () {
-        TABS.forEach(function (tab) {
-          if (tab.name === 'Roster') {
-            TracerHarness.seedSheet(tab.name, [
-              keysOf_(tab),
-              ['Ana', 'Mage', 'Givre', 'Heal', 'MT1', 80, 0.03]
-            ]);
-            return;
-          }
-          TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
-        });
-        TracerHarness.seedSheet('Marker', [['stable']]);
-
-        setUpWorkbook();
-
-        equal(headerRow('Roster').join(','), labelsOf_(tabByName_('Roster')).join(','), 'technical headers migrate to labels');
-        equal(TracerHarness.getRows('Roster')[1].join(','), 'Ana,Mage,Givre,Heal,MT1,80,0.03', 'setup preserves existing roster row values');
-      });
-
-      withHarness(function () {
-        TracerHarness.seedSheet('Config', [['tierId', 'Unexpected']]);
-        TracerHarness.seedSheet('Marker', [['stable']]);
-
-        setUpWorkbook();
-
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'conflict returns failure alert');
-        contains(alert, 'Header conflict in tab "Config"', 'conflict names tab');
-        contains(alert, '[tierId, Unexpected]', 'conflict shows existing headers');
-        contains(alert, 'Palier actif (ID)', 'conflict shows expected labels');
-        equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'conflict keeps existing values unchanged');
-        equal(TracerHarness.getRows('Roster').length, 0, 'conflict abort is atomic');
-        equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
-      });
-
-      withHarness(function () {
-        setUpWorkbook();
-
-        var rosterMeta = TracerHarness.getSheetMeta('Roster');
-        var tierMeta = TracerHarness.getSheetMeta('TierItems');
-
-        var rosterFormulas = rosterMeta.conditionalFormatRules.map(formulaFromRule);
-        var tierFormulas = tierMeta.conditionalFormatRules.map(formulaFromRule);
-
-        truthy(rosterFormulas.indexOf('=$B2="Mage"') !== -1, 'Roster has class color rule for Mage');
-        truthy(tierFormulas.indexOf('=$D2="Mage"') !== -1, 'TierItems has class color rule for Mage');
-        truthy(tierFormulas.indexOf('=G2<0') !== -1, 'TierItems has negative gain red rule');
-        truthy(tierFormulas.indexOf('=G2>=1/50') !== -1, 'TierItems has >=2% gain green/bold rule');
-
-        var roleRule = validationForColumn(rosterMeta, columnOf_(tabByName_('Roster'), 'role'));
-        var roleValues = roleRule.condition.values.map(function (entry) { return entry.userEnteredValue; }).join('|');
-        contains(roleValues, 'Heal', 'Role validation allows Heal');
-        equal(roleValues.indexOf('HEALER') === -1, true, 'Role validation rejects HEALER label');
-      });
-
-      withHarness(function () {
-        var rosterTab = tabByName_('Roster');
-        var raidsTab = tabByName_('Raids');
-        var attendanceTab = tabByName_('Attendance');
-        var benchTab = tabByName_('Bench');
-        var awardsTab = tabByName_('Awards');
-        var tierTab = tabByName_('TierItems');
-
+        seedLegacyMigrationWorkbook(['Roster']);
         TracerHarness.seedSheet('Roster', [
-          keysOf_(rosterTab),
-          ['Ana', 'Mage', 'Givre', 'Heal', '', '', ''],
-          ['Bob', 'Guerrier', 'Protection', 'Tank', '', '', '']
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', ''],
+          ['Bob', 'Prêtre', '', 'Heal', '', '', '']
         ]);
-        TracerHarness.seedSheet('Raids', [
-          keysOf_(raidsTab),
-          ['R1', 't1', 'w1', 'MC', '2026-01-01', 'closed'],
-          ['R2', 't1', 'w1', 'BWL', '2026-01-02', 'closed']
-        ]);
-        TracerHarness.seedSheet('Attendance', [
-          keysOf_(attendanceTab),
-          ['R1', 'Ana'],
-          ['R1', 'ana']
-        ]);
-        TracerHarness.seedSheet('Bench', [
-          keysOf_(benchTab),
-          ['R2', 'Ana']
-        ]);
-        TracerHarness.seedSheet('Awards', [
-          keysOf_(awardsTab),
-          ['c1', 'R1', 't1', 'w1', 'Ana', '1', '-', '0', '2026-02-01', '20:00:00', 'BIS'],
-          ['c2', 'R2', 't1', 'w1', 'Ana', '2', '-', '0', '2026-02-02', '20:00:00', 'NONE']
-        ]);
-        TracerHarness.seedSheet('TierItems', [
-          keysOf_(tierTab),
-          ['t1', '1', 'Crown of Skill', 'Mage', 'Givre', 'BIS', 0.03],
-          ['t1', '2', '', 'Mage', 'Feu', 'NORMAL', 0.01]
-        ]);
-        TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config'))]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
-        TracerHarness.seedSheet('RaidReports', [keysOf_(tabByName_('RaidReports'))]);
-        TracerHarness.seedSheet('PatternItems', [keysOf_(tabByName_('PatternItems'))]);
 
         setUpWorkbook();
 
-        var expectedPresence = buildPresenceReference(
-          TracerHarness.getRows('Raids'),
-          TracerHarness.getRows('Attendance'),
-          TracerHarness.getRows('Bench'),
-          TracerHarness.getRows('Roster')
-        );
-        equal(cellAt('Présence', 0, 3), expectedPresence.raiders[0], 'Présence first raider header sorted by name');
-        equal(cellAt('Présence', 1, 3), '=COUNTIF(D3:D,1)+COUNTIF(D3:D,"B")', 'Présence total formula in first raider column');
-        contains(cellAt('Présence', 2, 3), 'EXACT(Attendance!$B$2:$B,D$1)', 'Présence formula uses exact name match');
-        equal(expectedPresence.matrix[0][0], 1, 'Presence reference: Ana in R1 is 1');
-        equal(expectedPresence.matrix[1][0], 'B', 'Presence reference: Ana in R2 is B');
-        equal(expectedPresence.matrix[0][1], 0, 'Presence reference: Bob in R1 is 0');
-        equal(expectedPresence.totals[0], 2, 'Presence reference: Ana total is 2');
-
-        var expectedButin = buildButinReference(
-          TracerHarness.getRows('Awards'),
-          TracerHarness.getRows('TierItems'),
-          'Ana'
-        );
-        equal(cellAt('Butin', 0, 0), 'Ana', 'Butin first block header is Ana');
-        contains(cellAt('Butin', 2, 0), 'EXACT(Awards!E2:E,A$1)', 'Butin formula uses exact winner match');
-        contains(cellAt('Butin', 2, 0), 'XLOOKUP(Awards!F2:F,TierItems!B2:B,TierItems!C2:C)', 'Butin formula resolves item names by id');
-        contains(cellAt('Butin', 2, 0), 'Awards!I2:I&" "&Awards!J2:J', 'Butin sorts on date and time');
-        equal(expectedButin[0][0], '2026-02-02 20:00:00', 'Butin reference sorts newest first');
-        equal(expectedButin[0][1], '', 'Butin reference keeps unknown item name empty');
+        equal(TracerHarness.getRows('Attendance').length, 0, 'Attendance deleted');
+        equal(TracerHarness.getRows('Bench').length, 0, 'Bench deleted');
+        equal(TracerHarness.getRows('Butin').length, 0, 'Butin deleted');
+        equal(TracerHarness.getRows('Présence')[0][0], 'Raid (ID)', 'Présence grid created');
+        equal(TracerHarness.getRows('Awards')[1][0], 'Date', 'Awards grid created');
+        equal(TracerHarness.getRows('TierItems')[2][0], 'Objet (ID)', 'TierItems grid created');
       });
 
       withHarness(function () {
-        var tierWithLegacySlot = [
-          ['tierId', 'itemID', 'itemName', 'Emplacement', 'class', 'spec', 'status', 'simGainFraction'],
-          ['t1', '101', 'Old item', '', 'Mage', 'Givre', 'BIS', 0.03]
-        ];
-
-        TracerHarness.seedSheet('TierItems', tierWithLegacySlot);
-        TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config'))]);
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster'))]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
-        TracerHarness.seedSheet('Raids', [keysOf_(tabByName_('Raids'))]);
-        TracerHarness.seedSheet('RaidReports', [keysOf_(tabByName_('RaidReports'))]);
-        TracerHarness.seedSheet('Attendance', [keysOf_(tabByName_('Attendance'))]);
-        TracerHarness.seedSheet('Bench', [keysOf_(tabByName_('Bench'))]);
-        TracerHarness.seedSheet('Awards', [keysOf_(tabByName_('Awards'))]);
-        TracerHarness.seedSheet('PatternItems', [keysOf_(tabByName_('PatternItems'))]);
-
-        setUpWorkbook();
-
-        equal(headerRow('TierItems').join(','), labelsOf_(tabByName_('TierItems')).join(','), 'empty Emplacement column is removed and headers migrate');
-        equal(TracerHarness.getRows('TierItems')[1].join(','), 't1,101,Old item,Mage,Givre,BIS,0.03', 'row values are preserved when Emplacement is dropped');
-      });
-
-      withHarness(function () {
-        TracerHarness.seedSheet('TierItems', [
-          ['tierId', 'itemID', 'itemName', 'Emplacement', 'class', 'spec', 'status', 'simGainFraction'],
-          ['t1', '101', 'Old item', 'Tête', 'Mage', 'Givre', 'BIS', 0.03]
-        ]);
-        TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config'))]);
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster'))]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
-        TracerHarness.seedSheet('Raids', [keysOf_(tabByName_('Raids'))]);
-        TracerHarness.seedSheet('RaidReports', [keysOf_(tabByName_('RaidReports'))]);
-        TracerHarness.seedSheet('Attendance', [keysOf_(tabByName_('Attendance'))]);
-        TracerHarness.seedSheet('Bench', [keysOf_(tabByName_('Bench'))]);
-        TracerHarness.seedSheet('Awards', [keysOf_(tabByName_('Awards'))]);
-        TracerHarness.seedSheet('PatternItems', [keysOf_(tabByName_('PatternItems'))]);
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Bench', [['raidId', 'raiderKey'], ['R1', 'Ana']]);
 
         setUpWorkbook();
 
         var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'setup fails when Emplacement has data');
-        contains(alert, 'Emplacement column', 'error names Emplacement');
-        contains(alert, 'column D', 'error names the legacy column letter');
-        equal(headerRow('TierItems')[3], 'Emplacement', 'abort keeps the TierItems headers');
-        equal(cellAt('TierItems', 1, 3), 'Tête', 'abort keeps the Emplacement data');
-        equal(TracerHarness.getSheetMeta('Présence'), null, 'abort creates no view tab');
+        contains(alert, 'Workbook setup failed', 'abort alert exists');
+        contains(alert, 'Bench', 'abort alert names Bench');
+        equal(TracerHarness.getRows('Bench')[1].join(','), 'R1,Ana', 'abort keeps the Bench row');
+        equal(TracerHarness.getSheetMeta('Présence'), null, 'abort creates no Présence');
+        equal(TracerHarness.getSheetMeta('_Listes'), null, 'abort creates no _Listes');
       });
 
       withHarness(function () {
-        var rosterRows = [keysOf_(tabByName_('Roster'))];
-        for (var n = 0; n < 30; n += 1) {
-          rosterRows.push(['Raider' + (n < 10 ? '0' : '') + n, '', '', '', '', '', '']);
-        }
-        TracerHarness.seedSheet('Roster', rosterRows);
-
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Awards', [
+          ['Checksum Gargul', 'Raid (ID)'],
+          ['c1', 'R1']
+        ]);
         setUpWorkbook();
-
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', '30 raiders fit (Butin needs 120 columns)');
-        equal(TracerHarness.getSheetMeta('Butin').columnCount, 120, 'Butin grid sized to 4 columns per raider');
-        equal(cellAt('Butin', 0, 116), 'Raider29', 'last Butin block is written');
-        equal(TracerHarness.getSheetMeta('Présence').columnCount, 33, 'Présence grid sized to the roster');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Awards', 'old flat Awards with data aborts');
+        equal(TracerHarness.getRows('Awards')[1][0], 'c1', 'old Awards data kept');
       });
 
       withHarness(function () {
-        var exact = buildPresenceReference(
-          [keysOf_(tabByName_('Raids')), ['R1', 't1', 'w1', 'MC', '2026-01-01', 'closed']],
-          [keysOf_(tabByName_('Attendance')), ['R1', 'ana']],
-          [keysOf_(tabByName_('Bench'))],
-          [keysOf_(tabByName_('Roster')), ['Ana']]
-        );
-        equal(exact.matrix[0][0], 0, 'Présence exact: ana does not count for Ana');
-
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('TierItems', [
+          ['Palier', 'Objet (ID)', 'Objet'],
+          ['Tank', '', ''],
+          ['t1', '19019', 'Thunderfury']
+        ]);
         setUpWorkbook();
-        contains(cellAt('Butin', 2, 0) || '', '', 'no roster: Butin stays empty');
-        var tierMeta = TracerHarness.getSheetMeta('TierItems');
-        var topRule = tierMeta.conditionalFormatRules[0];
-        contains(formulaFromRule(topRule), 'Caster DPS', 'section title rule has top priority');
-        equal(topRule.ranges[0].startColumnIndex + ':' + topRule.ranges[0].endColumnIndex, '0:7', 'section title rule covers A to G');
-        equal(JSON.stringify(topRule.booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('253746')), 'section title rows are dark');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'TierItems', 'old flat TierItems with an item aborts');
+        equal(TracerHarness.getRows('TierItems')[2][1], '19019', 'old TierItems item kept');
       });
 
       withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', ''],
+          ['Bob', 'Mage', '', 'Heal', '', '', '']
+        ]);
         setUpWorkbook();
 
-        var seededTitles = TracerHarness.getRows('TierItems').slice(1, 6).map(function (row) {
-          return row[0];
-        }).join('|');
-        equal(seededTitles, ROLE_OPTIONS.join('|'), 'fresh TierItems is seeded with role titles');
+        // Blank Présence header between two raiders: names must not shift onto other columns.
+        var presenceId = SpreadsheetApp.getActive().getSheetByName('Présence').getSheetId();
+        Sheets.Spreadsheets.batchUpdate({ requests: [
+          { updateCells: { start: { sheetId: presenceId, rowIndex: 0, columnIndex: 3 }, rows: [{ values: [
+            { userEnteredValue: { stringValue: 'Ana' } },
+            { userEnteredValue: { stringValue: '' } },
+            { userEnteredValue: { stringValue: 'Bob' } }
+          ] }], fields: 'userEnteredValue' } },
+          { updateSheetProperties: { properties: { sheetId: presenceId, gridProperties: { columnCount: 40 } }, fields: 'gridProperties.columnCount' } }
+        ] }, SpreadsheetApp.getActive().getId());
 
         setUpWorkbook();
-        var secondRunTitles = TracerHarness.getRows('TierItems').slice(1, 6).map(function (row) {
-          return row[0];
-        }).join('|');
-        equal(secondRunTitles, ROLE_OPTIONS.join('|'), 'rerun keeps the same seeded title rows');
+        var header = TracerHarness.getRows('Présence')[0];
+        equal(header[3] + '|' + header[4] + '|' + header[5], 'Ana||Bob', 'blank header keeps its slot; Bob stays in column F');
+        equal(TracerHarness.getSheetMeta('Présence').columnCount, 40, 'refresh never shrinks the grid');
       });
 
       withHarness(function () {
-        TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config'))]);
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage', 'Givre', 'Heal', '', '', '']]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
-        TracerHarness.seedSheet('Raids', [keysOf_(tabByName_('Raids'))]);
-        TracerHarness.seedSheet('RaidReports', [keysOf_(tabByName_('RaidReports'))]);
-        TracerHarness.seedSheet('Attendance', [keysOf_(tabByName_('Attendance'))]);
-        TracerHarness.seedSheet('Bench', [keysOf_(tabByName_('Bench'))]);
-        TracerHarness.seedSheet('Awards', [keysOf_(tabByName_('Awards'))]);
-        TracerHarness.seedSheet('TierItems', [labelsOf_(tabByName_('TierItems')), ['t1', '1', 'Seeded', 'Mage', 'Givre', 'BIS', 0.02]]);
-        TracerHarness.seedSheet('PatternItems', [keysOf_(tabByName_('PatternItems'))]);
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', ''],
+          ['Bob', 'Prêtre', '', 'Heal', '', '', '']
+        ]);
 
         setUpWorkbook();
-        equal(cellAt('Présence', 0, 3), 'Ana', 'Présence picks current roster names');
+
+        var presenceRows = TracerHarness.getRows('Présence');
+        var presenceMeta = TracerHarness.getSheetMeta('Présence');
+        equal(presenceRows[0][3], 'Ana', 'Présence D1 is first raider');
+        equal(presenceRows[0][4], 'Bob', 'Présence E1 is second raider');
+        equal(presenceRows[1][3], '=COUNTIF(D3:D,1)+COUNTIF(D3:D,"B")', 'Présence total formula in D2');
+        equal(presenceMeta.frozenRowCount, 2, 'Présence freezes 2 rows');
+        equal(presenceMeta.frozenColumnCount, 3, 'Présence freezes 3 columns');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', '']
+        ]);
+
+        setUpWorkbook();
+
+        var presenceSheetId = SpreadsheetApp.getActive().getSheetByName('Présence').getSheetId();
+        Sheets.Spreadsheets.batchUpdate({
+          requests: [
+            {
+              appendCells: {
+                sheetId: presenceSheetId,
+                rows: [
+                  {
+                    values: [
+                      { userEnteredValue: { stringValue: 'R1' } },
+                      { userEnteredValue: { stringValue: 'MC' } },
+                      { userEnteredValue: { stringValue: '2026-01-01' } },
+                      { userEnteredValue: { stringValue: '1' } }
+                    ]
+                  }
+                ],
+                fields: 'userEnteredValue'
+              }
+            }
+          ]
+        }, SpreadsheetApp.getActive().getId());
 
         var rosterSheetId = SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId();
         Sheets.Spreadsheets.batchUpdate({
@@ -472,9 +232,9 @@
                   {
                     values: [
                       { userEnteredValue: { stringValue: 'Cid' } },
-                      { userEnteredValue: { stringValue: 'Prêtre' } },
-                      { userEnteredValue: { stringValue: 'Sacré' } },
-                      { userEnteredValue: { stringValue: 'Heal' } }
+                      { userEnteredValue: { stringValue: 'Mage' } },
+                      { userEnteredValue: { stringValue: '' } },
+                      { userEnteredValue: { stringValue: 'Caster DPS' } }
                     ]
                   }
                 ],
@@ -485,53 +245,153 @@
         }, SpreadsheetApp.getActive().getId());
 
         setUpWorkbook();
-        equal(cellAt('Présence', 0, 4), 'Cid', 'refresh adds new raider column in Présence');
-        equal(cellAt('Butin', 0, 4), 'Cid', 'refresh adds new raider block in Butin');
-        equal(TracerHarness.getSheetMeta('Butin').merges.length, 2, 'refresh does not duplicate Butin merges');
-        equal(TracerHarness.getSheetMeta('Butin').borders.length, 2, 'refresh does not duplicate Butin borders');
-        equal(TracerHarness.getSheetMeta('Présence').borders.length, 2, 'refresh does not duplicate Présence borders');
+
+        var rows = TracerHarness.getRows('Présence');
+        equal(rows[0][4], 'Cid', 'new raider column appended');
+        equal(rows[2][3], '1', 'existing Ana values preserved');
       });
 
       withHarness(function () {
-        TracerHarness.seedSheet('TierItems', [
-          labelsOf_(tabByName_('TierItems')),
-          ['t1', '200', 'Item X', 'Mage', 'Feu', 'NORMAL', 0.01]
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', ''],
+          ['Bob', 'Prêtre', '', 'Heal', '', '', '']
         ]);
-        TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config'))]);
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster'))]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
-        TracerHarness.seedSheet('Raids', [keysOf_(tabByName_('Raids'))]);
-        TracerHarness.seedSheet('RaidReports', [keysOf_(tabByName_('RaidReports'))]);
-        TracerHarness.seedSheet('Attendance', [keysOf_(tabByName_('Attendance'))]);
-        TracerHarness.seedSheet('Bench', [keysOf_(tabByName_('Bench'))]);
-        TracerHarness.seedSheet('Awards', [keysOf_(tabByName_('Awards'))]);
-        TracerHarness.seedSheet('PatternItems', [keysOf_(tabByName_('PatternItems'))]);
 
         setUpWorkbook();
-        equal(cellAt('TierItems', 1, 0), 't1', 'existing TierItems data rows are kept');
-        equal(cellAt('TierItems', 2, 0), '', 'section titles are not re-seeded when data rows already exist');
+
+        var awardsRows = TracerHarness.getRows('Awards');
+        var awardsMeta = TracerHarness.getSheetMeta('Awards');
+        equal(awardsRows[0][0], 'Ana', 'Awards first block owner');
+        equal(awardsRows[0][5], 'Bob', 'Awards second block owner');
+        equal(awardsRows[1][0], 'Date', 'Awards row 2 Date header');
+        equal(awardsRows[1][4], 'Raid (ID)', 'Awards row 2 Raid header');
+        truthy(awardsMeta.dataValidations.length >= 2, 'Awards traitement validation exists');
+        equal(awardsMeta.frozenRowCount, 2, 'Awards freezes 2 rows');
       });
 
       withHarness(function () {
-        var specPattern = new RegExp(classSpecRegex_());
-        equal(specPattern.test('Mage:Givre'), true, 'spec check accepts Mage Givre');
-        equal(specPattern.test('Mage:Ombre'), false, 'spec check rejects Mage Ombre');
-        equal(specPattern.test('Prêtre:Sacré'), true, 'spec check keeps French accents');
-        equal(classNames_().indexOf('Démoniste') !== -1, true, 'class names keep accents');
-        equal(labelsOf_(tabByName_('Roster'))[2], 'Spé', 'labels keep accents');
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', '']
+        ]);
+
+        setUpWorkbook();
+
+        var awardsSheetId = SpreadsheetApp.getActive().getSheetByName('Awards').getSheetId();
+        Sheets.Spreadsheets.batchUpdate({
+          requests: [
+            {
+              appendCells: {
+                sheetId: awardsSheetId,
+                rows: [
+                  {
+                    values: [
+                      { userEnteredValue: { stringValue: '2026-01-02' } },
+                      { userEnteredValue: { stringValue: 'Obj' } },
+                      { userEnteredValue: { stringValue: '123' } },
+                      { userEnteredValue: { stringValue: 'BIS' } },
+                      { userEnteredValue: { stringValue: 'R1' } }
+                    ]
+                  }
+                ],
+                fields: 'userEnteredValue'
+              }
+            }
+          ]
+        }, SpreadsheetApp.getActive().getId());
+
+        var rosterSheetId = SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId();
+        Sheets.Spreadsheets.batchUpdate({
+          requests: [
+            {
+              appendCells: {
+                sheetId: rosterSheetId,
+                rows: [
+                  {
+                    values: [
+                      { userEnteredValue: { stringValue: 'Cid' } },
+                      { userEnteredValue: { stringValue: 'Mage' } },
+                      { userEnteredValue: { stringValue: '' } },
+                      { userEnteredValue: { stringValue: 'Caster DPS' } }
+                    ]
+                  }
+                ],
+                fields: 'userEnteredValue'
+              }
+            }
+          ]
+        }, SpreadsheetApp.getActive().getId());
+
+        setUpWorkbook();
+
+        var awardsRows = TracerHarness.getRows('Awards');
+        equal(awardsRows[0][5], 'Cid', 'new awards block appended');
+        equal(awardsRows[2][0], '2026-01-02', 'existing awards entry kept');
       });
 
       withHarness(function () {
-        var index = buildRosterIndex_(
-          [['raiderKey'], ['Ana'], ['ana']],
-          [['rerollName', 'mainKey'], ['AnaAlt', 'Ana']]
-        );
+        seedCoreFlatTabs();
 
-        equal(findRaiderKey_(index, 'Ana'), 'Ana', 'exact key lookup for Ana');
-        equal(findRaiderKey_(index, 'ana'), 'ana', 'exact key lookup for ana');
-        equal(findRaiderKey_(index, 'ANA'), null, 'lookup does not case-fold');
-        equal(resolveAttendanceKey_(index, 'AnaAlt'), 'Ana', 'attendance resolves reroll to main');
-        equal(resolveAttendanceKey_(index, 'Ana'), 'Ana', 'attendance keeps direct raider key');
+        setUpWorkbook();
+
+        var tierRows = TracerHarness.getRows('TierItems');
+        var tierMeta = TracerHarness.getSheetMeta('TierItems');
+        equal(tierMeta.columnCount, 58, 'TierItems has 58 columns');
+        equal(tierRows[0][2], 'Tank', 'TierItems row 1 role group starts with Tank');
+        equal(tierRows[1][2], 'Guerrier Protection', 'TierItems row 2 first spec label');
+        equal(tierRows[2][2], 'Gain (%)', 'TierItems row 3 gain label');
+        truthy(tierMeta.dataValidations.length > 10, 'TierItems status validations exist');
+        truthy(tierMeta.conditionalFormatRules.length > 10, 'TierItems gain rules exist');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', '']
+        ]);
+
+        setUpWorkbook();
+
+        var rosterMeta = TracerHarness.getSheetMeta('Roster');
+        var specRule = validationForColumn(rosterMeta, columnOf_(tabByName_('Roster'), 'spec'));
+        equal(specRule.condition.type, 'ONE_OF_RANGE', 'Roster spec uses ONE_OF_RANGE');
+        contains(specRule.condition.values[0].userEnteredValue, "'_Listes'!$F2:$H2", 'Roster spec points to row helper range');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', '']
+        ]);
+
+        setUpWorkbook();
+
+        var before = {
+          merges: TracerHarness.getSheetMeta('Awards').merges.length,
+          borders: TracerHarness.getSheetMeta('Awards').borders.length,
+          rules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length
+        };
+
+        setUpWorkbook();
+
+        var after = {
+          merges: TracerHarness.getSheetMeta('Awards').merges.length,
+          borders: TracerHarness.getSheetMeta('Awards').borders.length,
+          rules: TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.length
+        };
+
+        equal(after.merges, before.merges, 'rerun keeps merge count stable');
+        equal(after.borders, before.borders, 'rerun keeps border count stable');
+        equal(after.rules, before.rules, 'rerun keeps rule count stable');
+      });
+
+      withHarness(function () {
+        rosterLookupTests();
       });
 
       withHarness(function () {
@@ -542,40 +402,132 @@
         truthy(duplicateIndex.errors.length > 0, 'duplicate roster key reports error');
         contains(duplicateIndex.errors[0], 'duplicate key "Ana"', 'duplicate key includes key name');
 
+        var badReroll = buildRosterIndex_(
+          [['raiderKey'], ['Ana'], ['Mira']],
+          [['rerollName', 'mainKey'], ['Ana', 'Ana'], ['AltOne', 'MissingMain'], ['AltOne', 'Mira']]
+        );
+        contains(badReroll.errors[0], 'must not match a roster key', 'reroll name collision error');
+        contains(badReroll.errors[1], 'is not in roster keys', 'missing main key error');
+        contains(badReroll.errors[2], 'duplicate rerollName', 'duplicate reroll error');
+
+        var whitespaceIndex = buildRosterIndex_([['raiderKey'], ['Ana ']], [['rerollName', 'mainKey']]);
+        contains(whitespaceIndex.errors[0], 'leading/trailing whitespace', 'whitespace error mentions reason');
+      });
+
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Roster', [
+          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
+          ['Ana', 'Mage', '', 'Heal', '', '', ''],
+          ['Bob', 'Mage', '', 'Heal', '', '', '']
+        ]);
+        setUpWorkbook();
+
+        var awardsMeta = TracerHarness.getSheetMeta('Awards');
+        var traitement = awardsMeta.dataValidations.filter(function (entry) {
+          return entry.range.startColumnIndex === 8 && entry.rule;
+        })[0];
+        equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,NONE', 'Bob block Traitement dropdown (column I)');
+        equal(awardsMeta.merges.map(function (m) { return m.startColumnIndex + '-' + m.endColumnIndex; }).join(','), '0-5,5-10', 'Awards blocks A-E and F-J');
+
+        var tierRows = TracerHarness.getRows('TierItems');
+        var roles = tierRows[0].filter(function (v) { return v; }).join(',');
+        equal(roles, 'Tank,Heal,Melee DPS,Ranged DPS,Caster DPS', 'TierItems role groups in order');
+        equal(tierRows[1].filter(function (v) { return v; }).length, 28, 'TierItems has 28 spec labels');
+        var tierFormulas = TracerHarness.getSheetMeta('TierItems').conditionalFormatRules.map(function (rule) {
+          return rule.booleanRule.condition.values[0].userEnteredValue;
+        });
+        equal(tierFormulas.indexOf('=C4<0') !== -1 && tierFormulas.indexOf('=C4>=1/50') !== -1, true, 'first gain column has red and green rules');
+        equal(tierFormulas.length, 56, 'one red and one green rule per gain column');
+
+        var lists = TracerHarness.getRows('_Listes');
+        var mageRow = lists.filter(function (row) { return row[0] === 'Mage'; })[0];
+        equal(mageRow.slice(1, 4).join(','), 'Arcanes,Feu,Givre', '_Listes Mage row offers only Arcanes, Feu, Givre');
+
+        var rosterBefore = JSON.stringify(TracerHarness.getRows('Roster').slice(1));
+        setUpWorkbook();
+        equal(JSON.stringify(TracerHarness.getRows('Roster').slice(1)), rosterBefore, 're-run leaves Roster data unchanged');
+      });
+
+      withHarness(function () {
+        setUpWorkbook();
+        var rosterMeta = TracerHarness.getSheetMeta('Roster');
+        var formulaOf = function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue; };
+        contains(formulaOf(rosterMeta.conditionalFormatRules[0]), 'EXACT', 'duplicate-name highlight has top priority over class colours');
+        var mageRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$B2="Mage"'; })[0];
+        equal(JSON.stringify(mageRule.booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('3FC7EB')), 'Mage colour');
+        equal(TracerHarness.getSheetMeta('_Listes') !== null, true, '_Listes helper tab exists');
+        contains(TracerHarness.getRows('_Listes')[1][5], 'XLOOKUP(Roster!B2', '_Listes row 2 looks up the Roster class');
+        equal(TracerHarness.getRows('_Listes')[1].length, 6, '_Listes leaves G:H free for the spill');
+      });
+
+      withHarness(function () {
+        var requests = buildSetupRequests_(Object.create(null), { sheets: [] }, ',');
+        var listsIndex = -1;
+        var firstSpecDropdown = -1;
+        requests.forEach(function (request, index) {
+          if (request.addSheet && request.addSheet.properties.title === '_Listes' && listsIndex === -1) {
+            listsIndex = index;
+          }
+          var rule = request.setDataValidation && request.setDataValidation.rule;
+          if (rule && rule.condition.type === 'ONE_OF_RANGE' && firstSpecDropdown === -1) {
+            firstSpecDropdown = index;
+          }
+        });
+        equal(listsIndex !== -1 && listsIndex < firstSpecDropdown, true, '_Listes is created before the Spé dropdown references it');
+      });
+
+      withHarness(function () {
+        TracerHarness.setLocale('fr_FR');
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'fr_FR setup succeeds');
+        ['Roster', 'Rerolls', 'TierItems'].forEach(function (name) {
+          TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
+            equal(rule.booleanRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr ' + name + ' rule has no commas');
+          });
+        });
+        contains(TracerHarness.getRows('_Listes')[1][5], ';', 'fr _Listes formula uses semicolons');
+      });
+
+      withHarness(function () {
+        TracerHarness.seedSheet('Config', [['tierId', 'Unexpected']]);
+        TracerHarness.seedSheet('Marker', [['stable']]);
+        setUpWorkbook();
+        var alert = TracerHarness.getAlerts().slice(-1)[0];
+        contains(alert, 'Header conflict in tab "Config"', 'conflict names tab');
+        equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'conflict keeps existing values unchanged');
+        equal(TracerHarness.getSheetMeta('TierItems'), null, 'conflict abort is atomic');
+        equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
+      });
+
+      withHarness(function () {
+        equal(classNames_().indexOf('Démoniste') !== -1, true, 'class names keep accents');
+        equal(labelsOf_(tabByName_('Roster'))[2], 'Spé', 'labels keep accents');
+        equal(SPEC_COLUMNS.length, 28, '28 spec columns as mapped');
+        equal(SPEC_COLUMNS.filter(function (entry) { return entry.role === 'Caster DPS'; }).length, 9, '9 Caster DPS specs');
+        equal(SPEC_COLUMNS.filter(function (entry) { return entry.spec === 'Combat farouche'; }).length, 2, 'Druide Combat farouche appears in Tank and Melee DPS');
+      });
+
+      withHarness(function () {
         TracerHarness.seedSheet('Roster', [['raiderKey'], ['Ana'], ['Ana']]);
         TracerHarness.seedSheet('Rerolls', [['rerollName', 'mainKey']]);
-
         var threw = false;
         try {
           requireRosterIndex_();
         } catch (error) {
           threw = true;
-          contains(error.message, 'Roster index errors', 'requireRosterIndex_ throws aggregated errors');
           contains(error.message, 'duplicate key "Ana" at rows 2 and 3', 'requireRosterIndex_ names key and both rows');
         }
         equal(threw, true, 'requireRosterIndex_ throws on duplicate');
-      });
 
-      withHarness(function () {
         var badReroll = buildRosterIndex_(
           [['raiderKey'], ['Ana'], ['Mira']],
           [['rerollName', 'mainKey'], ['Ana', 'Ana'], ['AltOne', 'MissingMain'], ['AltOne', 'Mira']]
         );
-
         equal(badReroll.errors.length, 3, 'bad reroll scenarios produce three errors');
-        contains(badReroll.errors[0], 'must not match a roster key', 'reroll name collision error');
-        contains(badReroll.errors[1], 'is not in roster keys', 'missing main key error');
-        contains(badReroll.errors[2], 'duplicate rerollName', 'duplicate reroll error');
-      });
 
-      withHarness(function () {
-        var whitespaceIndex = buildRosterIndex_(
-          [['raiderKey'], ['Ana ']],
-          [['rerollName', 'mainKey']]
-        );
-
+        var whitespaceIndex = buildRosterIndex_([['raiderKey'], ['Ana ']], [['rerollName', 'mainKey']]);
         equal(whitespaceIndex.errors.length, 1, 'whitespace key rejected');
-        contains(whitespaceIndex.errors[0], 'leading/trailing whitespace', 'whitespace error mentions reason');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';

@@ -41,27 +41,15 @@ function formulaArgSeparator_() {
 // then delete the old rules/banding and add the current ones. A header conflict throws: nothing is written.
 function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   var separator = argSeparator || ',';
-  var requests = [];
+  // Grids first: they delete obsolete tabs and create _Listes, which the Roster Spé dropdown references.
+  // Grids read live sheet data inside the lock, so this part of the plan is not pure.
+  var requests = buildGridRequests_(separator);
   var metadataBySheetId = sheetMetadataById_(sheetsMetadata);
 
   for (var i = 0; i < TABS.length; i += 1) {
     var tab = TABS[i];
     var existing = existingHeadersByName[tab.name];
     var sheetId = tab.sheetId;
-
-    if (tab.name === 'TierItems' && existing) {
-      var legacySlot = inspectLegacySlotColumn_(existing);
-      if (legacySlot.hasData) {
-        throw new Error(
-          'Cannot remove Emplacement column in tab "TierItems" because it has data in column ' +
-          columnLetter_(legacySlot.columnIndex) + '. Clear that column first.'
-        );
-      }
-      if (legacySlot.shouldDelete) {
-        requests.push(buildDeleteColumnRequest_(existing.sheetId, legacySlot.columnIndex));
-        existing.headers = removeIndex_(existing.headers, legacySlot.columnIndex);
-      }
-    }
 
     if (!existing) {
       requests = requests.concat(buildCreateTabRequests_(tab));
@@ -78,19 +66,12 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildValueFormatRequests_(sheetId, tab))
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
-    if (tab.name === 'TierItems' && shouldSeedTierSections_(existing)) {
-      requests = requests.concat(buildTierSectionSeedRequests_(sheetId));
-    }
-
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
 
     requests = requests
       .concat(buildBandingRequests_(sheetId, tab))
       .concat(buildConditionalFormatRequestsForTab_(sheetId, tab, separator));
   }
-
-  // Views read the live Roster names, so this part of the plan is not pure.
-  requests = requests.concat(buildViewRequests_(separator));
 
   return { requests: requests };
 }
@@ -147,85 +128,6 @@ function hasAnyDataRows_(rows) {
     }
   }
   return false;
-}
-
-// Detects the legacy slot/Emplacement column and whether it contains data below row 1.
-function inspectLegacySlotColumn_(existing) {
-  var headers = existing.headers || [];
-  var index = -1;
-
-  for (var i = 0; i < headers.length; i += 1) {
-    if (headers[i] === 'slot' || headers[i] === 'Emplacement') {
-      index = i;
-      break;
-    }
-  }
-
-  if (index === -1) {
-    return { shouldDelete: false, hasData: false, columnIndex: -1 };
-  }
-
-  var rows = existing.rows || [];
-  for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
-    var row = rows[rowIndex] || [];
-    if (row[index] !== '' && row[index] !== null && row[index] !== undefined) {
-      return { shouldDelete: false, hasData: true, columnIndex: index };
-    }
-  }
-
-  return { shouldDelete: true, hasData: false, columnIndex: index };
-}
-
-// Removes one item from an array by index.
-function removeIndex_(items, indexToRemove) {
-  var result = [];
-  for (var i = 0; i < items.length; i += 1) {
-    if (i !== indexToRemove) {
-      result.push(items[i]);
-    }
-  }
-  return result;
-}
-
-// Deletes one sheet column by zero-based index.
-function buildDeleteColumnRequest_(sheetId, zeroBasedIndex) {
-  return {
-    deleteDimension: {
-      range: {
-        sheetId: sheetId,
-        dimension: 'COLUMNS',
-        startIndex: zeroBasedIndex,
-        endIndex: zeroBasedIndex + 1
-      }
-    }
-  };
-}
-
-// Seeds TierItems role titles only when there are no existing data rows.
-function shouldSeedTierSections_(existing) {
-  return !existing || !existing.hasDataRows;
-}
-
-// Writes the five TierItems role section title rows below the header.
-function buildTierSectionSeedRequests_(sheetId) {
-  var rows = ROLE_OPTIONS.map(function (roleName) {
-    return {
-      values: [
-        { userEnteredValue: { stringValue: roleName } },
-        { userEnteredValue: { stringValue: '' } }
-      ]
-    };
-  });
-
-  return [
-    {
-      updateCells: {
-        start: { sheetId: sheetId, rowIndex: 1, columnIndex: 0 },
-        rows: rows,
-        fields: 'userEnteredValue'
-      }
-    }
-  ];
 }
 
 // Each existing header cell must hold its column's label or its old technical key (first 4.2 version).
@@ -421,9 +323,6 @@ function buildValueFormatRequests_(sheetId, tab) {
   if (tab.name === 'Roster') {
     gainColumn = columnOf_(tab, 'gainFraction');
   }
-  if (tab.name === 'TierItems') {
-    gainColumn = columnOf_(tab, 'simGainFraction');
-  }
 
   if (gainColumn !== null) {
     requests.push({
@@ -453,9 +352,8 @@ function buildValueFormatRequests_(sheetId, tab) {
 // Strict validation (invalid input is refused); blank cells stay allowed. Re-setting a range replaces its old rule.
 function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
   var requests = [];
-  var separator = argSeparator || ',';
 
-  if (tab.name === 'Roster' || tab.name === 'TierItems') {
+  if (tab.name === 'Roster') {
     requests.push(
       buildDataValidationRequest_(sheetId, columnOf_(tab, 'class'), {
         condition: {
@@ -470,23 +368,7 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
       })
     );
 
-    var classLetter = columnLetter_(columnOf_(tab, 'class'));
-    var specLetter = columnLetter_(columnOf_(tab, 'spec'));
-    var specFormula = '=REGEXMATCH($' + classLetter + '2&":"&' + specLetter + '2,"' + classSpecRegex_() + '")';
-    specFormula = applyArgSeparator_(specFormula, separator);
-
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'spec'), {
-        condition: {
-          type: 'CUSTOM_FORMULA',
-          values: [{ userEnteredValue: specFormula }]
-        },
-        strict: true,
-        inputMessage: 'La spé doit être une des trois spés de la classe de la ligne : ' + CLASS_SPECS.map(function (entry) {
-          return entry.name + ' (' + entry.specs.join(', ') + ')';
-        }).join(' ; ') + '.'
-      })
-    );
+    requests = requests.concat(buildRosterSpecValidationRequests_(sheetId, tab));
   }
 
   if (tab.name === 'Roster') {
@@ -538,37 +420,47 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
       })
     );
   }
+  return requests;
+}
 
-  if (tab.name === 'TierItems') {
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'status'), {
-        condition: {
-          type: 'ONE_OF_LIST',
-          values: [
-            { userEnteredValue: 'BIS' },
-            { userEnteredValue: 'ALT_BIS' },
-            { userEnteredValue: 'IMPACT' },
-            { userEnteredValue: 'TIER' },
-            { userEnteredValue: 'CLASS_BOUND' },
-            { userEnteredValue: 'NORMAL' }
-          ]
-        },
-        strict: true,
-        showCustomUi: true,
-        inputMessage: 'Statut : BIS, ALT_BIS, IMPACT, TIER, CLASS_BOUND ou NORMAL.'
-      })
-    );
+// Adds strict dependent spec dropdowns for Roster rows 2..201 from _Listes!F:H of the same row.
+function buildRosterSpecValidationRequests_(sheetId, rosterTab) {
+  var requests = [];
+  var specColumnIndex = columnOf_(rosterTab, 'spec');
 
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'simGainFraction'), {
-        condition: {
-          type: 'NUMBER_BETWEEN',
-          values: [{ userEnteredValue: '-1' }, { userEnteredValue: '1' }]
+  // Clear the whole column first: the earlier version put a typed-spec check on it.
+  requests.push({
+    setDataValidation: {
+      range: {
+        sheetId: sheetId,
+        startRowIndex: 1,
+        startColumnIndex: specColumnIndex,
+        endColumnIndex: specColumnIndex + 1
+      }
+    }
+  });
+
+  for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
+    requests.push({
+      setDataValidation: {
+        range: {
+          sheetId: sheetId,
+          startRowIndex: rowNumber - 1,
+          endRowIndex: rowNumber,
+          startColumnIndex: specColumnIndex,
+          endColumnIndex: specColumnIndex + 1
         },
-        strict: true,
-        inputMessage: 'Gain simulé de l\'objet entre -100 % et 100 %.'
-      })
-    );
+        rule: {
+          condition: {
+            type: 'ONE_OF_RANGE',
+            values: [{ userEnteredValue: "='_Listes'!$F" + rowNumber + ':$H' + rowNumber }]
+          },
+          strict: true,
+          showCustomUi: true,
+          inputMessage: 'Choisir une spé proposée pour la classe de la ligne.'
+        }
+      }
+    });
   }
 
   return requests;
@@ -639,8 +531,7 @@ function buildBandingRequests_(sheetId, tab) {
   ];
 }
 
-// Bad-name highlights (EXACT: COUNTIF ignores case; INDIRECT: rules cannot reference another tab directly),
-// class colours, and the TierItems gain colours (1/50 avoids a locale-dependent decimal).
+// Bad-name highlights (EXACT: COUNTIF ignores case; INDIRECT: rules cannot reference another tab directly).
 function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   var requests = [];
   var separator = argSeparator || ',';
@@ -690,57 +581,6 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
         2,
         '=AND($B2<>"",SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$B2))=0)',
         { backgroundColor: rgbHex_('FFE5E5') },
-        separator
-      )
-    );
-  }
-
-  if (tab.name === 'TierItems') {
-    var classColumn = columnOf_(tab, 'class');
-    requests = requests.concat(
-      buildClassColorRules_(sheetId, classColumn, classColumn, classColumn + 1, separator)
-    );
-
-    var gainColumn = columnOf_(tab, 'simGainFraction');
-    var gainLetter = columnLetter_(gainColumn);
-    requests.push(
-      buildConditionalFormatRequest_(
-        sheetId,
-        gainColumn,
-        gainColumn + 1,
-        '=' + gainLetter + '2<0',
-        { textFormat: { foregroundColor: rgbHex_('B3261E') } },
-        separator
-      )
-    );
-
-    requests.push(
-      buildConditionalFormatRequest_(
-        sheetId,
-        gainColumn,
-        gainColumn + 1,
-        '=' + gainLetter + '2>=1/50',
-        { textFormat: { foregroundColor: rgbHex_('1E7D32'), bold: true } },
-        separator
-      )
-    );
-
-    // Section title rows: a role name from ROLE_OPTIONS in column A and no item ID.
-    var titleColumnLetter = columnLetter_(columnOf_(tab, 'tierId'));
-    var itemIdColumnLetter = columnLetter_(columnOf_(tab, 'itemID'));
-    var titleTests = ROLE_OPTIONS.map(function (role) {
-      return '$' + titleColumnLetter + '2="' + role + '"';
-    }).join(',');
-    requests.push(
-      buildConditionalFormatRequest_(
-        sheetId,
-        0,
-        labelsOf_(tab).length,
-        '=AND(OR(' + titleTests + '),$' + itemIdColumnLetter + '2="")',
-        {
-          backgroundColor: rgbHex_('253746'),
-          textFormat: { foregroundColor: rgbHex_('FFFFFF'), bold: true }
-        },
         separator
       )
     );
