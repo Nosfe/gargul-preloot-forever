@@ -334,16 +334,7 @@ function buildOpenRaidRequests_(context) {
   });
 
   ((context.sheetsMetadata && context.sheetsMetadata.sheets) || []).forEach(function (sheet) {
-    ((sheet && sheet.protectedRanges) || []).forEach(function (protection) {
-      var description = normalizeCellString_(protection.description);
-      if (description.indexOf(RAID_OPEN_PROTECTION_PREFIX) === 0) {
-        requests.push({
-          deleteProtectedRange: {
-            protectedRangeId: protection.protectedRangeId
-          }
-        });
-      }
-    });
+    requests = requests.concat(buildRaidProtectionDeleteRequests_({ sheets: [sheet] }));
   });
 
   var freezeTabs = ['Roster', 'Rerolls', GRID_TABS.presence.name, GRID_TABS.awards.name]
@@ -491,4 +482,74 @@ function snapshotEscapeHtml_(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// Menu action: abandons the open raid (no loot to import): removes the raid protections,
+// clears Config's Raid ouvert and drops its Raids row when it holds nothing but the ID.
+function cancelOpenRaid() {
+  var ui = SpreadsheetApp.getUi();
+
+  try {
+    var raidId = '';
+    applyBatch_(function () {
+      var spreadsheet = SpreadsheetApp.getActive();
+      var configSheet = snapshotSheet_(spreadsheet, 'Config');
+      var raidsSheet = snapshotSheet_(spreadsheet, 'Raids');
+      var configRow = configSheet.getDataRange().getValues()[1] || [];
+      var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
+      raidId = normalizeCellString_(configRow[openRaidColumn]).trim();
+
+      var requests = buildRaidProtectionDeleteRequests_(Sheets.Spreadsheets.get(spreadsheet.getId(), {
+        fields: 'sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description))'
+      }));
+      if (!raidId) {
+        return requests;
+      }
+
+      requests.push({
+        updateCells: {
+          start: { sheetId: configSheet.getSheetId(), rowIndex: 1, columnIndex: openRaidColumn },
+          rows: [{ values: [{}] }],
+          fields: 'userEnteredValue'
+        }
+      });
+
+      var raidIdColumn = columnOf_(tabByName_('Raids'), 'raidId');
+      var raidsRows = raidsSheet.getDataRange().getValues();
+      for (var rowIndex = raidsRows.length - 1; rowIndex >= 1; rowIndex -= 1) {
+        var row = raidsRows[rowIndex] || [];
+        var onlyId = row.every(function (value, column) {
+          return column === raidIdColumn || normalizeCellString_(value) === '';
+        });
+        if (normalizeCellString_(row[raidIdColumn]).trim() === raidId && onlyId) {
+          requests.push({
+            deleteDimension: {
+              range: { sheetId: raidsSheet.getSheetId(), dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 }
+            }
+          });
+          break;
+        }
+      }
+      return requests;
+    });
+
+    ui.alert(raidId
+      ? 'Raid ' + raidId + ' annulé : protections retirées, Raid ouvert vidé.'
+      : 'Aucun raid ouvert ; protections « ' + RAID_OPEN_PROTECTION_PREFIX + ' » retirées.');
+  } catch (error) {
+    ui.alert('Cancel open raid failed:\n' + error.message);
+  }
+}
+
+// Deletes every protection whose description starts with the open-raid prefix (shared with 4.7).
+function buildRaidProtectionDeleteRequests_(sheetsMetadata) {
+  var requests = [];
+  ((sheetsMetadata && sheetsMetadata.sheets) || []).forEach(function (sheet) {
+    ((sheet && sheet.protectedRanges) || []).forEach(function (protection) {
+      if (normalizeCellString_(protection.description).indexOf(RAID_OPEN_PROTECTION_PREFIX) === 0) {
+        requests.push({ deleteProtectedRange: { protectedRangeId: protection.protectedRangeId } });
+      }
+    });
+  });
+  return requests;
 }

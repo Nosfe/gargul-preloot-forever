@@ -509,6 +509,13 @@
       throw new Error('Unknown sheet id in deleteDimension: ' + sheetId);
     }
 
+    if (range.dimension === 'ROWS') {
+      var rowStart = Number(range.startIndex || 0);
+      var rowEnd = Number(range.endIndex || rowStart);
+      sheet.rows.splice(rowStart, Math.max(0, rowEnd - rowStart));
+      return {};
+    }
+
     if (range.dimension !== 'COLUMNS') {
       throw new Error('Fake deleteDimension currently supports only COLUMNS.');
     }

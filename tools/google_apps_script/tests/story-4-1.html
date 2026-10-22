@@ -51,6 +51,7 @@
       equal(Boolean(menuItem(menu, 'Set up / refresh workbook')), true, 'menu has setup action');
       equal(Boolean(menuItem(menu, 'Sync attendance')), true, 'menu has attendance action');
       equal(Boolean(menuItem(menu, 'Export raid snapshot')), true, 'menu has snapshot action');
+      equal(Boolean(menuItem(menu, 'Cancel open raid')), true, 'menu has cancel raid action');
       equal(Boolean(menuItem(menu, 'Import raid ledger')), true, 'menu has ledger action');
       equal(Boolean(menuItem(menu, 'Archive tier and activate next')), true, 'menu has tier action');
       equal(menu.items.filter(function (entry) { return entry.type === 'submenu'; }).length, 0,

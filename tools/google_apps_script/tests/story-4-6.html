@@ -257,6 +257,15 @@
         equal(JSON.stringify(TracerHarness.getRows('Raids')), beforeSecond.raids, 're-export writes no extra Raids row');
         equal(JSON.stringify(TracerHarness.getRows('Config')), beforeSecond.config, 're-export keeps Config unchanged');
         equal(protectionCount_(), beforeSecond.protections, 're-export does not duplicate protections');
+
+        cancelOpenRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Raid 4 annulé', 'cancel reports the raid');
+        equal(protectionCount_(), 0, 'cancel removes every raid protection');
+        equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '', 'cancel clears Raid ouvert');
+        var raidsAfterCancel = TracerHarness.getRows('Raids');
+        equal(raidsAfterCancel.length + '|' + raidsAfterCancel[raidsAfterCancel.length - 1][0], '2|1', 'cancel drops the ID-only Raids row');
+        exportRaidSnapshot();
+        equal(decodeSnapshot_(TracerHarness.getLastModalDialog()).parsed.raidId, '4', 'next export reopens with the freed ID');
       });
 
       withHarness(function () {
@@ -392,7 +401,7 @@
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'old Config migrates');
         var config = TracerHarness.getRows('Config');
         equal(config[0].slice(0, 3).join('|') + ' ' + config[1].slice(0, 3).join('|'),
-          'Palier actif (ID)|Début fenêtre BiS|Raid ouvert (ID) forever-t1|46327|', 'BiS window ID column removed, values kept');
+          'Palier actif (ID)|Début du palier|Raid ouvert (ID) forever-t1|46327|', 'BiS window ID column removed, values kept, date relabelled');
         contains(TracerHarness.getRows('Roster')[1][columnOf_(tabByName_('Roster'), 'tierPresence')], 'N(Config!$B$2)', 'Roster formulas follow the moved start date');
       });
 

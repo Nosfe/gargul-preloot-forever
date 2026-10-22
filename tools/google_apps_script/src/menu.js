@@ -7,6 +7,7 @@ function onOpen() {
     .addItem('Set up / refresh workbook', 'setUpWorkbook')
     .addItem('Sync attendance', 'runAttendanceSync')
     .addItem('Export raid snapshot', 'exportRaidSnapshot')
+    .addItem('Cancel open raid', 'cancelOpenRaid')
     .addItem('Import raid ledger', 'importRaidLedger')
     .addItem('Archive tier and activate next', 'archiveTierAndActivateNext')
     .addToUi();
