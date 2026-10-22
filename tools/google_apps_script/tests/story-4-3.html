@@ -253,6 +253,8 @@
         TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Cid', 'Mage']]);
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'archive run succeeds');
+        equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, 2 * 3, 'Awards rules rebuilt for the 2 remaining blocks');
+        equal(TracerHarness.getSheetMeta('Awards (archive)').conditionalFormatRules.length, 0, 'archived block carries no stale rules');
 
         var presence = TracerHarness.getRows('Présence');
         equal(presence[0].slice(3, 6).join('|'), 'Ana|Cid|Zed', 'Bob column left Présence, Rerolls name kept');

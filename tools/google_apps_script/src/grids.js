@@ -362,6 +362,9 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
   }
 
   var existingNames = existingGrid ? readPresenceRaiderHeaders_(presenceState.rows || []) : [];
+  if (existingGrid) {
+    requests = requests.concat(buildGridRuleResetRequests_(sheetId, archive && archive.state, metadataBySheetId));
+  }
   if (existingGrid && archive) {
     var presenceMove = buildArchiveMoveRequests_(
       { sheetId: sheetId, maxColumns: presenceState.maxColumns, names: existingNames },
@@ -477,9 +480,6 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
     }
   });
 
-  if (existingGrid) {
-    requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {}));
-  }
   if (allNames.length) {
     var cell = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN) + PRESENCE_FIRST_RAID_ROW;
     var raidRow = 'OR($' + columnLetter_(PRESENCE_RAID_ID_COLUMN) + PRESENCE_FIRST_RAID_ROW + '<>"",$' + columnLetter_(PRESENCE_DATE_COLUMN) + PRESENCE_FIRST_RAID_ROW + '<>"")';
@@ -519,6 +519,16 @@ function buildClassHeaderTextRequest_(sheetId, startColumn, width, className) {
 // Reads existing Présence row-1 raider headers from column D onward; blanks keep their slot so names never shift.
 function readPresenceRaiderHeaders_(rows) {
   return trimmedHeaderRow_(rows).slice(PRESENCE_FIRST_RAIDER_COLUMN);
+}
+
+// Rule indexes come from metadata read before the batch, so delete them before any column move
+// (deleted or pasted columns drop or add rules); the grid's rules are rebuilt afterwards.
+function buildGridRuleResetRequests_(sheetId, archiveState, metadataBySheetId) {
+  var requests = buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {});
+  if (archiveState && archiveState.exists) {
+    requests = requests.concat(buildDeleteExistingLayoutRequests_(archiveState.sheetId, metadataBySheetId || {}));
+  }
+  return requests;
 }
 
 // Moves the column blocks of names not in Roster/Rerolls to the archive tab, and brings archived blocks back
@@ -709,6 +719,9 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
   }
 
   var existingNames = existingGrid ? readAwardsBlockNames_(awardsState.rows || []) : [];
+  if (existingGrid) {
+    requests = requests.concat(buildGridRuleResetRequests_(sheetId, archive && archive.state, metadataBySheetId));
+  }
   if (existingGrid && archive) {
     var awardsMove = buildArchiveMoveRequests_(
       { sheetId: sheetId, maxColumns: awardsState.maxColumns, names: existingNames },
@@ -810,10 +823,6 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
         fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat,wrapStrategy)'
       }
     });
-  }
-
-  if (existingGrid) {
-    requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {}));
   }
 
   for (var i = 0; i < allNames.length; i += 1) {

@@ -532,6 +532,24 @@
       throw new Error('deleteDimension beyond grid in ' + sheet.title + ': column ' + end);
     }
     sheet.meta.columnCount = Number(sheet.meta.columnCount || 26) - deleteCount;
+    // Like Sheets: a rule whose ranges all sit in the deleted columns disappears; later ranges shift left.
+    sheet.meta.conditionalFormatRules = sheet.meta.conditionalFormatRules.map(function (rule) {
+      rule.ranges = (rule.ranges || []).filter(function (r) {
+        return !(r.startColumnIndex >= start && r.endColumnIndex <= end);
+      }).map(function (r) {
+        var shifted = clone(r);
+        if (shifted.startColumnIndex >= end) {
+          shifted.startColumnIndex -= deleteCount;
+          shifted.endColumnIndex -= deleteCount;
+        } else if (shifted.endColumnIndex > start) {
+          shifted.endColumnIndex -= Math.min(deleteCount, shifted.endColumnIndex - start);
+        }
+        return shifted;
+      });
+      return rule;
+    }).filter(function (rule) {
+      return rule.ranges.length > 0;
+    });
     var nextWidths = {};
     Object.keys(sheet.meta.columnWidths).forEach(function (key) {
       var index = Number(key);
@@ -685,6 +703,24 @@
       for (var offset = 0; offset < width; offset += 1) {
         var value = values[rowIndex] ? values[rowIndex][offset] : '';
         row[destination.startColumnIndex + offset] = value === undefined ? '' : value;
+      }
+    });
+    // Like PASTE_NORMAL: rules lying inside the source columns are added to the destination.
+    var shift = destination.startColumnIndex - source.startColumnIndex;
+    from.meta.conditionalFormatRules.slice().forEach(function (rule) {
+      var inside = (rule.ranges || []).filter(function (r) {
+        return r.startColumnIndex >= source.startColumnIndex && r.endColumnIndex <= source.endColumnIndex;
+      });
+      if (inside.length) {
+        var copy = clone(rule);
+        copy.ranges = inside.map(function (r) {
+          var moved = clone(r);
+          moved.sheetId = destination.sheetId;
+          moved.startColumnIndex += shift;
+          moved.endColumnIndex += shift;
+          return moved;
+        });
+        to.meta.conditionalFormatRules.push(copy);
       }
     });
     return {};
