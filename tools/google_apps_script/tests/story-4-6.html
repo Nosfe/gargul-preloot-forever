@@ -1,0 +1,389 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.6 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function truthy(value, label) {
+      assertions += 1;
+      if (!value) {
+        throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function deepEqual(actual, expected, label) {
+      assertions += 1;
+      var left = JSON.stringify(actual);
+      var right = JSON.stringify(expected);
+      if (left !== right) {
+        throw new Error(label + ': expected ' + right + ', got ' + left);
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function loadJsonSync_(path) {
+      var request = new XMLHttpRequest();
+      request.open('GET', path, false);
+      request.send(null);
+      if (request.status !== 0 && request.status !== 200) {
+        throw new Error('Unable to load ' + path + ': status ' + request.status);
+      }
+      return JSON.parse(request.responseText);
+    }
+
+    function seedCoreFlatTabs_() {
+      TABS.forEach(function (tab) {
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
+    }
+
+    function writeCells_(sheetId, rowIndex, columnIndex, values) {
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        updateCells: {
+          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
+          rows: [{ values: values.map(function (value) {
+            if (typeof value === 'number') {
+              return { userEnteredValue: { numberValue: value } };
+            }
+            return { userEnteredValue: { stringValue: String(value) } };
+          }) }],
+          fields: 'userEnteredValue'
+        }
+      }] }, SpreadsheetApp.getActive().getId());
+    }
+
+    function decodeSnapshot_(dialog) {
+      var match = dialog.html.match(/<textarea id="snapshot-base64"[^>]*>([^<]+)<\/textarea>/);
+      if (!match) {
+        throw new Error('Snapshot payload textarea not found in dialog');
+      }
+      var payload = match[1];
+      var bytes = Utilities.base64Decode(payload, Utilities.Charset.UTF_8);
+      var json = Utilities.newBlob(bytes).getDataAsString();
+      return {
+        payload: payload,
+        parsed: JSON.parse(json)
+      };
+    }
+
+    function protectionCount_() {
+      return ['Roster', 'Rerolls', 'Présence', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config']
+        .map(function (name) {
+          return (TracerHarness.getSheetMeta(name).protectedRanges || []).length;
+        })
+        .reduce(function (sum, count) { return sum + count; }, 0);
+    }
+
+    function seedStoryWorkbook_() {
+      seedCoreFlatTabs_();
+      setUpWorkbook();
+
+      var spreadsheet = SpreadsheetApp.getActive();
+      var rosterId = spreadsheet.getSheetByName('Roster').getSheetId();
+      var configId = spreadsheet.getSheetByName('Config').getSheetId();
+      var raidsId = spreadsheet.getSheetByName('Raids').getSheetId();
+      var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
+
+      var rosterTab = tabByName_('Roster');
+      function rosterRowValues_(name, className, spec, role, parse, tierPresence, tierMax, lifePresence, lifeMax, bisLoot, impactLoot, bisRatio, impactBase) {
+        var values = [];
+        values[columnOf_(rosterTab, 'raiderKey')] = name;
+        values[columnOf_(rosterTab, 'class')] = className;
+        values[columnOf_(rosterTab, 'spec')] = spec;
+        values[columnOf_(rosterTab, 'role')] = role;
+        values[columnOf_(rosterTab, 'dpsParse')] = parse;
+        values[columnOf_(rosterTab, 'tierPresence')] = tierPresence;
+        values[columnOf_(rosterTab, 'tierPresenceMax')] = tierMax;
+        values[columnOf_(rosterTab, 'lifetimePresence')] = lifePresence;
+        values[columnOf_(rosterTab, 'lifetimePresenceMax')] = lifeMax;
+        values[columnOf_(rosterTab, 'bisLootCount')] = bisLoot;
+        values[columnOf_(rosterTab, 'impactLootCount')] = impactLoot;
+        values[columnOf_(rosterTab, 'bisRatio')] = bisRatio;
+        values[columnOf_(rosterTab, 'impactBase')] = impactBase;
+        for (var i = 0; i < values.length; i += 1) {
+          if (values[i] === undefined) {
+            values[i] = '';
+          }
+        }
+        return values;
+      }
+
+      writeCells_(rosterId, 1, 0, rosterRowValues_(
+        'Alya',
+        'Mage',
+        specDisplayValue_('Mage', 'Givre'),
+        ROLE_DISPLAY['Caster DPS'].value,
+        '',
+        4,
+        8,
+        9,
+        12,
+        1,
+        2,
+        0.25,
+        0.25
+      ));
+      writeCells_(rosterId, 2, 0, rosterRowValues_(
+        'Beryl',
+        'Prêtre',
+        specDisplayValue_('Prêtre', 'Sacré'),
+        ROLE_DISPLAY.Heal.value,
+        88,
+        6,
+        8,
+        10,
+        12,
+        0,
+        1,
+        0.75,
+        36.66666666666667
+      ));
+      writeCells_(rosterId, 3, 0, rosterRowValues_(
+        'Cairn',
+        'Druide',
+        specDisplayValue_('Druide', 'Combat farouche'),
+        ROLE_DISPLAY.Tank.value,
+        95,
+        8,
+        8,
+        12,
+        12,
+        3,
+        0,
+        0.25,
+        ''
+      ));
+
+      writeCells_(configId, 1, 0, ['forever-t1', 'forever-t1-w1', '2026-10-01', '']);
+      writeCells_(raidsId, 1, 0, [1]);
+      writeCells_(presenceId, 2, 0, [1]);
+      writeCells_(presenceId, 3, 0, [2]);
+      writeCells_(presenceId, 4, 0, [3]);
+
+      function setItem_(tabName, itemId, specLabel, statut, gain) {
+        var sheetId = spreadsheet.getSheetByName(tabName).getSheetId();
+        var row = TracerHarness.getRows(tabName)[1] || [];
+        var statusColumn = -1;
+        for (var column = 2; column < row.length; column += 2) {
+          if (row[column] === specLabel) {
+            statusColumn = column;
+            break;
+          }
+        }
+        if (statusColumn === -1) {
+          throw new Error('Spec label not found in ' + tabName + ': ' + specLabel);
+        }
+        writeCells_(sheetId, 3, 0, [itemId, 'Objet ' + itemId]);
+        writeCells_(sheetId, 3, statusColumn, [statut, gain]);
+      }
+
+      setItem_('Objets Tank', 777, 'Guerrier Protection', 'BIS', 0.12);
+      setItem_('Objets Heal', 777, 'Paladin Sacré', 'IMPACT', 0.35);
+      setItem_('Objets Caster DPS', 888, 'Mage Givre', 'IMPACT', 0.5);
+    }
+
+    try {
+      var fixture = loadJsonSync_('../fixtures/snapshot-sample.json');
+
+      withHarness(function () {
+        seedStoryWorkbook_();
+
+        exportRaidSnapshot();
+
+        var firstDialog = TracerHarness.getLastModalDialog();
+        truthy(firstDialog, 'first export opens modal dialog');
+        var firstSnapshot = decodeSnapshot_(firstDialog);
+        deepEqual(firstSnapshot.parsed, fixture, 'first export snapshot matches fixture');
+
+        var rowsAfterFirst = {
+          raids: TracerHarness.getRows('Raids'),
+          config: TracerHarness.getRows('Config')
+        };
+        equal(String(rowsAfterFirst.raids[rowsAfterFirst.raids.length - 1][0]), '4', 'first export appends raid id 4');
+        equal(String(rowsAfterFirst.config[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '4', 'first export sets Config open raid id');
+        equal(protectionCount_(), 10, 'first export adds 10 warning-only protections');
+
+        var rosterProtections = TracerHarness.getSheetMeta('Roster').protectedRanges;
+        truthy(rosterProtections.length > 0, 'Roster has protection');
+        contains(rosterProtections[0].description, RAID_OPEN_PROTECTION_PREFIX, 'protection description has prefix');
+        ['Roster', 'Rerolls', 'Présence', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config'].forEach(function (name) {
+          var ranges = TracerHarness.getSheetMeta(name).protectedRanges;
+          equal(ranges.length + '|' + ranges[0].warningOnly + '|' + ranges[0].description,
+            '1|true|Raid ouvert 4 : entrées de score figées', name + ' has one warning-only raid protection');
+        });
+
+        var beforeSecond = {
+          raids: JSON.stringify(TracerHarness.getRows('Raids')),
+          config: JSON.stringify(TracerHarness.getRows('Config')),
+          protections: protectionCount_()
+        };
+
+        exportRaidSnapshot();
+        var secondDialog = TracerHarness.getLastModalDialog();
+        var secondSnapshot = decodeSnapshot_(secondDialog);
+
+        deepEqual(secondSnapshot.parsed, fixture, 're-export snapshot stays identical');
+        equal(JSON.stringify(TracerHarness.getRows('Raids')), beforeSecond.raids, 're-export writes no extra Raids row');
+        equal(JSON.stringify(TracerHarness.getRows('Config')), beforeSecond.config, 're-export keeps Config unchanged');
+        equal(protectionCount_(), beforeSecond.protections, 're-export does not duplicate protections');
+      });
+
+      withHarness(function () {
+        seedStoryWorkbook_();
+        var rosterRows = TracerHarness.getRows('Roster');
+        rosterRows[1][columnOf_(tabByName_('Roster'), 'class')] = '';
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+
+        var before = {
+          raids: JSON.stringify(TracerHarness.getRows('Raids')),
+          config: JSON.stringify(TracerHarness.getRows('Config')),
+          protections: protectionCount_()
+        };
+
+        exportRaidSnapshot();
+
+        var alerts = TracerHarness.getAlerts();
+        truthy(alerts.length > 0, 'invalid workbook shows alert');
+        contains(alerts[alerts.length - 1], 'Alya', 'invalid workbook alert names the raider');
+        equal(JSON.stringify(TracerHarness.getRows('Raids')), before.raids, 'invalid workbook keeps Raids unchanged');
+        equal(JSON.stringify(TracerHarness.getRows('Config')), before.config, 'invalid workbook keeps Config unchanged');
+        equal(protectionCount_(), before.protections, 'invalid workbook keeps protections unchanged');
+      });
+
+      withHarness(function () {
+        // A leftover raid protection is replaced, and an empty Config is reported end to end.
+        seedStoryWorkbook_();
+        var rosterId = SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId();
+        Sheets.Spreadsheets.batchUpdate({ requests: [{ addProtectedRange: { protectedRange: {
+          range: { sheetId: rosterId }, warningOnly: true, description: 'Raid ouvert 3 : entrées de score figées'
+        } } }] }, SpreadsheetApp.getActive().getId());
+        exportRaidSnapshot();
+        var roster = TracerHarness.getSheetMeta('Roster').protectedRanges;
+        equal(roster.length + '|' + roster[0].description, '1|Raid ouvert 4 : entrées de score figées', 'leftover raid protection replaced');
+      });
+
+      withHarness(function () {
+        seedStoryWorkbook_();
+        var configId = SpreadsheetApp.getActive().getSheetByName('Config').getSheetId();
+        writeCells_(configId, 1, 0, ['']);
+        var raidsBefore = JSON.stringify(TracerHarness.getRows('Raids'));
+        exportRaidSnapshot();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Palier actif', 'empty Config alert names the field');
+        equal(JSON.stringify(TracerHarness.getRows('Raids')) + protectionCount_(), raidsBefore + '0', 'empty Config writes nothing');
+        equal(TracerHarness.getLastModalDialog(), null, 'no dialog on a rejected export');
+      });
+
+      // Pure builder cases from the I/O matrix.
+      withHarness(function () {
+        var rosterTab = tabByName_('Roster');
+        function row_(overrides) {
+          var base = {
+            raiderKey: 'Zoe', class: 'Mage', spec: specDisplayValue_('Mage', 'Feu'), role: ROLE_DISPLAY['Caster DPS'].value,
+            dpsParse: 50, tierPresence: 2, tierPresenceMax: 4, lifetimePresence: 3, lifetimePresenceMax: 6,
+            bisLootCount: 0, impactLootCount: 1, bisRatio: 0.5, impactBase: 12.5
+          };
+          Object.keys(overrides || {}).forEach(function (key) { base[key] = overrides[key]; });
+          var values = [];
+          keysOf_(rosterTab).forEach(function (key) { values[columnOf_(rosterTab, key)] = base[key]; });
+          return values;
+        }
+        function raiders_(overrides) {
+          return buildSnapshotRaiders_([keysOf_(rosterTab), row_(overrides)]);
+        }
+
+        equal(raiders_({}).raiders[0].impactBase, 12.5, 'valid DPS row exported');
+        ['', 'abc', 0].forEach(function (parse) {
+          var result = raiders_({ dpsParse: parse, impactBase: 0.25 });
+          equal(result.raiders.length + ':' + result.raiders[0].dpsParse, '1:1', 'parse ' + JSON.stringify(parse) + ' exported as 1');
+        });
+        contains(raiders_({ dpsParse: 101 }).errors.join(' '), 'Zoe', 'parse above 100 rejected');
+        contains(raiders_({ tierPresence: 5, bisRatio: 1.25 }).errors.join(' '), 'Présence palier >', 'Presence above Max rejected');
+        contains(raiders_({ bisLootCount: 1.5 }).errors.join(' '), 'Loots BiS', 'non-integer count rejected');
+        contains(raiders_({ bisRatio: 0.6 }).errors.join(' '), 'Ratio BiS', 'score mismatch rejected');
+        contains(raiders_({ impactBase: 12.6 }).errors.join(' '), 'Impact', 'impact base mismatch rejected');
+        contains(raiders_({ role: '' }).errors.join(' '), 'rôle', 'missing role rejected');
+        contains(raiders_({ spec: 'Ombre' }).errors.join(' '), 'spé inconnue', 'unknown spec rejected');
+        equal(raiders_({}).raiders[0].classSpec, 'Mage Feu', 'bare or emoji spec resolves');
+        equal(classSpecLabel_('Druide', 'Combat farouche', 'DPS'), 'Druide Combat farouche (félin)', 'feral non-tank is félin');
+        var tank = raiders_({ role: ROLE_DISPLAY.Tank.value, class: 'Guerrier', spec: 'Protection', impactBase: '' }).raiders[0];
+        equal(tank.role + ':' + tank.impactBase, 'TANK:null', 'tank has null impactBase');
+
+        function items_(cells) {
+          var rows = [[], [], []].concat([cells]);
+          return buildSnapshotItems_([{ role: 'Caster DPS', rows: rows }]);
+        }
+        contains(items_([12.5, 'X', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'non-integer itemID rejected');
+        contains(items_([12, 'X', 'IMPACT', 'abc']).errors.join(' '), 'gain non numérique', 'non-numeric gain rejected');
+        equal(items_([12, 'X', 'IMPACT', '']).items[0].specs[0].gainFraction, null, 'blank gain exported as null');
+        var dup = buildSnapshotItems_([
+          { role: 'Caster DPS', rows: [[], [], [], [12, 'X', 'IMPACT', 0.1], [12, 'X', 'BIS', 0.2]] }
+        ]);
+        contains(dup.errors.join(' '), 'en double', 'same itemID+classSpec twice rejected');
+        contains(dup.errors.join(' '), 'Objets Caster DPS ligne 5', 'item error names the tab and row');
+        contains(items_([0, 'X', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'itemID 0 rejected');
+
+        var twice = buildSnapshotRaiders_([keysOf_(rosterTab), row_({}), row_({})]);
+        contains(twice.errors.join(' '), 'Zoe: nom en double', 'duplicate raider name rejected');
+        contains(raiders_({ dpsParse: 0.5, impactBase: 0.125 }).errors.join(' '), 'hors plage', 'parse between 0 and 1 rejected');
+        equal(raiders_({ dpsParse: 101 }).errors.length, 1, 'parse above 100 reports only the parse error');
+        contains(raiders_({ role: ROLE_DISPLAY.Tank.value, impactBase: '' }).errors.join(' '), 'incompatible', 'DPS spec with tank role rejected');
+        contains(raiders_({ class: 'Guerrier', spec: 'Protection' }).errors.join(' '), 'incompatible', 'tank spec with DPS role rejected');
+        equal(nextRaidId_([['h'], [true], ['1e3']], [['h'], ['t']]), '1', 'non-integer raid ids are ignored');
+        equal(typeof this.exportRaidSnapshot === 'function' || typeof exportRaidSnapshot === 'function', true, 'menu action exportRaidSnapshot exists');
+
+        var configTab = tabByName_('Config');
+        var emptyConfig = [];
+        emptyConfig[columnOf_(configTab, 'tierId')] = '';
+        emptyConfig[columnOf_(configTab, 'bisWindowId')] = 'w1';
+        var configError = '';
+        try {
+          buildSnapshot_({ configRow: emptyConfig, raidId: '1', rosterRows: [], itemStates: [] });
+        } catch (error) {
+          configError = error.message;
+        }
+        contains(configError, 'Palier actif', 'empty Config tier rejected');
+
+        equal(nextRaidId_([['Raid (ID)']], [['h'], ['t']]), '1', 'first raid id is 1');
+        equal(nextRaidId_([['h'], [7]], [['h'], ['t'], [3]]), '8', 'next id after the highest of Raids and Présence');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

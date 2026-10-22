@@ -39,6 +39,9 @@
     if (!Array.isArray(sheet.meta.bandedRanges)) {
       sheet.meta.bandedRanges = [];
     }
+    if (!Array.isArray(sheet.meta.protectedRanges)) {
+      sheet.meta.protectedRanges = [];
+    }
     if (!sheet.meta.columnWidths) {
       sheet.meta.columnWidths = {};
     }
@@ -70,6 +73,7 @@
         dataValidations: [],
         conditionalFormatRules: [],
         bandedRanges: [],
+        protectedRanges: [],
         columnWidths: {},
         notes: {},
         merges: [],
@@ -447,6 +451,55 @@
     return {};
   }
 
+  function applyAddProtectedRange_(request, storeById) {
+    var payload = request.addProtectedRange || {};
+    var protectedRange = clone(payload.protectedRange || {});
+    var range = protectedRange.range || {};
+    var sheetId = range.sheetId;
+    var sheet = storeById[String(sheetId)];
+
+    if (!sheet) {
+      throw new Error('Unknown sheet id in addProtectedRange: ' + sheetId);
+    }
+
+    ensureSheetMeta_(sheet);
+    protectedRange.protectedRangeId = state.nextProtectedRangeId;
+    state.nextProtectedRangeId += 1;
+    sheet.meta.protectedRanges.push(protectedRange);
+
+    return {
+      addProtectedRange: {
+        protectedRange: {
+          protectedRangeId: protectedRange.protectedRangeId
+        }
+      }
+    };
+  }
+
+  function applyDeleteProtectedRange_(request, storeById) {
+    var payload = request.deleteProtectedRange || {};
+    var id = payload.protectedRangeId;
+    var removed = false;
+
+    Object.keys(storeById).forEach(function (sheetId) {
+      var sheet = storeById[sheetId];
+      ensureSheetMeta_(sheet);
+      sheet.meta.protectedRanges = sheet.meta.protectedRanges.filter(function (entry) {
+        if (entry.protectedRangeId === id) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+    });
+
+    if (!removed) {
+      throw new Error('Unknown protectedRangeId in deleteProtectedRange: ' + id);
+    }
+
+    return {};
+  }
+
   function applyDeleteDimension_(request, storeById) {
     var payload = request.deleteDimension || {};
     var range = payload.range || {};
@@ -696,6 +749,14 @@
         replies.push(applyDeleteBanding_(request, workingStore));
         return;
       }
+      if (request.addProtectedRange) {
+        replies.push(applyAddProtectedRange_(request, workingStore));
+        return;
+      }
+      if (request.deleteProtectedRange) {
+        replies.push(applyDeleteProtectedRange_(request, workingStore));
+        return;
+      }
       if (request.deleteDimension) {
         replies.push(applyDeleteDimension_(request, workingStore));
         return;
@@ -747,6 +808,7 @@
           title: sheet.title
         },
         conditionalFormats: clone(sheet.meta.conditionalFormatRules),
+        protectedRanges: clone(sheet.meta.protectedRanges),
         bandedRanges: clone(sheet.meta.bandedRanges).map(function (entry) {
           return { bandedRangeId: entry.bandedRangeId };
         })
@@ -837,6 +899,7 @@
     previous.SpreadsheetApp = global.SpreadsheetApp;
     previous.LockService = global.LockService;
     previous.Sheets = global.Sheets;
+    previous.HtmlService = global.HtmlService;
     previous.Utilities = global.Utilities;
     previous.Session = global.Session;
 
@@ -845,10 +908,12 @@
       locale: 'en_US',
       nextSheetId: 60000,
       nextBandingId: 9000,
+      nextProtectedRangeId: 12000,
       lockHeld: false,
       forceLockBusy: false,
       alerts: [],
       lastMenu: null,
+      modalDialogs: [],
       storeById: {},
       nameIndex: {}
     };
@@ -872,6 +937,16 @@
       },
       alert: function (message) {
         state.alerts.push(String(message));
+      },
+      showModalDialog: function (userInterface, title) {
+        state.modalDialogs.push({
+          title: String(title || ''),
+          html: userInterface && typeof userInterface.getContent === 'function'
+            ? String(userInterface.getContent())
+            : '',
+          width: userInterface && typeof userInterface.getWidth === 'function' ? userInterface.getWidth() : null,
+          height: userInterface && typeof userInterface.getHeight === 'function' ? userInterface.getHeight() : null
+        });
       }
     };
 
@@ -897,6 +972,33 @@
       }
     };
 
+    global.HtmlService = {
+      createHtmlOutput: function (html) {
+        var content = html === undefined || html === null ? '' : String(html);
+        var width = null;
+        var height = null;
+        return {
+          setWidth: function (value) {
+            width = Number(value);
+            return this;
+          },
+          setHeight: function (value) {
+            height = Number(value);
+            return this;
+          },
+          getContent: function () {
+            return content;
+          },
+          getWidth: function () {
+            return width;
+          },
+          getHeight: function () {
+            return height;
+          }
+        };
+      }
+    };
+
     global.Session = {
       getScriptTimeZone: function () {
         return 'Europe/Paris';
@@ -904,6 +1006,9 @@
     };
 
     global.Utilities = {
+      Charset: {
+        UTF_8: 'UTF_8'
+      },
       formatDate: function (date, timeZone, pattern) {
         if (pattern !== 'yyyy-MM-dd HH:mm:ss') {
           throw new Error('Unsupported formatDate pattern in fake: ' + pattern);
@@ -913,6 +1018,45 @@
         }
         return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
           ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+      },
+      base64Encode: function (data, charset) {
+        if (charset && charset !== 'UTF_8') {
+          throw new Error('Unsupported charset in fake base64Encode: ' + charset);
+        }
+        var text = String(data === undefined || data === null ? '' : data);
+        var bytes = new TextEncoder().encode(text);
+        var binary = '';
+        for (var i = 0; i < bytes.length; i += 1) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      },
+      base64Decode: function (encoded, charset) {
+        if (charset && charset !== 'UTF_8') {
+          throw new Error('Unsupported charset in fake base64Decode: ' + charset);
+        }
+        var binary = atob(String(encoded || ''));
+        var bytes = [];
+        for (var index = 0; index < binary.length; index += 1) {
+          bytes.push(binary.charCodeAt(index));
+        }
+        return bytes;
+      },
+      newBlob: function (data) {
+        var bytes;
+        if (Array.isArray(data)) {
+          bytes = data.slice();
+        } else {
+          bytes = Array.from(new TextEncoder().encode(String(data === undefined || data === null ? '' : data)));
+        }
+        return {
+          getDataAsString: function () {
+            return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+          },
+          getBytes: function () {
+            return bytes.slice();
+          }
+        };
       }
     };
   }
@@ -921,6 +1065,7 @@
     global.SpreadsheetApp = previous.SpreadsheetApp;
     global.LockService = previous.LockService;
     global.Sheets = previous.Sheets;
+    global.HtmlService = previous.HtmlService;
     global.Utilities = previous.Utilities;
     global.Session = previous.Session;
     state = null;
@@ -975,6 +1120,21 @@
     state.nameIndex[name] = id;
   }
 
+  function getLastModalDialog() {
+    if (!state.modalDialogs.length) {
+      return null;
+    }
+    return clone(state.modalDialogs[state.modalDialogs.length - 1]);
+  }
+
+  function getModalDialogs() {
+    return clone(state.modalDialogs);
+  }
+
+  function clearModalDialogs() {
+    state.modalDialogs = [];
+  }
+
   function getSheetMeta(name) {
     if (!Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
       return null;
@@ -1005,6 +1165,9 @@
     clearAlerts: clearAlerts,
     getLastMenu: getLastMenu,
     seedSheet: seedSheet,
+    getLastModalDialog: getLastModalDialog,
+    getModalDialogs: getModalDialogs,
+    clearModalDialogs: clearModalDialogs,
     getSheetMeta: getSheetMeta,
     setLocale: setLocale,
     isLockHeld: isLockHeld,

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "tierId": "forever-t1",
+  "bisWindowId": "forever-t1-w1",
+  "raidId": "4",
+  "raiders": [
+    {
+      "raiderKey": "Alya",
+      "role": "DPS",
+      "classSpec": "Mage Givre",
+      "tierPresence": 4,
+      "tierPresenceMax": 8,
+      "lifetimePresence": 9,
+      "lifetimePresenceMax": 12,
+      "bisLootCount": 1,
+      "impactLootCount": 2,
+      "dpsParse": 1,
+      "bisRatio": 0.25,
+      "impactBase": 0.25
+    },
+    {
+      "raiderKey": "Beryl",
+      "role": "HEALER",
+      "classSpec": "Prêtre Sacré",
+      "tierPresence": 6,
+      "tierPresenceMax": 8,
+      "lifetimePresence": 10,
+      "lifetimePresenceMax": 12,
+      "bisLootCount": 0,
+      "impactLootCount": 1,
+      "dpsParse": 88,
+      "bisRatio": 0.75,
+      "impactBase": 36.66666666666667
+    },
+    {
+      "raiderKey": "Cairn",
+      "role": "TANK",
+      "classSpec": "Druide Combat farouche (tank)",
+      "tierPresence": 8,
+      "tierPresenceMax": 8,
+      "lifetimePresence": 12,
+      "lifetimePresenceMax": 12,
+      "bisLootCount": 3,
+      "impactLootCount": 0,
+      "dpsParse": 95,
+      "bisRatio": 0.25,
+      "impactBase": null
+    }
+  ],
+  "items": [
+    {
+      "itemID": 777,
+      "specs": [
+        {
+          "classSpec": "Guerrier Protection",
+          "statut": "BIS",
+          "gainFraction": 0.12
+        },
+        {
+          "classSpec": "Paladin Sacré",
+          "statut": "IMPACT",
+          "gainFraction": 0.35
+        }
+      ]
+    },
+    {
+      "itemID": 888,
+      "specs": [
+        {
+          "classSpec": "Mage Givre",
+          "statut": "IMPACT",
+          "gainFraction": 0.5
+        }
+      ]
+    }
+  ]
+}

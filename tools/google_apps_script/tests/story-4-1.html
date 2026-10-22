@@ -130,16 +130,14 @@
       var rowsBeforeStubs = TracerHarness.getRows('BatchProbe').length;
       TracerHarness.clearAlerts();
       runAttendanceSync();
-      exportRaidSnapshot();
       importRaidLedger();
       archiveTierAndActivateNext();
       equal(TracerHarness.getRows('BatchProbe').length, rowsBeforeStubs, 'stubs do not write');
       var alerts = TracerHarness.getAlerts();
-      equal(alerts.length, 4, 'one alert per stub');
+      equal(alerts.length, 3, 'one alert per remaining stub');
       contains(alerts[0], '4.4', 'attendance stub references story 4.4');
-      contains(alerts[1], '4.6', 'snapshot stub references story 4.6');
-      contains(alerts[2], '4.7', 'ledger stub references story 4.7');
-      contains(alerts[3], '4.8', 'tier stub references story 4.8');
+      contains(alerts[1], '4.7', 'ledger stub references story 4.7');
+      contains(alerts[2], '4.8', 'tier stub references story 4.8');
 
       document.getElementById('result').textContent =
         'PASS: ' + assertions + ' assertions';

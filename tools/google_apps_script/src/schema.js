@@ -162,6 +162,9 @@ var PRESENCE_STYLE = {
   absent: { background: 'FCE8E6', text: 'B3261E' }
 };
 
+// Prefix used by warning-only protections while a raid is open.
+var RAID_OPEN_PROTECTION_PREFIX = 'Raid ouvert';
+
 // Class colour as header text; white (Prêtre) and pale yellow (Voleur) are unreadable on light blue.
 var CLASS_HEADER_TEXT_OVERRIDES = { 'Prêtre': '6E6E6E', 'Voleur': 'B8A200' };
 
