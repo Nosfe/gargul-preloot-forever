@@ -405,6 +405,19 @@
         contains(TracerHarness.getRows('Roster')[1][columnOf_(tabByName_('Roster'), 'tierPresence')], 'N(Config!$B$2)', 'Roster formulas follow the moved start date');
       });
 
+      withHarness(function () {
+        // Config still in the old 4-column layout (setup not re-run): both actions refuse and write nothing.
+        seedStoryWorkbook_();
+        var oldConfig = [['Palier actif (ID)', 'Fenêtre BiS active (ID)', 'Début fenêtre BiS', 'Raid ouvert (ID)'], ['forever-t1', 'w1', 46327, 4]];
+        TracerHarness.seedSheet('Config', oldConfig);
+        cancelOpenRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'cancel refuses an outdated Config');
+        exportRaidSnapshot();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses an outdated Config');
+        equal(JSON.stringify(TracerHarness.getRows('Config')), JSON.stringify(oldConfig), 'outdated Config untouched (start date kept)');
+        equal(TracerHarness.getLastModalDialog(), null, 'no dialog for an outdated layout');
+      });
+
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;

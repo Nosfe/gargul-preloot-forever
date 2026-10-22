@@ -12,6 +12,8 @@ function exportRaidSnapshot() {
       var raidsSheet = snapshotSheet_(spreadsheet, 'Raids');
       var presenceSheet = snapshotSheet_(spreadsheet, GRID_TABS.presence.name);
       var configRows = configSheet.getDataRange().getValues();
+      requireCurrentLayout_(configRows, 'Config');
+      requireCurrentLayout_(raidsSheet.getDataRange().getValues(), 'Raids');
       var configRow = configRows.length > 1 ? (configRows[1] || []) : [];
       var openRaidCell = configRow[columnOf_(tabByName_('Config'), 'openRaidId')];
       var openRaidId = normalizeCellString_(openRaidCell).trim();
@@ -26,7 +28,7 @@ function exportRaidSnapshot() {
       snapshot = buildSnapshot_({
         configRow: configRow,
         raidId: raidId,
-        rosterRows: rosterSheet.getDataRange().getValues(),
+        rosterRows: requireCurrentLayout_(rosterSheet.getDataRange().getValues(), 'Roster'),
         itemStates: itemStates
       });
 
@@ -405,6 +407,21 @@ function snapshotRole_(roleCell) {
   return null;
 }
 
+// Rows of a contract tab whose row 1 matches the current columns (label, former label or key);
+// otherwise columns read by index would hit the wrong cells, so ask for a setup refresh.
+function requireCurrentLayout_(rows, tabName) {
+  var tab = tabByName_(tabName);
+  var header = (rows && rows[0]) || [];
+  var mismatch = tab.columns.some(function (column, index) {
+    var cell = normalizeCellString_(header[index]).trim();
+    return [column.label, column.key].concat(column.formerLabels || []).indexOf(cell) === -1;
+  });
+  if (mismatch) {
+    throw new Error('The "' + tabName + '" tab does not match the current layout. Run "Set up / refresh workbook" first; nothing was changed.');
+  }
+  return rows;
+}
+
 // Sheet by name, or an error naming the missing tab.
 function snapshotSheet_(spreadsheet, name) {
   var sheet = spreadsheet.getSheetByName(name);
@@ -495,7 +512,7 @@ function cancelOpenRaid() {
       var spreadsheet = SpreadsheetApp.getActive();
       var configSheet = snapshotSheet_(spreadsheet, 'Config');
       var raidsSheet = snapshotSheet_(spreadsheet, 'Raids');
-      var configRow = configSheet.getDataRange().getValues()[1] || [];
+      var configRow = requireCurrentLayout_(configSheet.getDataRange().getValues(), 'Config')[1] || [];
       var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
       raidId = normalizeCellString_(configRow[openRaidColumn]).trim();
 
@@ -515,7 +532,7 @@ function cancelOpenRaid() {
       });
 
       var raidIdColumn = columnOf_(tabByName_('Raids'), 'raidId');
-      var raidsRows = raidsSheet.getDataRange().getValues();
+      var raidsRows = requireCurrentLayout_(raidsSheet.getDataRange().getValues(), 'Raids');
       for (var rowIndex = raidsRows.length - 1; rowIndex >= 1; rowIndex -= 1) {
         var row = raidsRows[rowIndex] || [];
         var onlyId = row.every(function (value, column) {
