@@ -465,7 +465,8 @@
             return rule.booleanRule.condition.values[0].userEnteredValue;
           }).sort().join(' ');
         };
-        equal(ruleFormulas('Pr\u00e9sence'), '=D3="B" =D3=1', 'Pr\u00e9sence tints 1 (rare) and B (epic)');
+        equal(ruleFormulas('Pr\u00e9sence'), '=AND(OR($A3<>"",$C3<>""),D$1<>"",OR(D3="",D3=0)) =D3="B" =D3=1', 'Pr\u00e9sence tints 1, B, and empty/0 on raid rows');
+        equal(classHeaderTextHex_('Mage') + '|' + classHeaderTextHex_('Pr\u00eatre') + '|' + classHeaderTextHex_(''), '3FC7EB|6E6E6E|' + HEADER_STYLE.text, 'class header text colours');
         equal(ruleFormulas('Awards'), ['=$D3="BIS"', '=$D3="IMPACT"', '=$D3="NONE"', '=$I3="BIS"', '=$I3="IMPACT"', '=$I3="NONE"'].join(' '), 'Awards rows tinted by Traitement per block');
         setUpWorkbook();
         equal(TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules.length, before.presenceRules, 'rerun keeps Pr\u00e9sence rule count stable');

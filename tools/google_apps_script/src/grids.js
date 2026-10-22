@@ -5,6 +5,7 @@ function buildGridRequests_(argSeparator) {
   var states = gridSheetStates_(spreadsheet);
   var rosterNames = readSortedRosterNames_(spreadsheet);
   var activeNames = readActiveNames_(spreadsheet, rosterNames);
+  var classByName = readClassByName_(spreadsheet);
   var metadataBySheetId = sheetMetadataById_(Sheets.Spreadsheets.get(spreadsheet.getId(), {
     fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId)'
   }));
@@ -15,9 +16,9 @@ function buildGridRequests_(argSeparator) {
   requests = requests.concat(buildGridMigrationDeleteRequests_(states));
   requests = requests.concat(buildListsTabRequests_(states.lists, separator));
   requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator,
-    { state: states.presenceArchive, activeNames: activeNames }, metadataBySheetId));
+    { state: states.presenceArchive, activeNames: activeNames }, metadataBySheetId, classByName));
   requests = requests.concat(buildAwardsGridRequests_(states.awards, rosterNames,
-    { state: states.awardsArchive, activeNames: activeNames }, metadataBySheetId, separator));
+    { state: states.awardsArchive, activeNames: activeNames }, metadataBySheetId, separator, classByName));
   ITEM_TABS.forEach(function (itemTab, index) {
     requests = requests.concat(
       buildTierItemsGridRequests_(states.itemTabs[index], metadataBySheetId, separator, itemTab)
@@ -343,7 +344,7 @@ function buildRerollsListsRows_(argSeparator) {
 }
 
 // Creates or refreshes the Présence grid without rewriting raid data rows.
-function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive, metadataBySheetId) {
+function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive, metadataBySheetId, classByName) {
   var separator = argSeparator || ',';
   var requests = [];
   var existingGrid = presenceState.exists && presenceState.sheetId !== 1101;
@@ -440,17 +441,20 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: rgbHex_(RARITY_STYLE.rareHeader.background),
+          backgroundColor: rgbHex_(HEADER_STYLE.background),
           horizontalAlignment: 'CENTER',
           textFormat: {
             bold: true,
-            foregroundColor: rgbHex_(RARITY_STYLE.rareHeader.text)
+            foregroundColor: rgbHex_(HEADER_STYLE.text)
           },
           wrapStrategy: 'WRAP'
         }
       },
       fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat,wrapStrategy)'
     }
+  });
+  allNames.forEach(function (name, index) {
+    requests.push(buildClassHeaderTextRequest_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN + index, 1, classByName && classByName[name]));
   });
 
   requests.push({
@@ -464,7 +468,7 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: rgbHex_(RARITY_STYLE.subHeader.background),
+          backgroundColor: rgbHex_(TOTAL_ROW_BACKGROUND),
           horizontalAlignment: 'CENTER',
           textFormat: { bold: true }
         }
@@ -477,23 +481,39 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {}));
   }
   if (allNames.length) {
-    var firstCell = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN) + (PRESENCE_FIRST_RAID_ROW);
-    requests.push(buildConditionalFormatRequestAtRow_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
-      '=' + firstCell + '=1', rarityFormat_(RARITY_STYLE.rareCell), separator));
-    requests.push(buildConditionalFormatRequestAtRow_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
-      '=' + firstCell + '="B"', rarityFormat_(RARITY_STYLE.epicCell), separator));
+    var cell = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN) + PRESENCE_FIRST_RAID_ROW;
+    var raidRow = 'OR($' + columnLetter_(PRESENCE_RAID_ID_COLUMN) + PRESENCE_FIRST_RAID_ROW + '<>"",$' + columnLetter_(PRESENCE_DATE_COLUMN) + PRESENCE_FIRST_RAID_ROW + '<>"")';
+    var namedColumn = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN) + '$1<>""';
+    [
+      { formula: '=' + cell + '=1', style: PRESENCE_STYLE.present },
+      { formula: '=' + cell + '="B"', style: PRESENCE_STYLE.bench },
+      { formula: '=AND(' + raidRow + ',' + namedColumn + ',OR(' + cell + '="",' + cell + '=0))', style: PRESENCE_STYLE.absent }
+    ].forEach(function (rule) {
+      requests.push(buildConditionalFormatRequestAtRow_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
+        rule.formula, rarityFormat_(rule.style), separator));
+    });
   }
 
   return requests;
 }
 
-// Conditional-format payload: light background with bold coloured text, or muted text alone.
+// Conditional-format payload: light background with bold coloured text.
 function rarityFormat_(style) {
-  var format = { textFormat: { foregroundColor: rgbHex_(style.text), bold: Boolean(style.background) } };
-  if (style.background) {
-    format.backgroundColor = rgbHex_(style.background);
-  }
-  return format;
+  return {
+    backgroundColor: rgbHex_(style.background),
+    textFormat: { foregroundColor: rgbHex_(style.text), bold: true }
+  };
+}
+
+// Raider-name header text in the raider's class colour (Roster or Rerolls); unknown names keep the header colour.
+function buildClassHeaderTextRequest_(sheetId, startColumn, width, className) {
+  return {
+    repeatCell: {
+      range: { sheetId: sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: startColumn, endColumnIndex: startColumn + width },
+      cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: rgbHex_(classHeaderTextHex_(className)) } } },
+      fields: 'userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.textFormat.bold'
+    }
+  };
 }
 
 // Reads existing Présence row-1 raider headers from column D onward; blanks keep their slot so names never shift.
@@ -672,7 +692,7 @@ function buildColumnWidthRequest_(sheetId, startIndex, endIndex, pixelSize) {
 }
 
 // Creates or refreshes the Awards blocks while preserving existing entries.
-function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataBySheetId, argSeparator) {
+function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataBySheetId, argSeparator, classByName) {
   var requests = [];
   var existingGrid = awardsState.exists && !isLegacyAwardsSheet_(awardsState);
   var sheetId = existingGrid ? awardsState.sheetId : GRID_TABS.awards.sheetId;
@@ -757,12 +777,12 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: rgbHex_(RARITY_STYLE.epicHeader.background),
+            backgroundColor: rgbHex_(HEADER_STYLE.background),
             horizontalAlignment: 'CENTER',
             textFormat: {
               bold: true,
               fontSize: 14,
-              foregroundColor: rgbHex_(RARITY_STYLE.epicHeader.text)
+              foregroundColor: rgbHex_(HEADER_STYLE.text)
             }
           }
         },
@@ -781,9 +801,9 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: rgbHex_(RARITY_STYLE.subHeader.background),
+            backgroundColor: rgbHex_(HEADER_STYLE.background),
             horizontalAlignment: 'CENTER',
-            textFormat: { bold: true },
+            textFormat: { bold: true, foregroundColor: rgbHex_(HEADER_STYLE.text) },
             wrapStrategy: 'WRAP'
           }
         },
@@ -798,6 +818,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
 
   for (var i = 0; i < allNames.length; i += 1) {
     var start = i * AWARDS_BLOCK_WIDTH;
+    requests.push(buildClassHeaderTextRequest_(sheetId, start, AWARDS_BLOCK_WIDTH, classByName && classByName[allNames[i]]));
     requests.push({
       mergeCells: {
         range: {
@@ -843,12 +864,12 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
       inputMessage: 'Traitement : BIS, IMPACT ou NONE.'
     }));
 
-    // Whole award row tinted by its Traitement: BIS legendary, IMPACT epic, NONE muted.
+    // Whole award row tinted by its Traitement with WoW rarity: NONE rare, BIS epic, IMPACT legendary.
     var treatmentCell = '$' + columnLetter_(start + AWARDS_TREATMENT_OFFSET) + AWARDS_FIRST_ROW;
     [
-      { value: 'BIS', style: RARITY_STYLE.legendaryCell },
-      { value: 'IMPACT', style: RARITY_STYLE.epicCell },
-      { value: 'NONE', style: RARITY_STYLE.muted }
+      { value: 'NONE', style: RARITY_STYLE.rare },
+      { value: 'BIS', style: RARITY_STYLE.epic },
+      { value: 'IMPACT', style: RARITY_STYLE.legendary }
     ].forEach(function (rule) {
       requests.push(buildConditionalFormatRequestAtRow_(sheetId, start, start + AWARDS_BLOCK_WIDTH, AWARDS_FIRST_ROW - 1,
         '=' + treatmentCell + '="' + rule.value + '"', rarityFormat_(rule.style), argSeparator));
@@ -987,11 +1008,11 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: rgbHex_('253746'),
+          backgroundColor: rgbHex_(HEADER_STYLE.background),
           horizontalAlignment: 'CENTER',
           textFormat: {
             bold: true,
-            foregroundColor: rgbHex_('FFFFFF')
+            foregroundColor: rgbHex_(HEADER_STYLE.text)
           }
         }
       },
@@ -1010,11 +1031,11 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: rgbHex_('253746'),
+          backgroundColor: rgbHex_(HEADER_STYLE.background),
           horizontalAlignment: 'CENTER',
           textFormat: {
             bold: true,
-            foregroundColor: rgbHex_('FFFFFF')
+            foregroundColor: rgbHex_(HEADER_STYLE.text)
           },
           wrapStrategy: 'WRAP'
         }
@@ -1350,6 +1371,27 @@ function buildConditionalFormatRequestAtRow_(sheetId, startColumnIndex, endColum
       index: 0
     }
   };
+}
+
+// Class of each Roster and Rerolls name, for class-coloured raider headers.
+function readClassByName_(spreadsheet) {
+  var classByName = Object.create(null);
+  [['Roster', 'raiderKey'], ['Rerolls', 'rerollName']].forEach(function (entry) {
+    var sheet = spreadsheet.getSheetByName(entry[0]);
+    if (!sheet) {
+      return;
+    }
+    var tab = tabByName_(entry[0]);
+    var nameColumn = columnOf_(tab, entry[1]);
+    var classColumn = columnOf_(tab, 'class');
+    sheet.getDataRange().getValues().slice(1).forEach(function (row) {
+      var name = (row || [])[nameColumn];
+      if (name !== '' && name !== null && name !== undefined && !classByName[String(name)]) {
+        classByName[String(name)] = String(row[classColumn] || '');
+      }
+    });
+  });
+  return classByName;
 }
 
 // Names whose Présence/Awards columns stay active: Roster raiders plus Rerolls names.

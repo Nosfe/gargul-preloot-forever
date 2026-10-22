@@ -144,16 +144,38 @@ var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
   .concat(['Raids', 'Config', ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, '_Listes']);
 
-// Light WoW item-rarity tints for Présence (rare blue) and Awards (epic purple, legendary orange for BIS).
+// Light blue header used by every tab; raider-name headers keep the background with the class colour as text.
+var HEADER_STYLE = { background: 'DCE9F7', text: '0B4F9C' };
+var TOTAL_ROW_BACKGROUND = 'F3F3F3';
+
+// Awards rows tinted by Traitement with WoW item-rarity colours.
 var RARITY_STYLE = {
-  rareHeader: { background: 'DCE9F7', text: '0B4F9C' },
-  rareCell: { background: 'E8F1FC', text: '0070DD' },
-  epicHeader: { background: 'EDE1F7', text: '6A1FA8' },
-  epicCell: { background: 'F4ECFB', text: 'A335EE' },
-  legendaryCell: { background: 'FFF1E0', text: 'C65F00' },
-  subHeader: { background: 'F3F3F3', text: '1F1F1F' },
-  muted: { text: '8A8A8A' }
+  rare: { background: 'E8F1FC', text: '0070DD' },
+  epic: { background: 'F4ECFB', text: 'A335EE' },
+  legendary: { background: 'FFF1E0', text: 'C65F00' }
 };
+
+// Présence cells: 1 present, B bench, empty or 0 absent.
+var PRESENCE_STYLE = {
+  present: { background: 'E6F4EA', text: '1E7D32' },
+  bench: { background: 'FFF2CC', text: 'B26A00' },
+  absent: { background: 'FCE8E6', text: 'B3261E' }
+};
+
+// Class colour as header text; white (Prêtre) and pale yellow (Voleur) are unreadable on light blue.
+var CLASS_HEADER_TEXT_OVERRIDES = { 'Prêtre': '6E6E6E', 'Voleur': 'B8A200' };
+
+function classHeaderTextHex_(className) {
+  if (CLASS_HEADER_TEXT_OVERRIDES[className]) {
+    return CLASS_HEADER_TEXT_OVERRIDES[className];
+  }
+  for (var i = 0; i < CLASS_SPECS.length; i += 1) {
+    if (CLASS_SPECS[i].name === className) {
+      return CLASS_SPECS[i].colorHex;
+    }
+  }
+  return HEADER_STYLE.text;
+}
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };

@@ -549,7 +549,7 @@ function buildHeaderRowRequest_(sheetId, tab) {
   ];
 }
 
-// Bold white on dark slate, centred and wrapped; header row frozen.
+// Bold light-blue header, centred and wrapped; header row frozen.
 function buildHeaderStyleRequests_(sheetId, tab) {
   var width = labelsOf_(tab).length;
   return [
@@ -564,11 +564,11 @@ function buildHeaderStyleRequests_(sheetId, tab) {
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: rgbHex_('253746'),
+            backgroundColor: rgbHex_(HEADER_STYLE.background),
             horizontalAlignment: 'CENTER',
             textFormat: {
               bold: true,
-              foregroundColor: rgbHex_('FFFFFF')
+              foregroundColor: rgbHex_(HEADER_STYLE.text)
             },
             wrapStrategy: 'WRAP'
           }
