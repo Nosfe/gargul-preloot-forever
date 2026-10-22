@@ -64,17 +64,9 @@
       var menu = TracerHarness.getLastMenu();
       equal(menu.caption, 'Loot priority', 'menu title');
       equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Setup', 'two submenus: Raid and Setup');
-      equal(itemLabels(submenu(menu, 'Raid')), 'Start (export snapshot),Delete', 'no started raid: Start and Delete only');
+      equal(itemLabels(submenu(menu, 'Raid')), 'Start (export snapshot),End,Cancel,Delete', 'Raid submenu always shows its 4 actions');
       equal(itemLabels(submenu(menu, 'Setup')), 'Refresh workbook,WCL credentials,Archive tier and activate next', 'Setup items');
-      ['Start (export snapshot)', 'Delete', 'Refresh workbook', 'WCL credentials', 'Archive tier and activate next'].forEach(function (label) {
-        equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
-      });
-
-      TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config')), ['forever-t1', '', 7]]);
-      onOpen();
-      menu = TracerHarness.getLastMenu();
-      equal(itemLabels(submenu(menu, 'Raid')), 'Export snapshot again,End,Cancel,Delete', 'started raid: End and Cancel offered');
-      ['Export snapshot again', 'End', 'Cancel'].forEach(function (label) {
+      ['Start (export snapshot)', 'End', 'Cancel', 'Delete', 'Refresh workbook', 'WCL credentials', 'Archive tier and activate next'].forEach(function (label) {
         equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
       });
 

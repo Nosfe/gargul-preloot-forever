@@ -116,7 +116,6 @@ function submitEndRaid(linkText, gargulText) {
     return outcome.requests;
   });
 
-  refreshMenu_();
   return outcome ? outcome.message : 'Raid ended.';
 }
 

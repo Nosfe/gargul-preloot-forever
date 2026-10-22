@@ -48,7 +48,6 @@ function exportRaidSnapshot() {
     });
 
     showSnapshotDialog_(snapshot);
-    refreshMenu_();
   } catch (error) {
     ui.alert('Export raid snapshot failed:\n' + error.message);
   }
@@ -517,12 +516,13 @@ function cancelOpenRaid() {
       var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
       raidId = normalizeCellString_(configRow[openRaidColumn]).trim();
 
+      if (!raidId) {
+        return [];
+      }
+
       var requests = buildRaidProtectionDeleteRequests_(Sheets.Spreadsheets.get(spreadsheet.getId(), {
         fields: 'sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description))'
       }));
-      if (!raidId) {
-        return requests;
-      }
 
       requests.push({
         updateCells: {
@@ -551,10 +551,9 @@ function cancelOpenRaid() {
       return requests;
     });
 
-    refreshMenu_();
     ui.alert(raidId
       ? 'Raid ' + raidId + ' annulé : protections retirées, Raid ouvert vidé.'
-      : 'Aucun raid ouvert ; protections « ' + RAID_OPEN_PROTECTION_PREFIX + ' » retirées.');
+      : 'Aucun raid démarré : rien à annuler.');
   } catch (error) {
     ui.alert('Cancel open raid failed:\n' + error.message);
   }

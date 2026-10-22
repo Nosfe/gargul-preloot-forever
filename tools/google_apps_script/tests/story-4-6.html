@@ -268,6 +268,10 @@
         equal(raidsAfterCancel.length + '|' + raidsAfterCancel[raidsAfterCancel.length - 1][0], '2|1', 'cancel drops the ID-only Raids row');
         exportRaidSnapshot();
         equal(decodeSnapshot_(TracerHarness.getLastModalDialog()).parsed.raidId, '4', 'next export reopens with the freed ID');
+
+        cancelOpenRaid();
+        cancelOpenRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Aucun raid démarré', 'Cancel without a started raid is refused');
       });
 
       withHarness(function () {
