@@ -1,6 +1,34 @@
 // Allowed award treatments from Gargul custom export and End raid dropdown.
 var AWARD_TREATMENTS = ['BIS', 'IMPACT', 'NONE'];
 
+// Line to paste into Gargul's Custom export format; @GPRAID/@GPTREATMENT are filled by the companion.
+var GARGUL_EXPORT_TEMPLATE = '{"checksum":"@CHECKSUM","winner":"@WINNER","itemID":@ID,"itemName":"@ITEM","rollType":"@ROLLTYPE","os":@OS,"date":"@DATE","time":"@TIME","raidId":"@GPRAID","treatment":"@GPTREATMENT"},';
+
+// Setup menu: shows the Gargul custom export format with a copy button.
+function showGargulExportFormat() {
+	var html = HtmlService.createHtmlOutput(
+		'<div style="font-family:Verdana,Arial,sans-serif;padding:12px">' +
+			'<p style="margin:0 0 8px 0">Gargul : Export loot &gt; format <strong>Custom</strong>. Décocher <em>Include offspec items</em> et <em>Include disenchanted items</em>, puis coller cette ligne :</p>' +
+			'<textarea id="gargul-format" readonly style="width:100%;height:110px">' + snapshotEscapeHtml_(GARGUL_EXPORT_TEMPLATE) + '</textarea>' +
+			'<div style="margin-top:10px;display:flex;gap:8px;align-items:center">' +
+				'<button onclick="copyFormat()">Copier</button>' +
+				'<span id="copy-status" style="color:#1E7D32"></span>' +
+			'</div>' +
+			'<script>' +
+				'function copyFormat(){' +
+					'var textarea=document.getElementById("gargul-format");' +
+					'var status=document.getElementById("copy-status");' +
+					'textarea.focus();textarea.select();' +
+					'try{document.execCommand("copy");status.textContent="Copié";}' +
+					'catch(error){status.textContent="Copie impossible : Ctrl+C";}' +
+				'}' +
+			'</script>' +
+		'</div>'
+	).setWidth(760).setHeight(260);
+
+	SpreadsheetApp.getUi().showModalDialog(html, 'Gargul custom export format');
+}
+
 // Parses Gargul custom-export text line by line into valid entries and rejected rows.
 function parseGargulExport_(text) {
 	var lines = [];

@@ -16,6 +16,7 @@ function onOpen() {
         .addItem('Refresh workbook', 'setUpWorkbook')
         .addItem('WCL credentials', 'setWclCredentials')
         .addItem('Update WCL parses', 'updateWclParses')
+        .addItem('Show Gargul export format', 'showGargulExportFormat')
         .addItem('Archive tier and activate next', 'archiveTierAndActivateNext')
     )
     .addToUi();

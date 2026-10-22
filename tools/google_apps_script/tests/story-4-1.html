@@ -66,10 +66,16 @@
       equal(menu.caption, 'Loot priority', 'menu title');
       equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Setup', 'two submenus: Raid and Setup');
       equal(itemLabels(submenu(menu, 'Raid')), 'Start (export snapshot),End,Cancel,Delete', 'Raid submenu always shows its 4 actions');
-      equal(itemLabels(submenu(menu, 'Setup')), 'Refresh workbook,WCL credentials,Update WCL parses,Archive tier and activate next', 'Setup items');
-      ['Start (export snapshot)', 'End', 'Cancel', 'Delete', 'Refresh workbook', 'WCL credentials', 'Update WCL parses', 'Archive tier and activate next'].forEach(function (label) {
+      equal(itemLabels(submenu(menu, 'Setup')), 'Refresh workbook,WCL credentials,Update WCL parses,Show Gargul export format,Archive tier and activate next', 'Setup items');
+      ['Start (export snapshot)', 'End', 'Cancel', 'Delete', 'Refresh workbook', 'WCL credentials', 'Update WCL parses', 'Show Gargul export format', 'Archive tier and activate next'].forEach(function (label) {
         equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
       });
+
+      showGargulExportFormat();
+      var formatDialog = TracerHarness.getLastModalDialog();
+      equal(formatDialog.title, 'Gargul custom export format', 'format dialog title');
+      contains(formatDialog.html, '&quot;itemName&quot;:&quot;@ITEM&quot;', 'format dialog shows the template');
+      equal(JSON.parse('[' + GARGUL_EXPORT_TEMPLATE.replace(/@ID|@OS/g, '1').replace(/,$/, '') + ']').length, 1, 'template is one JSON object once numeric tokens are filled');
 
       TracerHarness.seedSheet('BatchProbe', [['flag']], { sheetId: 42001 });
       var probeSheetId = SpreadsheetApp.getActive().getSheetByName('BatchProbe').getSheetId();
