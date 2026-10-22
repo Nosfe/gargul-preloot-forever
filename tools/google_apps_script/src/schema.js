@@ -117,6 +117,16 @@ var GRID_TABS = {
   tierItems: { name: 'TierItems', sheetId: 1013 }
 };
 
+// Shared grid coordinates used by setup formulas and grid builders.
+var PRESENCE_FIRST_RAIDER_COLUMN = 3;
+var PRESENCE_RAID_ID_COLUMN = 0;
+var PRESENCE_DATE_COLUMN = 2;
+var PRESENCE_FIRST_RAID_ROW = 3;
+var AWARDS_BLOCK_WIDTH = 5;
+var AWARDS_DATE_OFFSET = 0;
+var AWARDS_TREATMENT_OFFSET = 3;
+var AWARDS_FIRST_ROW = 3;
+
 // One item grid per role, same layout as the former TierItems, restricted to the role's specs.
 var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
   return { role: role, name: 'Objets ' + role, sheetId: 1021 + index };
@@ -156,7 +166,15 @@ var TABS = [
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
       { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, ex. Mage → Arcanes, Feu ou Givre.' },
       { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
-      { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' }
+      { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
+      { key: 'tierPresence', label: 'Présence palier', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'tierPresenceMax', label: 'Max palier', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'lifetimePresence', label: 'Présence vie', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'lifetimePresenceMax', label: 'Max vie', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'bisLootCount', label: 'Loots BiS', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'impactBase', label: 'Impact (sans gain objet)', note: 'Calculé, ne pas saisir.', formula: true }
     ]
   },
   {

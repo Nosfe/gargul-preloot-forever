@@ -1,0 +1,209 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.3 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function truthy(value, label) {
+      assertions += 1;
+      if (!value) {
+        throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function loadFixturesSync_() {
+      var request = new XMLHttpRequest();
+      request.open('GET', '../fixtures/scores.json', false);
+      request.send(null);
+      if (request.status !== 0 && request.status !== 200) {
+        throw new Error('Unable to load fixtures/scores.json: status ' + request.status);
+      }
+      return JSON.parse(request.responseText);
+    }
+
+    function seedCoreFlatTabs() {
+      TABS.forEach(function (tab) {
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
+    }
+
+    function scoreFixtureTests_() {
+      var fixtures = loadFixturesSync_();
+      var resultsByName = Object.create(null);
+
+      fixtures.cases.forEach(function (entry) {
+        var inputs = entry.inputs;
+        var expected = entry.expected;
+        var isTank = inputs.role === ROLE_DISPLAY.Tank.value;
+        var bisRatio = bisRatio_(inputs.tierPresence, inputs.tierMax, inputs.bisLoots);
+        var impactBase = impactBase_(inputs.lifetimePresence, inputs.lifetimeMax, inputs.parse, inputs.impactLoots, isTank);
+        var impactScore = impactScore_(impactBase, inputs.statut, inputs.gainFraction);
+
+        equal(bisRatio, expected.bisRatio, entry.name + ' bisRatio');
+        equal(impactBase, expected.impactBase, entry.name + ' impactBase');
+        equal(impactScore, expected.impactScore, entry.name + ' impactScore');
+
+        resultsByName[entry.name] = {
+          bisRatio: bisRatio,
+          impactBase: impactBase,
+          impactScore: impactScore
+        };
+      });
+
+      var nearTieA = resultsByName['near-tie-a'];
+      var nearTieB = resultsByName['near-tie-b'];
+      truthy(nearTieA && nearTieB, 'near-tie cases loaded');
+      equal(nearTieA.impactBase === nearTieB.impactBase, false, 'near-tie pair stays distinct');
+
+      var exactTieA = resultsByName['exact-tie-a'];
+      var exactTieB = resultsByName['exact-tie-b'];
+      truthy(exactTieA && exactTieB, 'exact-tie cases loaded');
+      equal(exactTieA.bisRatio, exactTieB.bisRatio, 'exact-tie pair bisRatio equal');
+      equal(exactTieA.impactBase, exactTieB.impactBase, 'exact-tie pair impactBase equal');
+      equal(exactTieA.impactScore, exactTieB.impactScore, 'exact-tie pair impactScore equal');
+    }
+
+    function rosterFormulaTests_() {
+      withHarness(function () {
+        seedCoreFlatTabs();
+        setUpWorkbook();
+
+        var rosterTab = tabByName_('Roster');
+        var rows = TracerHarness.getRows('Roster');
+        var headers = labelsOf_(rosterTab);
+        equal(rows[0].slice(0, headers.length).join('|'), headers.join('|'), 'Roster headers include score columns');
+
+        var tierPresence = rows[1][columnOf_(rosterTab, 'tierPresence')];
+        var tierMax = rows[1][columnOf_(rosterTab, 'tierPresenceMax')];
+        var lifetimePresence = rows[1][columnOf_(rosterTab, 'lifetimePresence')];
+        var lifetimeMax = rows[1][columnOf_(rosterTab, 'lifetimePresenceMax')];
+        var bisLoots = rows[1][columnOf_(rosterTab, 'bisLootCount')];
+        var impactLoots = rows[1][columnOf_(rosterTab, 'impactLootCount')];
+        var ratio = rows[1][columnOf_(rosterTab, 'bisRatio')];
+        var impactBase = rows[1][columnOf_(rosterTab, 'impactBase')];
+
+        contains(tierPresence, "'Présence'!", 'tier presence uses quoted Présence sheet');
+        contains(tierPresence, '(d>=N(Config!$C$2))', 'tier presence uses start date filter');
+        contains(tierPresence, '((v=1)+(v="B"))', 'tier presence counts 1 and B');
+        contains(tierMax, 'MAX(1,SUMPRODUCT', 'tier max has minimum 1');
+        contains(lifetimePresence, '((v=1)+(v="B"))', 'lifetime presence counts 1 and B');
+        contains(lifetimeMax, 'MAX(1,SUMPRODUCT', 'lifetime max has minimum 1');
+        contains(bisLoots, '="BIS"', 'BiS count filters BIS');
+        contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
+        contains(ratio, '/($J2+1)', 'ratio divides by BiS loots plus one');
+        contains(impactBase, '$D2="🛡️ Tank"', 'impact base keeps tank blank');
+        contains(impactBase, 'IF(N($E2)=0,1,$E2)', 'impact base uses parse=1 fallback');
+
+        contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
+        contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
+        contains(bisLoots, ',0,c+3)="BIS"', 'BiS count reads the Traitement offset');
+        contains(bisLoots, ',0,c+0)>=N(Config!$C$2)', 'BiS count filters by the block Date and the start date');
+        equal(lifetimePresence.indexOf('Config!'), -1, 'lifetime presence has no date filter');
+        equal(impactLoots.indexOf('Config!'), -1, 'Impact loots have no date filter');
+        contains(tierMax, '=IF($A2="","",MAX(1,', 'tier max is blank on an empty row');
+        contains(lifetimeMax, '=IF($A2="","",MAX(1,', 'lifetime max is blank on an empty row');
+        equal(columnOf_(rosterTab, 'tierPresence'), 5, 'score columns start at F');
+        equal(rows.length, 201, 'formulas stop at row 201');
+        contains(rows[200][columnOf_(rosterTab, 'bisRatio')], '$A201', 'row 201 formula refers to its own row');
+
+        var configMeta = TracerHarness.getSheetMeta('Config');
+        var startRule = configMeta.dataValidations.filter(function (entry) {
+          return entry.rule && entry.range.startColumnIndex === columnOf_(tabByName_('Config'), 'bisWindowStart');
+        })[0];
+        equal(startRule.rule.condition.type, 'DATE_IS_VALID', 'Config start date only accepts real dates');
+
+        var before = JSON.stringify(rows);
+        setUpWorkbook();
+        equal(JSON.stringify(TracerHarness.getRows('Roster')), before, 'setup rerun is stable for formulas');
+      });
+
+      withHarness(function () {
+        TracerHarness.setLocale('fr_FR');
+        seedCoreFlatTabs();
+        setUpWorkbook();
+
+        var rosterTab = tabByName_('Roster');
+        var rows = TracerHarness.getRows('Roster');
+        var formulaKeys = [
+          'tierPresence',
+          'tierPresenceMax',
+          'lifetimePresence',
+          'lifetimePresenceMax',
+          'bisLootCount',
+          'impactLootCount',
+          'bisRatio',
+          'impactBase'
+        ];
+
+        formulaKeys.forEach(function (key) {
+          var value = rows[1][columnOf_(rosterTab, key)];
+          equal(String(value).indexOf(','), -1, key + ' uses no commas in fr_FR');
+        });
+      });
+    }
+
+    try {
+      scoreFixtureTests_();
+      rosterFormulaTests_();
+
+      withHarness(function () {
+        // Live Roster before 4.3: only the five owner columns, with a raider row.
+        TABS.forEach(function (tab) {
+          if (tab.name !== 'Roster') {
+            TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+          }
+        });
+        TracerHarness.seedSheet('Roster', [
+          ['Raider (nom exact en jeu)', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen'],
+          ['Ana', 'Mage', '❄️ Givre', '✚ Heal', 80]
+        ]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'pre-4.3 Roster is extended');
+        var rows = TracerHarness.getRows('Roster');
+        equal(rows[1].slice(0, 5).join('|'), 'Ana|Mage|❄️ Givre|✚ Heal|80', 'existing Roster data A-E kept');
+        equal(rows[0][5], 'Présence palier', 'first calculated column appended at F');
+      });
+
+      equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

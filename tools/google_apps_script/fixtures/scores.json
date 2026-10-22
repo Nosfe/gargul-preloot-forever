@@ -1,0 +1,204 @@
+{
+  "cases": [
+    {
+      "name": "matrix-example",
+      "inputs": {
+        "tierPresence": 2,
+        "tierMax": 2,
+        "lifetimePresence": 3,
+        "lifetimeMax": 3,
+        "parse": 80,
+        "bisLoots": 1,
+        "impactLoots": 1,
+        "role": "✚ Heal",
+        "statut": "IMPACT",
+        "gainFraction": 0.25
+      },
+      "expected": {
+        "bisRatio": 0.5,
+        "impactBase": 40,
+        "impactScore": 10
+      }
+    },
+    {
+      "name": "empty-parse",
+      "inputs": {
+        "tierPresence": 3,
+        "tierMax": 4,
+        "lifetimePresence": 4,
+        "lifetimeMax": 5,
+        "parse": null,
+        "bisLoots": 0,
+        "impactLoots": 1,
+        "role": "⚔️ Melee DPS",
+        "statut": "IMPACT",
+        "gainFraction": 0.3
+      },
+      "expected": {
+        "bisRatio": 0.75,
+        "impactBase": 0.4,
+        "impactScore": 0.12
+      }
+    },
+    {
+      "name": "tank",
+      "inputs": {
+        "tierPresence": 5,
+        "tierMax": 6,
+        "lifetimePresence": 12,
+        "lifetimeMax": 15,
+        "parse": 95,
+        "bisLoots": 2,
+        "impactLoots": 3,
+        "role": "🛡️ Tank",
+        "statut": "IMPACT",
+        "gainFraction": 0.4
+      },
+      "expected": {
+        "bisRatio": 0.2777777777777778,
+        "impactBase": null,
+        "impactScore": null
+      }
+    },
+    {
+      "name": "normal-statut",
+      "inputs": {
+        "tierPresence": 7,
+        "tierMax": 7,
+        "lifetimePresence": 8,
+        "lifetimeMax": 8,
+        "parse": 50,
+        "bisLoots": 3,
+        "impactLoots": 1,
+        "role": "🔮 Caster DPS",
+        "statut": "NORMAL",
+        "gainFraction": 0.5
+      },
+      "expected": {
+        "bisRatio": 0.25,
+        "impactBase": 25,
+        "impactScore": null
+      }
+    },
+    {
+      "name": "negative-gain",
+      "inputs": {
+        "tierPresence": 4,
+        "tierMax": 4,
+        "lifetimePresence": 6,
+        "lifetimeMax": 6,
+        "parse": 24,
+        "bisLoots": 0,
+        "impactLoots": 1,
+        "role": "🏹 Ranged DPS",
+        "statut": "IMPACT",
+        "gainFraction": -0.1
+      },
+      "expected": {
+        "bisRatio": 1,
+        "impactBase": 12,
+        "impactScore": -1.2000000000000002
+      }
+    },
+    {
+      "name": "zero-raids",
+      "inputs": {
+        "tierPresence": 0,
+        "tierMax": 1,
+        "lifetimePresence": 0,
+        "lifetimeMax": 1,
+        "parse": 80,
+        "bisLoots": 0,
+        "impactLoots": 0,
+        "role": "✚ Heal",
+        "statut": "IMPACT",
+        "gainFraction": 0.2
+      },
+      "expected": {
+        "bisRatio": 0,
+        "impactBase": 0,
+        "impactScore": 0
+      }
+    },
+    {
+      "name": "near-tie-a",
+      "inputs": {
+        "tierPresence": 1,
+        "tierMax": 1,
+        "lifetimePresence": 1,
+        "lifetimeMax": 1,
+        "parse": 1,
+        "bisLoots": 0,
+        "impactLoots": 0,
+        "role": "⚔️ Melee DPS",
+        "statut": "IMPACT",
+        "gainFraction": 1
+      },
+      "expected": {
+        "bisRatio": 1,
+        "impactBase": 1,
+        "impactScore": 1
+      }
+    },
+    {
+      "name": "near-tie-b",
+      "inputs": {
+        "tierPresence": 1,
+        "tierMax": 1,
+        "lifetimePresence": 1,
+        "lifetimeMax": 1,
+        "parse": 1.0000000005,
+        "bisLoots": 0,
+        "impactLoots": 0,
+        "role": "⚔️ Melee DPS",
+        "statut": "IMPACT",
+        "gainFraction": 1
+      },
+      "expected": {
+        "bisRatio": 1,
+        "impactBase": 1.0000000005,
+        "impactScore": 1.0000000005
+      }
+    },
+    {
+      "name": "exact-tie-a",
+      "inputs": {
+        "tierPresence": 6,
+        "tierMax": 6,
+        "lifetimePresence": 5,
+        "lifetimeMax": 5,
+        "parse": 5,
+        "bisLoots": 1,
+        "impactLoots": 1,
+        "role": "🔮 Caster DPS",
+        "statut": "IMPACT",
+        "gainFraction": 0.4
+      },
+      "expected": {
+        "bisRatio": 0.5,
+        "impactBase": 2.5,
+        "impactScore": 1
+      }
+    },
+    {
+      "name": "exact-tie-b",
+      "inputs": {
+        "tierPresence": 8,
+        "tierMax": 8,
+        "lifetimePresence": 10,
+        "lifetimeMax": 10,
+        "parse": 5,
+        "bisLoots": 1,
+        "impactLoots": 1,
+        "role": "🔮 Caster DPS",
+        "statut": "IMPACT",
+        "gainFraction": 0.4
+      },
+      "expected": {
+        "bisRatio": 0.5,
+        "impactBase": 2.5,
+        "impactScore": 1
+      }
+    }
+  ]
+}

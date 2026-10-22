@@ -357,7 +357,7 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
 
   var existingNames = existingGrid ? readPresenceRaiderHeaders_(presenceState.rows || []) : [];
   var allNames = appendMissingNames_(existingNames, rosterNames);
-  var totalColumns = 3 + allNames.length;
+  var totalColumns = PRESENCE_FIRST_RAIDER_COLUMN + allNames.length;
 
   requests.push({
     updateSheetProperties: {
@@ -366,7 +366,7 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
         gridProperties: {
           columnCount: gridColumnCount_(presenceState, existingGrid, totalColumns),
           frozenRowCount: 2,
-          frozenColumnCount: 3
+          frozenColumnCount: PRESENCE_FIRST_RAIDER_COLUMN
         }
       },
       fields: 'gridProperties.columnCount,gridProperties.frozenRowCount,gridProperties.frozenColumnCount'
@@ -398,10 +398,10 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
     { userEnteredValue: { stringValue: '' } }
   ];
   for (var i = 0; i < allNames.length; i += 1) {
-    var letter = columnLetter_(3 + i);
+    var letter = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN + i);
     totals.push({
       userEnteredValue: {
-        formulaValue: applyArgSeparator_('=COUNTIF(' + letter + '3:' + letter + ',1)+COUNTIF(' + letter + '3:' + letter + ',"B")', separator)
+        formulaValue: applyArgSeparator_('=COUNTIF(' + letter + PRESENCE_FIRST_RAID_ROW + ':' + letter + ',1)+COUNTIF(' + letter + PRESENCE_FIRST_RAID_ROW + ':' + letter + ',"B")', separator)
       }
     });
   }
@@ -462,7 +462,7 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
 
 // Reads existing Présence row-1 raider headers from column D onward; blanks keep their slot so names never shift.
 function readPresenceRaiderHeaders_(rows) {
-  return trimmedHeaderRow_(rows).slice(3);
+  return trimmedHeaderRow_(rows).slice(PRESENCE_FIRST_RAIDER_COLUMN);
 }
 
 // Grid width for a refresh: never below the tab's current width, since a lower columnCount deletes columns.
@@ -503,7 +503,8 @@ function buildPresenceWidthRequests_(sheetId, raiderCount) {
   ];
 
   for (var i = 0; i < raiderCount; i += 1) {
-    requests.push(buildColumnWidthRequest_(sheetId, 3 + i, 4 + i, 105));
+    var startColumn = PRESENCE_FIRST_RAIDER_COLUMN + i;
+    requests.push(buildColumnWidthRequest_(sheetId, startColumn, startColumn + 1, 105));
   }
 
   return requests;
@@ -544,7 +545,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
 
   var existingNames = existingGrid ? readAwardsBlockNames_(awardsState.rows || []) : [];
   var allNames = appendMissingNames_(existingNames, rosterNames);
-  var totalColumns = allNames.length * 5;
+  var totalColumns = allNames.length * AWARDS_BLOCK_WIDTH;
 
   requests.push({
     updateSheetProperties: {
@@ -636,7 +637,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
   }
 
   for (var i = 0; i < allNames.length; i += 1) {
-    var start = i * 5;
+    var start = i * AWARDS_BLOCK_WIDTH;
     requests.push({
       mergeCells: {
         range: {
@@ -644,7 +645,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
           startRowIndex: 0,
           endRowIndex: 1,
           startColumnIndex: start,
-          endColumnIndex: start + 5
+          endColumnIndex: start + AWARDS_BLOCK_WIDTH
         },
         mergeType: 'MERGE_ALL'
       }
@@ -655,7 +656,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
         range: {
           sheetId: sheetId,
           startColumnIndex: start,
-          endColumnIndex: start + 5
+          endColumnIndex: start + AWARDS_BLOCK_WIDTH
         },
         right: {
           style: 'SOLID',
@@ -665,9 +666,9 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
     });
 
     requests.push(buildDataValidationRequestByRange_(sheetId, {
-      startRowIndex: 2,
-      startColumnIndex: start + 3,
-      endColumnIndex: start + 4
+      startRowIndex: AWARDS_FIRST_ROW - 1,
+      startColumnIndex: start + AWARDS_TREATMENT_OFFSET,
+      endColumnIndex: start + AWARDS_TREATMENT_OFFSET + 1
     }, {
       condition: {
         type: 'ONE_OF_LIST',
@@ -691,7 +692,7 @@ function readAwardsBlockNames_(rows) {
   var header = trimmedHeaderRow_(rows);
   var names = [];
 
-  for (var start = 0; start < header.length; start += 5) {
+  for (var start = 0; start < header.length; start += AWARDS_BLOCK_WIDTH) {
     names.push(header[start] || '');
   }
 
@@ -703,11 +704,9 @@ function buildAwardsRowOne_(names) {
   var values = [];
 
   names.forEach(function (name) {
-    values.push({ userEnteredValue: { stringValue: name } });
-    values.push({ userEnteredValue: { stringValue: '' } });
-    values.push({ userEnteredValue: { stringValue: '' } });
-    values.push({ userEnteredValue: { stringValue: '' } });
-    values.push({ userEnteredValue: { stringValue: '' } });
+    for (var offset = 0; offset < AWARDS_BLOCK_WIDTH; offset += 1) {
+      values.push({ userEnteredValue: { stringValue: offset === 0 ? name : '' } });
+    }
   });
 
   return values;
@@ -718,11 +717,19 @@ function buildAwardsRowTwo_(count) {
   var values = [];
 
   for (var i = 0; i < count; i += 1) {
-    values.push({ userEnteredValue: { stringValue: 'Date' } });
-    values.push({ userEnteredValue: { stringValue: 'Objet' } });
-    values.push({ userEnteredValue: { stringValue: 'Objet (ID)' } });
-    values.push({ userEnteredValue: { stringValue: 'Traitement' } });
-    values.push({ userEnteredValue: { stringValue: 'Raid (ID)' } });
+    for (var offset = 0; offset < AWARDS_BLOCK_WIDTH; offset += 1) {
+      if (offset === AWARDS_DATE_OFFSET) {
+        values.push({ userEnteredValue: { stringValue: 'Date' } });
+      } else if (offset === 1) {
+        values.push({ userEnteredValue: { stringValue: 'Objet' } });
+      } else if (offset === 2) {
+        values.push({ userEnteredValue: { stringValue: 'Objet (ID)' } });
+      } else if (offset === AWARDS_TREATMENT_OFFSET) {
+        values.push({ userEnteredValue: { stringValue: 'Traitement' } });
+      } else {
+        values.push({ userEnteredValue: { stringValue: 'Raid (ID)' } });
+      }
+    }
   }
 
   return values;
@@ -733,11 +740,11 @@ function buildAwardsWidthRequests_(sheetId, blockCount) {
   var requests = [];
 
   for (var i = 0; i < blockCount; i += 1) {
-    var start = i * 5;
+    var start = i * AWARDS_BLOCK_WIDTH;
     requests.push(buildColumnWidthRequest_(sheetId, start, start + 1, 120));
     requests.push(buildColumnWidthRequest_(sheetId, start + 1, start + 2, 220));
     requests.push(buildColumnWidthRequest_(sheetId, start + 2, start + 3, 120));
-    requests.push(buildColumnWidthRequest_(sheetId, start + 3, start + 4, 130));
+    requests.push(buildColumnWidthRequest_(sheetId, start + AWARDS_TREATMENT_OFFSET, start + AWARDS_TREATMENT_OFFSET + 1, 130));
     requests.push(buildColumnWidthRequest_(sheetId, start + 4, start + 5, 120));
   }
 
