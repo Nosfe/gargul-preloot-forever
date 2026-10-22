@@ -11,6 +11,7 @@
 <script src="../src/scores.js"></script>
 <script src="../src/snapshot.js"></script>
 <script src="../src/attendance.js"></script>
+<script src="../src/parses.js"></script>
 <script src="../src/menu.js"></script>
 <script>
   (function () {
@@ -404,6 +405,59 @@
         var properties = TracerHarness.getUserProperties();
         equal(properties.WCL_CLIENT_ID, 'stored-id', 'client id stored in User Properties');
         equal(properties.WCL_CLIENT_SECRET, 'stored-secret', 'client secret stored in User Properties');
+      });
+
+      // Update WCL parses: (best + median) / 2, HPS for healers, unknown characters left as they are.
+      function seedParseWorkbook_(realm) {
+        seedCoreTabs_();
+        var spreadsheet = SpreadsheetApp.getActive();
+        writeCells_(spreadsheet.getSheetByName('Config').getSheetId(), 1, 0, ['forever-t1', '2026-10-01', '', realm]);
+        var rosterTab = tabByName_('Roster');
+        writeCells_(spreadsheet.getSheetByName('Roster').getSheetId(), 2, columnOf_(rosterTab, 'role'), [ROLE_DISPLAY.Heal.value, 40]);
+        saveWclCredentials('client-id', 'client-secret');
+      }
+
+      withHarness(function () {
+        seedParseWorkbook_('EU/Thunderstrike');
+        TracerHarness.setFetchResponses([
+          { statusCode: 200, body: { access_token: 't' } },
+          { statusCode: 200, body: { data: { characterData: {
+            c0: { zoneRankings: { bestPerformanceAverage: 80, medianPerformanceAverage: 70 } },
+            c1: { zoneRankings: { bestPerformanceAverage: 95.55, medianPerformanceAverage: 90 } },
+            c2: null,
+            c3: { zoneRankings: { bestPerformanceAverage: null, medianPerformanceAverage: null } }
+          } } } }
+        ]);
+        updateWclParses();
+        var parseColumn = columnOf_(tabByName_('Roster'), 'dpsParse');
+        var roster = TracerHarness.getRows('Roster');
+        equal(roster[1][parseColumn] + '|' + roster[2][parseColumn], '75|92.8', 'parse = rounded (best + median) / 2');
+        equal(String(roster[3][parseColumn]), '', 'unknown character keeps its parse');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Sans classement WCL (inchangés) : Cid, Zed', 'summary lists characters without rankings');
+        var request = TracerHarness.getFetchLog()[1];
+        var query = JSON.parse(request.params.payload).query;
+        equal(request.url, WCL_CHARACTER_API_URL, 'character query goes to the Fresh API');
+        contains(query, 'c0: character(name: "Ana", serverSlug: "thunderstrike", serverRegion: "eu") { zoneRankings(metric: dps) }', 'DPS metric and realm from Config');
+        contains(query, 'c1: character(name: "Bob"', 'second raider in the same request');
+        contains(query.split('c1:')[1], 'metric: hps', 'healer uses HPS');
+        contains(query, 'c3: character(name: "Zed"', 'Rerolls characters included');
+      });
+
+      withHarness(function () {
+        seedParseWorkbook_('');
+        TracerHarness.setFetchResponses([]);
+        updateWclParses();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Serveur WCL', 'missing realm reported');
+        equal(TracerHarness.getFetchLog().length, 0, 'missing realm: nothing fetched');
+      });
+
+      withHarness(function () {
+        seedParseWorkbook_('eu/thunderstrike');
+        writeCells_(SpreadsheetApp.getActive().getSheetByName('Config').getSheetId(), 1, columnOf_(tabByName_('Config'), 'openRaidId'), [5]);
+        TracerHarness.setFetchResponses([]);
+        updateWclParses();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'raid est démarré', 'refused while a raid is started');
+        equal(TracerHarness.getFetchLog().length, 0, 'started raid: nothing fetched');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';

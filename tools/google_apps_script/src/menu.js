@@ -15,6 +15,7 @@ function onOpen() {
       ui.createMenu('Setup')
         .addItem('Refresh workbook', 'setUpWorkbook')
         .addItem('WCL credentials', 'setWclCredentials')
+        .addItem('Update WCL parses', 'updateWclParses')
         .addItem('Archive tier and activate next', 'archiveTierAndActivateNext')
     )
     .addToUi();
