@@ -126,15 +126,19 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   var presenceRaidIdColumn = PRESENCE_RAID_ID_COLUMN + 1;
   var awardsDateOffset = AWARDS_DATE_OFFSET;
   var awardsTreatmentOffset = AWARDS_TREATMENT_OFFSET;
+  var presenceDateLookup = {
+    range: presenceSheet + '$' + columnLetter_(PRESENCE_RAID_ID_COLUMN) + '$' + PRESENCE_FIRST_RAID_ROW + ':$' + columnLetter_(PRESENCE_DATE_COLUMN) + '$1000',
+    column: PRESENCE_DATE_COLUMN - PRESENCE_RAID_ID_COLUMN + 1
+  };
   var rows = [];
 
   for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
     var rowValues = [
       { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierPresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildTierPresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef).slice(1) + ')', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_(buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceRaidIdColumn), separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceRaidIdColumn).slice(1) + ')', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_(buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, configStartDateRef), separator) } },
+      { userEnteredValue: { formulaValue: applyArgSeparator_(buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn), separator) } },
+      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn).slice(1) + ')', separator) } },
+      { userEnteredValue: { formulaValue: applyArgSeparator_(buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_(buildImpactLootFormula_(nameLetter, rowNumber, awardsStart, awardsTreatmentOffset), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')/($' + bisLootCountLetter + rowNumber + '+1))', separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF(OR($' + nameLetter + rowNumber + '="",$' + roleLetter + rowNumber + '="' + ROLE_DISPLAY.Tank.value + '"),"",($' + lifetimePresenceLetter + rowNumber + '/$' + lifetimePresenceMaxLetter + rowNumber + ')*IF(N($' + parseLetter + rowNumber + ')=0,1,$' + parseLetter + rowNumber + ')/($' + impactLootCountLetter + rowNumber + '+1))', separator) } }
@@ -184,27 +188,39 @@ function exactHeaderMatch_(sheetRef, nameRef) {
 
 // Présence palier: 1/B counts in the BiS window from Config start date.
 function buildTierPresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef) {
-  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(presenceSheet, '$' + nameLetter + rowNumber) + ',v,INDEX(' + presenceSheet + presenceStart + ',0,c),d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT((i<>"")*(d>=N(' + configStartDateRef + '))*((v=1)+(v="B")))),0))';
+  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(presenceSheet, '$' + nameLetter + rowNumber) + ',v,INDEX(' + presenceSheet + presenceStart + ',0,c),d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(' + raidRowTest_('i', 'd') + '*(d>=N(' + configStartDateRef + '))*((v=1)+(v="B")))),0))';
 }
 
-// Max palier: number of possible raids in the BiS window, minimum 1.
+// Nombre de raids par palier: raid rows in the BiS window, minimum 1.
 function buildTierPresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef) {
-  return '=MAX(1,SUMPRODUCT((INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + ')<>"")*(INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + ')>=N(' + configStartDateRef + '))))';
+  return '=MAX(1,LET(d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(' + raidRowTest_('i', 'd') + '*(d>=N(' + configStartDateRef + ')))))';
 }
 
-// Présence vie: 1/B counts over every Présence row.
-function buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceRaidIdColumn) {
-  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(presenceSheet, '$' + nameLetter + rowNumber) + ',v,INDEX(' + presenceSheet + presenceStart + ',0,c),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT((i<>"")*((v=1)+(v="B")))),0))';
+// Présence totale: 1/B counts over every raid row.
+function buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn) {
+  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(presenceSheet, '$' + nameLetter + rowNumber) + ',v,INDEX(' + presenceSheet + presenceStart + ',0,c),d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(' + raidRowTest_('i', 'd') + '*((v=1)+(v="B")))),0))';
 }
 
-// Max vie: lifetime possible raids, minimum 1.
-function buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceRaidIdColumn) {
-  return '=MAX(1,SUMPRODUCT(--(INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + ')<>"")))';
+// Nombre de raids totaux: every raid row, minimum 1.
+function buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn) {
+  return '=MAX(1,LET(d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(--' + raidRowTest_('i', 'd') + ')))';
 }
 
-// Loots BiS: BIS treatments in the raider block, filtered by the BiS window start date.
-function buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, configStartDateRef) {
-  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(GRID_TABS.awards.name + '!', '$' + nameLetter + rowNumber) + ',SUMPRODUCT((INDEX(' + GRID_TABS.awards.name + '!' + awardsStart + ',0,c+' + awardsTreatmentOffset + ')="BIS")*(INDEX(' + GRID_TABS.awards.name + '!' + awardsStart + ',0,c+' + awardsDateOffset + ')>=N(' + configStartDateRef + ')))),0))';
+// A Présence row is a raid when it has a Raid (ID) or a Date.
+function raidRowTest_(raidIdName, dateName) {
+  return '((' + raidIdName + '<>"")+(' + dateName + '<>"")>0)';
+}
+
+// Loots BiS: BIS treatments in the raider block from the BiS window start. A blank Date falls back to
+// the Date of the award's Raid (ID) in Présence; with neither, the award counts.
+function buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, awardsRaidIdOffset, presenceDateLookup, configStartDateRef) {
+  var awards = GRID_TABS.awards.name + '!' + awardsStart;
+  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(GRID_TABS.awards.name + '!', '$' + nameLetter + rowNumber) +
+    ',t,INDEX(' + awards + ',0,c+' + awardsTreatmentOffset + ')' +
+    ',d,INDEX(' + awards + ',0,c+' + awardsDateOffset + ')' +
+    ',r,INDEX(' + awards + ',0,c+' + awardsRaidIdOffset + ')' +
+    ',e,ARRAYFORMULA(IF(d<>"",d,IFERROR(VLOOKUP(r,' + presenceDateLookup.range + ',' + presenceDateLookup.column + ',FALSE),"")))' +
+    ',SUMPRODUCT((t="BIS")*(((e="")+(e>=N(' + configStartDateRef + ')))>0))),0))';
 }
 
 // Loots Impact: IMPACT treatments in the raider block over every row.

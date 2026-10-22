@@ -4,6 +4,7 @@ function buildGridRequests_(argSeparator) {
   var spreadsheet = SpreadsheetApp.getActive();
   var states = gridSheetStates_(spreadsheet);
   var rosterNames = readSortedRosterNames_(spreadsheet);
+  var activeNames = readActiveNames_(spreadsheet, rosterNames);
   var metadataBySheetId = sheetMetadataById_(Sheets.Spreadsheets.get(spreadsheet.getId(), {
     fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId)'
   }));
@@ -13,8 +14,10 @@ function buildGridRequests_(argSeparator) {
 
   requests = requests.concat(buildGridMigrationDeleteRequests_(states));
   requests = requests.concat(buildListsTabRequests_(states.lists, separator));
-  requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator));
-  requests = requests.concat(buildAwardsGridRequests_(states.awards, rosterNames));
+  requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator,
+    { state: states.presenceArchive, activeNames: activeNames }));
+  requests = requests.concat(buildAwardsGridRequests_(states.awards, rosterNames,
+    { state: states.awardsArchive, activeNames: activeNames }));
   ITEM_TABS.forEach(function (itemTab, index) {
     requests = requests.concat(
       buildTierItemsGridRequests_(states.itemTabs[index], metadataBySheetId, separator, itemTab)
@@ -37,6 +40,8 @@ function gridSheetStates_(spreadsheet) {
     tierItems: readSheetState_(spreadsheet, GRID_TABS.tierItems.name),
     itemTabs: ITEM_TABS.map(function (itemTab) { return readSheetState_(spreadsheet, itemTab.name); }),
     presence: readSheetState_(spreadsheet, GRID_TABS.presence.name),
+    presenceArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.presence.name),
+    awardsArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.awards.name),
     butin: readSheetState_(spreadsheet, 'Butin'),
     lists: readSheetState_(spreadsheet, LISTS_TAB.name)
   };
@@ -338,7 +343,7 @@ function buildRerollsListsRows_(argSeparator) {
 }
 
 // Creates or refreshes the Présence grid without rewriting raid data rows.
-function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
+function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive) {
   var separator = argSeparator || ',';
   var requests = [];
   var existingGrid = presenceState.exists && presenceState.sheetId !== 1101;
@@ -356,6 +361,16 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator) {
   }
 
   var existingNames = existingGrid ? readPresenceRaiderHeaders_(presenceState.rows || []) : [];
+  if (existingGrid && archive) {
+    var presenceMove = buildArchiveMoveRequests_(
+      { sheetId: sheetId, maxColumns: presenceState.maxColumns, names: existingNames },
+      { tab: ARCHIVE_TABS.presence, state: archive.state, names: archive.state.exists ? readPresenceRaiderHeaders_(archive.state.rows || []) : [] },
+      { firstColumn: PRESENCE_FIRST_RAIDER_COLUMN, width: 1 },
+      archive.activeNames
+    );
+    requests = requests.concat(presenceMove.requests);
+    existingNames = presenceMove.names;
+  }
   var allNames = appendMissingNames_(existingNames, rosterNames);
   var totalColumns = PRESENCE_FIRST_RAIDER_COLUMN + allNames.length;
 
@@ -465,6 +480,115 @@ function readPresenceRaiderHeaders_(rows) {
   return trimmedHeaderRow_(rows).slice(PRESENCE_FIRST_RAIDER_COLUMN);
 }
 
+// Moves the column blocks of names not in Roster/Rerolls to the archive tab, and brings archived blocks back
+// for names listed again. Moves are cut-and-paste of whole columns, so values, formats and validations travel.
+// Présence archive rows line up with Présence rows: its key columns (A:C) are refreshed on each archive.
+// Returns the requests and the grid names left after the move (kept in place, then restored at the end).
+function buildArchiveMoveRequests_(grid, archive, layout, activeNames) {
+  var first = layout.firstColumn;
+  var width = layout.width;
+  var inGrid = Object.create(null);
+  var archiveIndexes = [];
+  var restoreIndexes = [];
+  var restored = Object.create(null);
+
+  grid.names.forEach(function (name) {
+    if (name) {
+      inGrid[name] = true;
+    }
+  });
+  if (Object.keys(activeNames).length) {
+    grid.names.forEach(function (name, index) {
+      if (name && !activeNames[name]) {
+        archiveIndexes.push(index);
+      }
+    });
+  }
+  archive.names.forEach(function (name, index) {
+    if (name && activeNames[name] && !inGrid[name] && !restored[name]) {
+      restored[name] = true;
+      restoreIndexes.push(index);
+    }
+  });
+
+  if (!archiveIndexes.length && !restoreIndexes.length) {
+    return { requests: [], names: grid.names };
+  }
+
+  var requests = [];
+  var archiveSheetId = archive.state.exists ? archive.state.sheetId : archive.tab.sheetId;
+  var archiveEnd = first + archive.names.length * width;
+  var gridEnd = first + grid.names.length * width;
+  var archiveColumns = Math.max(26, archiveEnd + archiveIndexes.length * width, archive.state.exists ? Number(archive.state.maxColumns || 0) : 0);
+
+  if (archive.state.exists) {
+    requests.push(buildColumnCountRequest_(archiveSheetId, archiveColumns));
+  } else {
+    requests.push({
+      addSheet: {
+        properties: {
+          sheetId: archiveSheetId,
+          title: archive.tab.name,
+          gridProperties: { columnCount: archiveColumns, frozenRowCount: 2, frozenColumnCount: first }
+        }
+      }
+    });
+  }
+  requests.push(buildColumnCountRequest_(grid.sheetId, Math.max(26, gridEnd + restoreIndexes.length * width, Number(grid.maxColumns || 0))));
+
+  if (first > 0 && archiveIndexes.length) {
+    requests.push(buildCopyColumnsRequest_(grid.sheetId, 0, archiveSheetId, 0, first));
+  }
+  archiveIndexes.forEach(function (index, position) {
+    requests.push(buildCopyColumnsRequest_(grid.sheetId, first + index * width, archiveSheetId, archiveEnd + position * width, width));
+  });
+  restoreIndexes.forEach(function (index, position) {
+    requests.push(buildCopyColumnsRequest_(archiveSheetId, first + index * width, grid.sheetId, gridEnd + position * width, width));
+  });
+  // Right to left, so earlier deletions do not shift the columns still to delete.
+  archiveIndexes.slice().reverse().forEach(function (index) {
+    requests.push(buildDeleteColumnsRequest_(grid.sheetId, first + index * width, width));
+  });
+  restoreIndexes.slice().reverse().forEach(function (index) {
+    requests.push(buildDeleteColumnsRequest_(archiveSheetId, first + index * width, width));
+  });
+
+  var names = grid.names.filter(function (name, index) {
+    return archiveIndexes.indexOf(index) === -1;
+  }).concat(restoreIndexes.map(function (index) {
+    return archive.names[index];
+  }));
+
+  return { requests: requests, names: names };
+}
+
+function buildColumnCountRequest_(sheetId, columnCount) {
+  return {
+    updateSheetProperties: {
+      properties: { sheetId: sheetId, gridProperties: { columnCount: columnCount } },
+      fields: 'gridProperties.columnCount'
+    }
+  };
+}
+
+function buildCopyColumnsRequest_(sourceSheetId, sourceStart, destinationSheetId, destinationStart, count) {
+  return {
+    copyPaste: {
+      source: { sheetId: sourceSheetId, startColumnIndex: sourceStart, endColumnIndex: sourceStart + count },
+      destination: { sheetId: destinationSheetId, startColumnIndex: destinationStart, endColumnIndex: destinationStart + count },
+      pasteType: 'PASTE_NORMAL'
+    }
+  };
+}
+
+function buildDeleteColumnsRequest_(sheetId, start, count) {
+  return {
+    deleteDimension: {
+      range: { sheetId: sheetId, dimension: 'COLUMNS', startIndex: start, endIndex: start + count }
+    }
+  };
+}
+
 // Grid width for a refresh: never below the tab's current width, since a lower columnCount deletes columns.
 function gridColumnCount_(state, existingGrid, neededColumns) {
   var current = existingGrid ? Number(state.maxColumns || 0) : 0;
@@ -527,7 +651,7 @@ function buildColumnWidthRequest_(sheetId, startIndex, endIndex, pixelSize) {
 }
 
 // Creates or refreshes the Awards blocks while preserving existing entries.
-function buildAwardsGridRequests_(awardsState, rosterNames) {
+function buildAwardsGridRequests_(awardsState, rosterNames, archive) {
   var requests = [];
   var existingGrid = awardsState.exists && !isLegacyAwardsSheet_(awardsState);
   var sheetId = existingGrid ? awardsState.sheetId : GRID_TABS.awards.sheetId;
@@ -544,6 +668,16 @@ function buildAwardsGridRequests_(awardsState, rosterNames) {
   }
 
   var existingNames = existingGrid ? readAwardsBlockNames_(awardsState.rows || []) : [];
+  if (existingGrid && archive) {
+    var awardsMove = buildArchiveMoveRequests_(
+      { sheetId: sheetId, maxColumns: awardsState.maxColumns, names: existingNames },
+      { tab: ARCHIVE_TABS.awards, state: archive.state, names: archive.state.exists ? readAwardsBlockNames_(archive.state.rows || []) : [] },
+      { firstColumn: 0, width: AWARDS_BLOCK_WIDTH },
+      archive.activeNames
+    );
+    requests = requests.concat(awardsMove.requests);
+    existingNames = awardsMove.names;
+  }
   var allNames = appendMissingNames_(existingNames, rosterNames);
   var totalColumns = allNames.length * AWARDS_BLOCK_WIDTH;
 
@@ -1179,6 +1313,31 @@ function buildConditionalFormatRequestAtRow_(sheetId, startColumnIndex, endColum
       index: 0
     }
   };
+}
+
+// Names whose Présence/Awards columns stay active: Roster raiders plus Rerolls names.
+function readActiveNames_(spreadsheet, rosterNames) {
+  var active = Object.create(null);
+  // An empty Roster is more likely a mistake than a disbanded guild: no active names means no archiving.
+  if (!rosterNames.length) {
+    return active;
+  }
+  rosterNames.forEach(function (name) {
+    active[name] = true;
+  });
+
+  var rerollsSheet = spreadsheet.getSheetByName('Rerolls');
+  if (!rerollsSheet) {
+    return active;
+  }
+  var nameColumn = columnOf_(tabByName_('Rerolls'), 'rerollName');
+  rerollsSheet.getDataRange().getValues().slice(1).forEach(function (row) {
+    var value = (row || [])[nameColumn];
+    if (value !== '' && value !== null && value !== undefined) {
+      active[String(value)] = true;
+    }
+  });
+  return active;
 }
 
 // Reads and sorts unique roster names from the Raider column.

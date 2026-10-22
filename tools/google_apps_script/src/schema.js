@@ -125,7 +125,14 @@ var PRESENCE_FIRST_RAID_ROW = 3;
 var AWARDS_BLOCK_WIDTH = 5;
 var AWARDS_DATE_OFFSET = 0;
 var AWARDS_TREATMENT_OFFSET = 3;
+var AWARDS_RAID_ID_OFFSET = 4;
 var AWARDS_FIRST_ROW = 3;
+
+// Columns of raiders no longer in Roster or Rerolls move here; they come back when the name is listed again.
+var ARCHIVE_TABS = {
+  presence: { name: 'Présence (archive)', sheetId: 1016 },
+  awards: { name: 'Awards (archive)', sheetId: 1017 }
+};
 
 // One item grid per role, same layout as the former TierItems, restricted to the role's specs.
 var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
@@ -135,7 +142,7 @@ var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
 var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Raids', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
-  .concat(['Config', '_Listes']);
+  .concat([ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, 'Config', '_Listes']);
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
@@ -168,9 +175,9 @@ var TABS = [
       { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
       { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'tierPresence', label: 'Présence palier', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'tierPresenceMax', label: 'Max palier', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'lifetimePresence', label: 'Présence vie', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'lifetimePresenceMax', label: 'Max vie', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'tierPresenceMax', label: 'Nombre de raids par palier', formerLabels: ['Max palier'], note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'lifetimePresence', label: 'Présence totale', formerLabels: ['Présence vie'], note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'lifetimePresenceMax', label: 'Nombre de raids totaux', formerLabels: ['Max vie'], note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisLootCount', label: 'Loots BiS', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },

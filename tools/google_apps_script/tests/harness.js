@@ -475,6 +475,10 @@
     });
 
     ensureSheetMeta_(sheet);
+    if (end > (sheet.meta.columnCount || 26)) {
+      throw new Error('deleteDimension beyond grid in ' + sheet.title + ': column ' + end);
+    }
+    sheet.meta.columnCount = Number(sheet.meta.columnCount || 26) - deleteCount;
     var nextWidths = {};
     Object.keys(sheet.meta.columnWidths).forEach(function (key) {
       var index = Number(key);
@@ -598,6 +602,41 @@
     return {};
   }
 
+  // Fake copyPaste: whole-column ranges, values only (formats, notes and validations are not modelled).
+  function applyCopyPaste_(request, storeById) {
+    var payload = request.copyPaste || {};
+    var source = payload.source || {};
+    var destination = payload.destination || {};
+    var from = storeById[String(source.sheetId)];
+    var to = storeById[String(destination.sheetId)];
+    if (!from || !to) {
+      throw new Error('Unknown sheet id in copyPaste.');
+    }
+    ensureSheetMeta_(from);
+    ensureSheetMeta_(to);
+    var width = source.endColumnIndex - source.startColumnIndex;
+    if (destination.endColumnIndex - destination.startColumnIndex !== width) {
+      throw new Error('Fake copyPaste needs same-size ranges.');
+    }
+    if (source.endColumnIndex > (from.meta.columnCount || 26) || destination.endColumnIndex > (to.meta.columnCount || 26)) {
+      throw new Error('copyPaste beyond grid.');
+    }
+    var values = from.rows.map(function (row) {
+      return (row || []).slice(source.startColumnIndex, source.endColumnIndex);
+    });
+    while (to.rows.length < values.length) {
+      to.rows.push([]);
+    }
+    to.rows.forEach(function (row, rowIndex) {
+      ensureRowLength_(row, destination.endColumnIndex);
+      for (var offset = 0; offset < width; offset += 1) {
+        var value = values[rowIndex] ? values[rowIndex][offset] : '';
+        row[destination.startColumnIndex + offset] = value === undefined ? '' : value;
+      }
+    });
+    return {};
+  }
+
   function batchUpdate_(body, spreadsheetId) {
     if (spreadsheetId !== state.spreadsheetId) {
       throw new Error('Unexpected spreadsheet id: ' + spreadsheetId);
@@ -675,6 +714,10 @@
       }
       if (request.updateBorders) {
         replies.push(applyUpdateBorders_(request, workingStore));
+        return;
+      }
+      if (request.copyPaste) {
+        replies.push(applyCopyPaste_(request, workingStore));
         return;
       }
 

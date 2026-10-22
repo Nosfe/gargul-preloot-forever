@@ -117,9 +117,9 @@
         contains(tierPresence, "'Présence'!", 'tier presence uses quoted Présence sheet');
         contains(tierPresence, '(d>=N(Config!$C$2))', 'tier presence uses start date filter');
         contains(tierPresence, '((v=1)+(v="B"))', 'tier presence counts 1 and B');
-        contains(tierMax, 'MAX(1,SUMPRODUCT', 'tier max has minimum 1');
+        contains(tierMax, 'MAX(1,LET(', 'tier max has minimum 1');
         contains(lifetimePresence, '((v=1)+(v="B"))', 'lifetime presence counts 1 and B');
-        contains(lifetimeMax, 'MAX(1,SUMPRODUCT', 'lifetime max has minimum 1');
+        contains(lifetimeMax, 'MAX(1,LET(', 'lifetime max has minimum 1');
         contains(bisLoots, '="BIS"', 'BiS count filters BIS');
         contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
         contains(ratio, '/($J2+1)', 'ratio divides by BiS loots plus one');
@@ -128,8 +128,17 @@
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
-        contains(bisLoots, ',0,c+3)="BIS"', 'BiS count reads the Traitement offset');
-        contains(bisLoots, ',0,c+0)>=N(Config!$C$2)', 'BiS count filters by the block Date and the start date');
+        contains(bisLoots, 't,INDEX(Awards!$3:$1000,0,c+3)', 'BiS count reads the Traitement offset');
+        contains(bisLoots, '(t="BIS")', 'BiS count filters BIS treatments');
+        contains(bisLoots, ',0,c+0)', 'BiS count reads the block Date');
+        contains(bisLoots, ',0,c+4)', 'BiS count reads the block Raid (ID)');
+        contains(bisLoots, "VLOOKUP(r,'Présence'!$A$3:$C$1000,3,FALSE)", 'blank award Date falls back to its raid Date');
+        contains(bisLoots, '(((e="")+(e>=N(Config!$C$2)))>0)', 'award with no date counts; dated award filtered by start date');
+        [tierPresence, tierMax, lifetimePresence, lifetimeMax].forEach(function (formula) {
+          contains(formula, '((i<>"")+(d<>"")>0)', 'raid row = Raid (ID) or Date');
+        });
+        equal(headers[columnOf_(rosterTab, 'tierPresenceMax')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresence')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresenceMax')],
+          'Nombre de raids par palier|Présence totale|Nombre de raids totaux', 'renamed presence columns');
         equal(lifetimePresence.indexOf('Config!'), -1, 'lifetime presence has no date filter');
         equal(impactLoots.indexOf('Config!'), -1, 'Impact loots have no date filter');
         contains(tierMax, '=IF($A2="","",MAX(1,', 'tier max is blank on an empty row');
@@ -197,6 +206,86 @@
       });
 
       equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
+
+      withHarness(function () {
+        // Roster written with the former labels is accepted and relabelled.
+        var formerHeaders = labelsOf_(tabByName_('Roster')).slice();
+        formerHeaders[6] = 'Max palier';
+        formerHeaders[7] = 'Présence vie';
+        formerHeaders[8] = 'Max vie';
+        TABS.forEach(function (tab) {
+          if (tab.name !== 'Roster') {
+            TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+          }
+        });
+        TracerHarness.seedSheet('Roster', [formerHeaders, ['Ana', 'Mage', '', '', 80]]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former labels accepted');
+        equal(TracerHarness.getRows('Roster')[0][7], 'Présence totale', 'Présence vie relabelled');
+      });
+
+      withHarness(function () {
+        TABS.forEach(function (tab) {
+          if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+            TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+          }
+        });
+        var rerollsHeader = keysOf_(tabByName_('Rerolls'));
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Bob', 'Mage'], ['Cid', 'Mage']]);
+        TracerHarness.seedSheet('Rerolls', [rerollsHeader, ['Zed', 'Mage', '', '', '', 'Ana']]);
+        setUpWorkbook();
+
+        var spreadsheet = SpreadsheetApp.getActive();
+        var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
+        var awardsId = spreadsheet.getSheetByName('Awards').getSheetId();
+        var text = function (v) { return { userEnteredValue: { stringValue: v } }; };
+        Sheets.Spreadsheets.batchUpdate({ requests: [
+          { updateCells: { start: { sheetId: presenceId, rowIndex: 0, columnIndex: 6 }, rows: [{ values: [text('Zed')] }], fields: 'userEnteredValue' } },
+          { appendCells: { sheetId: presenceId, rows: [{ values: [text('R1'), text('MC'), text('2026-11-02'), text('1'), text('B'), text('1'), text('1')] }], fields: 'userEnteredValue' } },
+          { appendCells: { sheetId: awardsId, rows: [{ values: [
+            text('A-d'), text('A-o'), text('1'), text('BIS'), text('R1'),
+            text('B-d'), text('B-o'), text('2'), text('IMPACT'), text('R1'),
+            text('C-d'), text('C-o'), text('3'), text('NONE'), text('R1')
+          ] }], fields: 'userEnteredValue' } }
+        ] }, spreadsheet.getId());
+
+        // Bob leaves the Roster; Zed stays because he is in Rerolls.
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Cid', 'Mage']]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'archive run succeeds');
+
+        var presence = TracerHarness.getRows('Présence');
+        equal(presence[0].slice(3, 6).join('|'), 'Ana|Cid|Zed', 'Bob column left Présence, Rerolls name kept');
+        equal(presence[2].slice(0, 6).join('|'), 'R1|MC|2026-11-02|1|1|1', 'remaining Présence values follow their names');
+        var presenceArchive = TracerHarness.getRows('Présence (archive)');
+        equal(presenceArchive[0].slice(0, 4).join('|'), 'Raid (ID)|Instance|Date|Bob', 'Bob column archived with raid key columns');
+        equal(presenceArchive[2].slice(0, 4).join('|'), 'R1|MC|2026-11-02|B', 'archived Bob value on its raid row');
+
+        var awards = TracerHarness.getRows('Awards');
+        equal(awards[0][0] + '|' + awards[0][5], 'Ana|Cid', 'Bob block left Awards');
+        equal(awards[2].slice(5, 10).join('|'), 'C-d|C-o|3|NONE|R1', 'Cid block keeps its entry');
+        var awardsArchive = TracerHarness.getRows('Awards (archive)');
+        equal(awardsArchive[0][0] + '|' + awardsArchive[2].slice(0, 5).join('|'), 'Bob|B-d|B-o|2|IMPACT|R1', 'Bob block archived with its entry');
+
+        var archived = JSON.stringify([presence, awards, presenceArchive, awardsArchive]);
+        setUpWorkbook();
+        equal(JSON.stringify([TracerHarness.getRows('Présence'), TracerHarness.getRows('Awards'), TracerHarness.getRows('Présence (archive)'), TracerHarness.getRows('Awards (archive)')]), archived, 'rerun moves nothing');
+
+        // Bob comes back: his history returns at the end.
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Bob', 'Mage'], ['Cid', 'Mage']]);
+        setUpWorkbook();
+        presence = TracerHarness.getRows('Présence');
+        equal(presence[0].slice(3, 7).join('|') + ' ' + presence[2][6], 'Ana|Cid|Zed|Bob B', 'Bob Présence restored with its value');
+        awards = TracerHarness.getRows('Awards');
+        equal(awards[0][10] + '|' + awards[2].slice(10, 15).join('|'), 'Bob|B-d|B-o|2|IMPACT|R1', 'Bob Awards block restored');
+        equal(TracerHarness.getRows('Présence (archive)')[0].slice(3).join(''), '', 'Présence archive emptied');
+        equal(TracerHarness.getRows('Awards (archive)')[0].join(''), '', 'Awards archive emptied');
+
+        // An emptied Roster archives nothing.
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster'))]);
+        setUpWorkbook();
+        equal(TracerHarness.getRows('Présence')[0].slice(3, 7).join('|'), 'Ana|Cid|Zed|Bob', 'empty Roster archives nothing');
+      });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
     } catch (error) {
