@@ -11,6 +11,7 @@
 <script src="../src/scores.js"></script>
 <script src="../src/attendance.js"></script>
 <script src="../src/snapshot.js"></script>
+<script src="../src/raids.js"></script>
 <script src="../src/ledger.js"></script>
 <script src="../src/tier.js"></script>
 <script src="../src/menu.js"></script>
@@ -52,6 +53,7 @@
       equal(Boolean(menuItem(menu, 'Start raid (export snapshot)')), true, 'menu has start raid action');
       equal(Boolean(menuItem(menu, 'Cancel started raid')), true, 'menu has cancel raid action');
       equal(Boolean(menuItem(menu, 'End raid')), true, 'menu has end raid action');
+      equal(Boolean(menuItem(menu, 'Delete raid')), true, 'menu has delete raid action');
       equal(Boolean(menuItem(menu, 'Set WCL credentials')), true, 'menu has credentials action');
       equal(Boolean(menuItem(menu, 'Archive tier and activate next')), true, 'menu has tier action');
       equal(menu.items.filter(function (entry) { return entry.type === 'submenu'; }).length, 0,

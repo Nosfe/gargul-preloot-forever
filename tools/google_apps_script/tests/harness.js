@@ -500,6 +500,29 @@
     return {};
   }
 
+  // Fake deleteRange with shiftDimension ROWS: cells below move up inside the column range only.
+  function applyDeleteRange_(request, storeById) {
+    var payload = request.deleteRange || {};
+    var range = payload.range || {};
+    var sheet = storeById[String(range.sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in deleteRange: ' + range.sheetId);
+    }
+    if (payload.shiftDimension !== 'ROWS') {
+      throw new Error('Fake deleteRange supports only ROWS.');
+    }
+    var count = range.endRowIndex - range.startRowIndex;
+    for (var rowIndex = range.startRowIndex; rowIndex < sheet.rows.length; rowIndex += 1) {
+      var row = sheet.rows[rowIndex];
+      ensureRowLength_(row, range.endColumnIndex);
+      var source = sheet.rows[rowIndex + count] || [];
+      for (var column = range.startColumnIndex; column < range.endColumnIndex; column += 1) {
+        row[column] = source[column] === undefined ? '' : source[column];
+      }
+    }
+    return {};
+  }
+
   function applyDeleteDimension_(request, storeById) {
     var payload = request.deleteDimension || {};
     var range = payload.range || {};
@@ -830,6 +853,10 @@
         replies.push(applyDeleteProtectedRange_(request, workingStore));
         return;
       }
+      if (request.deleteRange) {
+        replies.push(applyDeleteRange_(request, workingStore));
+        return;
+      }
       if (request.deleteDimension) {
         replies.push(applyDeleteDimension_(request, workingStore));
         return;
@@ -1071,6 +1098,7 @@
       lastMenu: null,
       modalDialogs: [],
       fetchResponses: [],
+      promptResponses: [],
       fetchLog: [],
       userProperties: {},
       storeById: {},
@@ -1091,8 +1119,19 @@
     };
 
     var ui = {
+      Button: { OK: 'OK', CANCEL: 'CANCEL' },
+      ButtonSet: { OK_CANCEL: 'OK_CANCEL' },
       createMenu: function (caption) {
         return createMenuBuilder(caption);
+      },
+      // Scripted answers from setPromptResponses; none left means the owner pressed Cancel.
+      prompt: function (title, message) {
+        state.alerts.push(String(message));
+        var answer = state.promptResponses.length ? state.promptResponses.shift() : null;
+        return {
+          getSelectedButton: function () { return answer === null ? 'CANCEL' : 'OK'; },
+          getResponseText: function () { return answer === null ? '' : String(answer); }
+        };
       },
       alert: function (message) {
         state.alerts.push(String(message));
@@ -1331,6 +1370,10 @@
     state.forceLockBusy = Boolean(value);
   }
 
+  function setPromptResponses(responses) {
+    state.promptResponses = (responses || []).slice();
+  }
+
   function setFetchResponses(responses) {
     state.fetchResponses = clone(responses || []);
     state.fetchLog = [];
@@ -1359,6 +1402,7 @@
     setLocale: setLocale,
     isLockHeld: isLockHeld,
     setLockBusy: setLockBusy,
+    setPromptResponses: setPromptResponses,
     setFetchResponses: setFetchResponses,
     getFetchLog: getFetchLog,
     getUserProperties: getUserProperties

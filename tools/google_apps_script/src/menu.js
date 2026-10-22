@@ -8,6 +8,7 @@ function onOpen() {
     .addItem('Start raid (export snapshot)', 'exportRaidSnapshot')
     .addItem('Cancel started raid', 'cancelOpenRaid')
     .addItem('End raid', 'endRaid')
+    .addItem('Delete raid', 'deleteRaid')
     .addItem('Set WCL credentials', 'setWclCredentials')
     .addItem('Archive tier and activate next', 'archiveTierAndActivateNext')
     .addToUi();

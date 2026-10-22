@@ -9,6 +9,7 @@
 <script src="../src/grids.js"></script>
 <script src="../src/scores.js"></script>
 <script src="../src/snapshot.js"></script>
+<script src="../src/raids.js"></script>
 <script>
   (function () {
     var assertions = 0;
@@ -419,6 +420,42 @@
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses an outdated Config');
         equal(JSON.stringify(TracerHarness.getRows('Config')), JSON.stringify(oldConfig), 'outdated Config untouched (start date kept)');
         equal(TracerHarness.getLastModalDialog(), null, 'no dialog for an outdated layout');
+      });
+
+      withHarness(function () {
+        // Delete raid 2: its Présence row and its loot go; later loot moves up in the block; other raids stay.
+        seedStoryWorkbook_();
+        setUpWorkbook();
+        var spreadsheet = SpreadsheetApp.getActive();
+        var awardsId = spreadsheet.getSheetByName('Awards').getSheetId();
+        var start = TracerHarness.getRows('Awards')[0].indexOf('Alya');
+        writeCells_(awardsId, 2, start, ['d2', 'Objet A', 11, 'BIS', 2]);
+        writeCells_(awardsId, 3, start, ['d3', 'Objet B', 12, 'IMPACT', 3]);
+        TracerHarness.setPromptResponses(['2']);
+        deleteRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Raid 2 supprimé : 0 ligne(s) Raids, 1 ligne(s) Présence, 1 loot(s) Awards', 'delete summary');
+        equal(TracerHarness.getRows('Présence').slice(2).map(function (row) { return row[0]; }).join(','), '1,3', 'Présence row of raid 2 removed');
+        var awards = TracerHarness.getRows('Awards');
+        equal(awards[2].slice(start, start + 5).join('|') + ' / ' + (awards[3] || []).slice(start, start + 5).join(''), 'd3|Objet B|12|IMPACT|3 / ', 'raid 3 loot moved up, raid 2 loot gone');
+
+        TracerHarness.setPromptResponses(['99']);
+        deleteRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'introuvable', 'unknown raid reported, nothing deleted');
+        TracerHarness.setPromptResponses([]);
+        var before = JSON.stringify(TracerHarness.getRows('Présence'));
+        deleteRaid();
+        equal(JSON.stringify(TracerHarness.getRows('Présence')), before, 'Cancel deletes nothing');
+      });
+
+      withHarness(function () {
+        // Deleting the started raid also ends it.
+        seedStoryWorkbook_();
+        exportRaidSnapshot();
+        TracerHarness.setPromptResponses(['4']);
+        deleteRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], '1 ligne(s) Raids', 'started raid row removed');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'raid démarré annulé', 'started raid ended');
+        equal(protectionCount_() + '|' + TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')], '0|', 'protections and Raid ouvert cleared');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
