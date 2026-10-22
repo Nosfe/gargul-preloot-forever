@@ -274,7 +274,24 @@ function effectiveHeadersByName_(existingHeadersByName) {
     };
   }
 
+  var config = next.Config;
+  var windowColumn = config ? legacyConfigWindowColumn_(config.headers || []) : -1;
+  if (windowColumn !== -1) {
+    var keepConfig = function (_, index) { return index !== windowColumn; };
+    next.Config = {
+      sheetId: config.sheetId,
+      headers: config.headers.filter(keepConfig),
+      rows: (config.rows || []).map(function (row) { return (row || []).filter(keepConfig); }),
+      hasDataRows: config.hasDataRows
+    };
+  }
+
   return next;
+}
+
+// Index of the removed Config BiS window ID column (the BiS window is the tier), else -1.
+function legacyConfigWindowColumn_(headers) {
+  return indexOfHeader_(headers, ['bisWindowId', 'Fenêtre BiS active (ID)']);
 }
 
 // Indexes of the removed Roster columns (tank priority, raider gain), highest first.
@@ -290,6 +307,11 @@ function buildLegacyTabMigrationRequests_(existingHeadersByName) {
   var requests = [];
   var roster = existingHeadersByName.Roster;
   var rerolls = existingHeadersByName.Rerolls;
+  var config = existingHeadersByName.Config;
+
+  if (config && legacyConfigWindowColumn_(config.headers || []) !== -1) {
+    requests.push(buildDeleteColumnRequest_(config.sheetId, legacyConfigWindowColumn_(config.headers)));
+  }
 
   if (roster && isLegacyRosterHeaders_(roster.headers || [])) {
     legacyRosterColumns_(roster.headers).forEach(function (index) {

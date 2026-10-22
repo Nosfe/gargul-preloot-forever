@@ -285,13 +285,9 @@ function buildSnapshot_(data) {
   var configTab = tabByName_('Config');
   var configRow = (data && data.configRow) || [];
   var tierId = normalizeCellString_(configRow[columnOf_(configTab, 'tierId')]).trim();
-  var bisWindowId = normalizeCellString_(configRow[columnOf_(configTab, 'bisWindowId')]).trim();
 
   if (!tierId) {
     errors.push('Config: Palier actif (ID) vide.');
-  }
-  if (!bisWindowId) {
-    errors.push('Config: Fenêtre BiS active (ID) vide.');
   }
 
   var raidersResult = buildSnapshotRaiders_((data && data.rosterRows) || []);
@@ -305,7 +301,6 @@ function buildSnapshot_(data) {
   return {
     schemaVersion: 2,
     tierId: tierId,
-    bisWindowId: bisWindowId,
     raidId: String(data.raidId),
     raiders: raidersResult.raiders,
     items: itemsResult.items

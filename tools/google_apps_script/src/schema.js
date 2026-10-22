@@ -195,8 +195,7 @@ var TABS = [
     group: 'input',
     columns: [
       { key: 'tierId', label: 'Palier actif (ID)', note: 'Identifiant du palier en cours, ex. forever-t1. Rempli par l\'officier en ligne 2.' },
-      { key: 'bisWindowId', label: 'Fenêtre BiS active (ID)', note: 'Identifiant de la fenêtre BiS active, ex. forever-t1-w1.' },
-      { key: 'bisWindowStart', label: 'Début fenêtre BiS', note: 'Date de reset qui ouvre la fenêtre BiS active. Les raids à partir de cette date sont dans la fenêtre.' },
+      { key: 'bisWindowStart', label: 'Début fenêtre BiS', note: 'Date de début du palier actif (le ratio BiS repart à zéro à chaque nouveau palier). Les raids à partir de cette date comptent pour le palier.' },
       { key: 'openRaidId', label: 'Raid ouvert (ID)', note: 'Identifiant du raid ouvert pour la saisie courante.' }
     ]
   },

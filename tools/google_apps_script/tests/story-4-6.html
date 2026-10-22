@@ -185,7 +185,7 @@
         ''
       ));
 
-      writeCells_(configId, 1, 0, ['forever-t1', 'forever-t1-w1', '2026-10-01', '']);
+      writeCells_(configId, 1, 0, ['forever-t1', '2026-10-01', '']);
       writeCells_(raidsId, 1, 0, [1]);
       writeCells_(presenceId, 2, 0, [1]);
       writeCells_(presenceId, 3, 0, [2]);
@@ -365,7 +365,6 @@
         var configTab = tabByName_('Config');
         var emptyConfig = [];
         emptyConfig[columnOf_(configTab, 'tierId')] = '';
-        emptyConfig[columnOf_(configTab, 'bisWindowId')] = 'w1';
         var configError = '';
         try {
           buildSnapshot_({ configRow: emptyConfig, raidId: '1', rosterRows: [], itemStates: [] });
@@ -376,6 +375,25 @@
 
         equal(nextRaidId_([['Raid (ID)']], [['h'], ['t']]), '1', 'first raid id is 1');
         equal(nextRaidId_([['h'], [7]], [['h'], ['t'], [3]]), '8', 'next id after the highest of Raids and Présence');
+      });
+
+      withHarness(function () {
+        // Live Config from before the BiS window ID was dropped: the column goes, values shift left.
+        TABS.forEach(function (tab) {
+          if (tab.name !== 'Config') {
+            TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+          }
+        });
+        TracerHarness.seedSheet('Config', [
+          ['Palier actif (ID)', 'Fenêtre BiS active (ID)', 'Début fenêtre BiS', 'Raid ouvert (ID)'],
+          ['forever-t1', 'forever-t1-w1', 46327, '']
+        ]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'old Config migrates');
+        var config = TracerHarness.getRows('Config');
+        equal(config[0].slice(0, 3).join('|') + ' ' + config[1].slice(0, 3).join('|'),
+          'Palier actif (ID)|Début fenêtre BiS|Raid ouvert (ID) forever-t1|46327|', 'BiS window ID column removed, values kept');
+        contains(TracerHarness.getRows('Roster')[1][columnOf_(tabByName_('Roster'), 'tierPresence')], 'N(Config!$B$2)', 'Roster formulas follow the moved start date');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';

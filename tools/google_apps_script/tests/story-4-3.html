@@ -115,7 +115,7 @@
         var impactBase = rows[1][columnOf_(rosterTab, 'impactBase')];
 
         contains(tierPresence, "'Présence'!", 'tier presence uses quoted Présence sheet');
-        contains(tierPresence, '(d>=N(Config!$C$2))', 'tier presence uses start date filter');
+        contains(tierPresence, '(d>=N(Config!$B$2))', 'tier presence uses start date filter');
         contains(tierPresence, '((v=1)+(v="B"))', 'tier presence counts 1 and B');
         contains(tierMax, 'MAX(1,LET(', 'tier max has minimum 1');
         contains(lifetimePresence, '((v=1)+(v="B"))', 'lifetime presence counts 1 and B');
@@ -133,7 +133,7 @@
         contains(bisLoots, ',0,c+0)', 'BiS count reads the block Date');
         contains(bisLoots, ',0,c+4)', 'BiS count reads the block Raid (ID)');
         contains(bisLoots, "VLOOKUP(r,'Présence'!$A$3:$C$1000,3,FALSE)", 'blank award Date falls back to its raid Date');
-        contains(bisLoots, '(((e="")+(e>=N(Config!$C$2)))>0)', 'award with no date counts; dated award filtered by start date');
+        contains(bisLoots, '(((e="")+(e>=N(Config!$B$2)))>0)', 'award with no date counts; dated award filtered by start date');
         [tierPresence, tierMax, lifetimePresence, lifetimeMax].forEach(function (formula) {
           contains(formula, '((i<>"")+(d<>"")>0)', 'raid row = Raid (ID) or Date');
         });
