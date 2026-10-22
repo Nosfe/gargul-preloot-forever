@@ -10,6 +10,7 @@
 <script src="../src/roster.js"></script>
 <script src="../src/scores.js"></script>
 <script src="../src/snapshot.js"></script>
+<script src="../src/ledger.js"></script>
 <script src="../src/attendance.js"></script>
 <script src="../src/parses.js"></script>
 <script src="../src/menu.js"></script>
@@ -218,9 +219,6 @@
         expectRefusedAndUnchanged_('ABC123', '', [{ statusCode: 200, body: { access_token: 't' } }, { statusCode: 200, body: { errors: [{ message: 'This report does not exist.' }], data: { reportData: { report: null } } } }], 'This report does not exist', 'unknown code');
       });
       withHarness(function () {
-        expectRefusedAndUnchanged_('ABC123', 'some loot', [], 'story 4.7', 'Gargul text');
-      });
-      withHarness(function () {
         seedCoreTabs_();
         setStartedRaid_(5);
         PropertiesService.getUserProperties().deleteAllProperties && PropertiesService.getUserProperties().deleteAllProperties();
@@ -308,16 +306,11 @@
         seedCoreTabs_();
         setStartedRaid_(5);
         saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
 
-        var failed = false;
-        try {
-          submitEndRaid('ABC123', 'loot lines here');
-        } catch (error) {
-          failed = true;
-          contains(error.message, 'story 4.7', 'gargul text error');
-        }
-        equal(failed, true, 'gargul text rejects');
-        equal(TracerHarness.getFetchLog().length, 0, 'gargul text does not fetch');
+        var message = submitEndRaid('ABC123', '{"checksum":"one","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:15","raidId":"","treatment":"BIS"},');
+        contains(message, 'Loot awards imported: 1', 'gargul text imports valid awards');
+        equal(TracerHarness.getFetchLog().length, 2, 'gargul text still fetches WCL');
       });
 
       withHarness(function () {

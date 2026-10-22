@@ -1,0 +1,382 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.7 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/ledger.js"></script>
+<script src="../src/attendance.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function truthy(value, label) {
+      assertions += 1;
+      if (!value) {
+        throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function loadJsonSync_(path) {
+      var request = new XMLHttpRequest();
+      request.open('GET', path, false);
+      request.send(null);
+      if (request.status !== 0 && request.status !== 200) {
+        throw new Error('Unable to load ' + path + ': status ' + request.status);
+      }
+      return JSON.parse(request.responseText);
+    }
+
+    function loadTextSync_(path) {
+      var request = new XMLHttpRequest();
+      request.open('GET', path, false);
+      request.send(null);
+      if (request.status !== 0 && request.status !== 200) {
+        throw new Error('Unable to load ' + path + ': status ' + request.status);
+      }
+      return request.responseText;
+    }
+
+    function textCell_(value) {
+      return { userEnteredValue: { stringValue: String(value) } };
+    }
+
+    function numberCell_(value) {
+      return { userEnteredValue: { numberValue: Number(value) } };
+    }
+
+    function writeCells_(sheetId, rowIndex, columnIndex, values) {
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        updateCells: {
+          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
+          rows: [{ values: values.map(function (value) {
+            return typeof value === 'number' ? numberCell_(value) : textCell_(value);
+          }) }],
+          fields: 'userEnteredValue'
+        }
+      }] }, SpreadsheetApp.getActive().getId());
+    }
+
+    function seedCoreTabs_() {
+      TABS.forEach(function (tab) {
+        if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+          return;
+        }
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
+      TracerHarness.seedSheet('Roster', [
+        keysOf_(tabByName_('Roster')),
+        ['Ana', 'Mage', '', '', ''],
+        ['Bob', 'Mage', '', '', ''],
+        ['Cid', 'Mage', '', '', '']
+      ]);
+      TracerHarness.seedSheet('Rerolls', [
+        keysOf_(tabByName_('Rerolls')),
+        ['Zed', 'Mage', '', '', '', 'Cid']
+      ]);
+      setUpWorkbook();
+
+      var spreadsheet = SpreadsheetApp.getActive();
+      var casterSheetId = spreadsheet.getSheetByName('Objets Caster DPS').getSheetId();
+      writeCells_(casterSheetId, 3, 0, [777, 'Bâton ancien']);
+      writeCells_(casterSheetId, 4, 0, [888, 'Anneau céleste']);
+    }
+
+    function setStartedRaid_(raidId) {
+      var spreadsheet = SpreadsheetApp.getActive();
+      var configId = spreadsheet.getSheetByName('Config').getSheetId();
+      var raidsId = spreadsheet.getSheetByName('Raids').getSheetId();
+      var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
+
+      writeCells_(configId, 1, 0, ['forever-t1', '2026-10-01', raidId]);
+      writeCells_(raidsId, 1, 0, [raidId]);
+
+      var rosterId = spreadsheet.getSheetByName('Roster').getSheetId();
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        addProtectedRange: {
+          protectedRange: {
+            range: { sheetId: rosterId },
+            warningOnly: true,
+            description: RAID_OPEN_PROTECTION_PREFIX + ' ' + raidId + ' : entrées de score figées'
+          }
+        }
+      }] }, spreadsheet.getId());
+    }
+
+    function queueWclSuccess_() {
+      var fixture = loadJsonSync_('../fixtures/wcl-report-sample.json');
+      TracerHarness.setFetchResponses([
+        { statusCode: 200, body: { access_token: 'token' } },
+        { statusCode: 200, body: fixture }
+      ]);
+    }
+
+    function findAwardBlockStart_(winner) {
+      var header = TracerHarness.getRows('Awards')[0] || [];
+      for (var start = 0; start < header.length; start += AWARDS_BLOCK_WIDTH) {
+        if (String(header[start] || '') === winner) {
+          return start;
+        }
+      }
+      return -1;
+    }
+
+    function awardRowsForWinner_(winner) {
+      var rows = TracerHarness.getRows('Awards');
+      var start = findAwardBlockStart_(winner);
+      if (start === -1) {
+        return [];
+      }
+      var results = [];
+      for (var rowIndex = AWARDS_FIRST_ROW - 1; rowIndex < rows.length; rowIndex += 1) {
+        var row = rows[rowIndex] || [];
+        var slice = row.slice(start, start + AWARDS_BLOCK_WIDTH);
+        var nonEmpty = slice.some(function (value) {
+          return !(value === '' || value === null || value === undefined);
+        });
+        if (nonEmpty) {
+          results.push({ rowIndex: rowIndex, cells: slice });
+        }
+      }
+      return results;
+    }
+
+    function presenceColumnByName_(name) {
+      var header = TracerHarness.getRows('Présence')[0] || [];
+      for (var index = PRESENCE_FIRST_RAIDER_COLUMN; index < header.length; index += 1) {
+        if (header[index] === name) {
+          return index;
+        }
+      }
+      return -1;
+    }
+
+    try {
+      var sampleText = loadTextSync_('../fixtures/custom-export-sample.txt');
+
+      withHarness(function () {
+        // Parser unit cases.
+        var parsed = parseGargulExport_(sampleText);
+        equal(parsed.lines.length, 5, 'parser keeps five JSON-valid unique-checksum lines');
+        equal(parsed.rejected.length, 4, 'parser rejects bad json, both duplicate copies and bad itemID');
+        equal(parsed.rejected.filter(function (row) { return row.checksum === 'csum-dup'; }).length, 2, 'every copy of a duplicate checksum is rejected');
+        equal(parsed.lines.filter(function (line) { return line.treatment === ''; }).length >= 1, true, 'parser clears unknown treatment tokens');
+
+        var nullLine = parseGargulExport_('null');
+        equal(nullLine.rejected.length, 1, 'null line is rejected');
+        contains(nullLine.rejected[0].reason, 'Invalid JSON', 'null line reports invalid JSON');
+
+        var quoted = parseGargulExport_('{"checksum":"q1","winner":"Ana","itemID":"777","os":0,"treatment":"BIS"}');
+        equal(quoted.lines.length, 0, 'quoted itemID is rejected');
+        contains(quoted.rejected[0].reason, 'itemID', 'quoted itemID reports itemID');
+
+        var spaced = parseGargulExport_('{"checksum":"s1","winner":"Ana ","itemID":777,"os":0,"treatment":"BIS"}');
+        equal(spaced.lines[0].winner, 'Ana ', 'parser keeps the winner untrimmed');
+      });
+
+      withHarness(function () {
+        // Trimmed winner is not an exact Roster key.
+        seedCoreTabs_();
+        var spaced = parseGargulExport_('{"checksum":"s1","winner":"Ana ","itemID":777,"os":0,"treatment":"BIS"}');
+        var validated = validateAwards_(spaced.lines, requireRosterIndex_(), readAwardsBlockNames_(TracerHarness.getRows('Awards')));
+        equal(validated.lines.length, 0, 'winner with trailing space is rejected');
+      });
+
+      withHarness(function () {
+        // Validation unit cases.
+        seedCoreTabs_();
+        var parsed = parseGargulExport_(sampleText);
+        var validated = validateAwards_(parsed.lines, requireRosterIndex_(), readAwardsBlockNames_(TracerHarness.getRows('Awards')));
+        equal(validated.lines.length, 3, 'validator keeps only roster winners with awards blocks');
+        equal(validated.rejected.length, 2, 'validator rejects unknown winner and reroll winner');
+        var reasons = {};
+        validated.rejected.forEach(function (row) { reasons[row.winner] = row.reason; });
+        contains(reasons.Zed, 'Rerolls alt', 'reroll winner gets the reroll reason');
+        contains(reasons.Unknown, 'not an exact Roster key', 'unknown winner gets the roster reason');
+      });
+
+      withHarness(function () {
+        // Preview matrix row.
+        seedCoreTabs_();
+        var preview = previewEndRaidLoot(sampleText);
+        equal(preview.awards.length, 3, 'preview returns three valid awards');
+        equal(preview.rejected.length, 6, 'preview returns merged rejected lines');
+        equal(preview.awards[0].itemName.length > 0, true, 'preview resolves item names from Objets tabs');
+        var osAward = preview.awards.filter(function (award) { return award.os === 1; })[0];
+        equal(osAward.treatment, 'NONE', 'preview forces os award treatment to NONE');
+      });
+
+      withHarness(function () {
+        // Missing treatment matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var missingTreatmentText = '{"checksum":"m1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"","treatment":"@GPTREATMENT"},';
+        var beforeAwards = JSON.stringify(TracerHarness.getRows('Awards'));
+        var fetchesBefore = TracerHarness.getFetchLog().length;
+        var failedMessage = '';
+        try {
+          submitEndRaid('ABC123', missingTreatmentText, {});
+        } catch (error) {
+          failedMessage = error.message;
+        }
+        contains(failedMessage, 'Choose a Traitement', 'missing treatment throws');
+        equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '5', 'missing treatment keeps raid started');
+        equal(JSON.stringify(TracerHarness.getRows('Awards')), beforeAwards, 'missing treatment writes nothing');
+        equal(TracerHarness.getFetchLog().length, fetchesBefore, 'missing treatment does not call WCL');
+
+        var clearedText = '{"checksum":"c1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"","treatment":"BIS"},';
+        var clearedMessage = '';
+        try {
+          submitEndRaid('ABC123', clearedText, { c1: '' });
+        } catch (error) {
+          clearedMessage = error.message;
+        }
+        contains(clearedMessage, 'Choose a Traitement', 'cleared dropdown does not fall back to the line treatment');
+      });
+
+      withHarness(function () {
+        // Empty box matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var beforeAwards = JSON.stringify(TracerHarness.getRows('Awards'));
+        var message = submitEndRaid('ABC123', '', {});
+        contains(message, 'Loot awards imported: 0', 'empty box imports no awards');
+        equal(JSON.stringify(TracerHarness.getRows('Awards')), beforeAwards, 'empty box leaves awards unchanged');
+      });
+
+      withHarness(function () {
+        // WCL failure matrix row with valid loot.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        TracerHarness.setFetchResponses([
+          { statusCode: 200, body: { access_token: 'token' } },
+          { statusCode: 502, contentText: '<html>Bad gateway</html>' }
+        ]);
+
+        var beforeState = JSON.stringify({
+          config: TracerHarness.getRows('Config'),
+          presence: TracerHarness.getRows('Présence'),
+          awards: TracerHarness.getRows('Awards')
+        });
+        var failedMessage = '';
+        try {
+          submitEndRaid('ABC123', sampleText, {
+            'csum-ana-bis': 'BIS',
+            'csum-ana-impact': 'IMPACT',
+            'csum-bob-os': 'NONE'
+          });
+        } catch (error) {
+          failedMessage = error.message;
+        }
+        contains(failedMessage, 'HTTP 502', 'wcl failure returned');
+        equal(JSON.stringify({
+          config: TracerHarness.getRows('Config'),
+          presence: TracerHarness.getRows('Présence'),
+          awards: TracerHarness.getRows('Awards')
+        }), beforeState, 'wcl failure writes nothing');
+      });
+
+      withHarness(function () {
+        // Happy path + rejected lines + OS forced NONE matrix rows.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var message = submitEndRaid('ABC123', sampleText, {
+          'csum-ana-bis': 'BIS',
+          'csum-ana-impact': 'IMPACT',
+          'csum-bob-os': 'BIS'
+        });
+
+        contains(message, 'Loot awards imported: 3', 'happy path imported count');
+        contains(message, 'Rejected loot lines', 'happy path reports rejected lines');
+        contains(message, 'csum-dup', 'rejected details include the checksum');
+        contains(message, 'Duplicate checksum', 'rejected details include the reason');
+
+        var anaAwards = awardRowsForWinner_('Ana');
+        var bobAwards = awardRowsForWinner_('Bob');
+        equal(anaAwards.length, 2, 'happy path writes two awards for Ana');
+        equal(bobAwards.length, 1, 'happy path writes one award for Bob');
+        equal(String(anaAwards[0].cells[1]), 'Bâton ancien', 'item name resolved for 777');
+        equal(String(anaAwards[1].cells[1]), 'Anneau céleste', 'item name resolved for 888');
+        equal(String(bobAwards[0].cells[1]), '', 'missing item name stays blank');
+        equal(String(bobAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'NONE', 'os row is forced to NONE');
+        equal(String(anaAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'BIS', 'chosen Traitement written');
+        equal(String(anaAwards[1].cells[AWARDS_TREATMENT_OFFSET]), 'IMPACT', 'second chosen Traitement written');
+        equal(String(anaAwards[0].cells[AWARDS_RAID_ID_OFFSET]), '5', 'Raid (ID) written');
+
+        var presenceRows = TracerHarness.getRows('Présence');
+        var presenceRaid = presenceRows.filter(function (row, index) {
+          return index >= PRESENCE_FIRST_RAID_ROW - 1 && String((row || [])[0]) === '5';
+        })[0];
+        equal(bobAwards[0].cells[AWARDS_DATE_OFFSET], presenceRaid[PRESENCE_DATE_COLUMN], 'award date matches presence date');
+        equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '', 'raid closed after successful submit');
+        equal(presenceRaid[presenceColumnByName_('Ana')], 1, 'presence imported in same batch');
+      });
+
+      withHarness(function () {
+        // Existing awards matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var spreadsheet = SpreadsheetApp.getActive();
+        var awardsSheetId = spreadsheet.getSheetByName('Awards').getSheetId();
+        var anaStart = findAwardBlockStart_('Ana');
+        writeCells_(awardsSheetId, AWARDS_FIRST_ROW - 1, anaStart, ['old-date', 'Old Item', 123, 'NONE', 4]);
+
+        var singleAward = '{"checksum":"append-1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"22:00","raidId":"","treatment":"BIS"},';
+        submitEndRaid('ABC123', singleAward, { 'append-1': 'BIS' });
+        var anaAwards = awardRowsForWinner_('Ana');
+        equal(anaAwards.length, 2, 'new award appends below existing row');
+        equal(String(anaAwards[0].cells[1]), 'Old Item', 'existing row kept');
+        equal(String(anaAwards[1].cells[1]), 'Bâton ancien', 'new row appended');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

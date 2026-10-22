@@ -66,37 +66,103 @@ function saveWclCredentials(clientId, clientSecret) {
   return 'Credentials saved.';
 }
 
+// Parses and validates Gargul text for End raid preview.
+function previewEndRaidLoot(gargulText) {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var rosterIndex = requireRosterIndex_();
+  var awardsRows = snapshotSheet_(spreadsheet, GRID_TABS.awards.name).getDataRange().getValues();
+  var blockNames = readAwardsBlockNames_(awardsRows);
+  var parsed = parseGargulExport_(gargulText);
+  var validated = validateAwards_(parsed.lines, rosterIndex, blockNames);
+  var itemStates = ITEM_TABS.map(function (itemTab) {
+    return {
+      role: itemTab.role,
+      rows: snapshotSheet_(spreadsheet, itemTab.name).getDataRange().getValues()
+    };
+  });
+  var namesById = itemNamesById_(itemStates);
+
+  return {
+    awards: validated.lines.map(function (award) {
+      return {
+        lineNumber: award.lineNumber,
+        checksum: award.checksum,
+        date: award.date,
+        time: award.time,
+        winner: award.winner,
+        itemID: award.itemID,
+        itemName: Object.prototype.hasOwnProperty.call(namesById, String(award.itemID)) ? namesById[String(award.itemID)] : '',
+        os: Number(award.os) === 1 ? 1 : 0,
+        treatment: Number(award.os) === 1 ? 'NONE' : award.treatment
+      };
+    }),
+    rejected: parsed.rejected.concat(validated.rejected)
+  };
+}
+
 // Validates input, fetches WCL data and ends the started raid in one batch.
-function submitEndRaid(linkText, gargulText) {
+function submitEndRaid(linkText, gargulText, treatments) {
   var outcome = null;
 
   applyBatch_(function () {
-    if (normalizeCellString_(gargulText).trim()) {
-      throw new Error('import du loot Gargul : story 4.7');
-    }
-
     var spreadsheet = SpreadsheetApp.getActive();
     var configSheet = snapshotSheet_(spreadsheet, 'Config');
     var raidsSheet = snapshotSheet_(spreadsheet, 'Raids');
     var presenceSheet = snapshotSheet_(spreadsheet, GRID_TABS.presence.name);
+    var awardsSheet = snapshotSheet_(spreadsheet, GRID_TABS.awards.name);
     var configRows = requireCurrentLayout_(configSheet.getDataRange().getValues(), 'Config');
     var raidsRows = requireCurrentLayout_(raidsSheet.getDataRange().getValues(), 'Raids');
     var presenceRows = presenceSheet.getDataRange().getValues();
+    var awardsRows = awardsSheet.getDataRange().getValues();
     var openRaidId = normalizeCellString_(((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')])).trim();
 
     if (!openRaidId) {
       throw new Error('Start raid first.');
     }
 
+    var rosterIndex = requireRosterIndex_();
+    var parsedAwards = parseGargulExport_(gargulText);
+    var validatedAwards = validateAwards_(parsedAwards.lines, rosterIndex, readAwardsBlockNames_(awardsRows));
+    var rejections = parsedAwards.rejected.concat(validatedAwards.rejected);
+    var itemStates = ITEM_TABS.map(function (itemTab) {
+      return {
+        role: itemTab.role,
+        rows: snapshotSheet_(spreadsheet, itemTab.name).getDataRange().getValues()
+      };
+    });
+    var itemNames = itemNamesById_(itemStates);
+    var selectedTreatments = (treatments && typeof treatments === 'object') ? treatments : null;
+    var importedAwards = validatedAwards.lines.map(function (award) {
+      // After a preview the dropdown is authoritative, even when cleared; without one the line's own value is used.
+      var chosen = selectedTreatments && Object.prototype.hasOwnProperty.call(selectedTreatments, award.checksum)
+        ? normalizeCellString_(selectedTreatments[award.checksum]).trim()
+        : award.treatment;
+      var treatment = Number(award.os) === 1 ? 'NONE' : (isKnownTreatment_(chosen) ? chosen : '');
+      if (!treatment) {
+        throw new Error('Choose a Traitement for every award before ending the raid.');
+      }
+      return {
+        lineNumber: award.lineNumber,
+        checksum: award.checksum,
+        winner: award.winner,
+        itemID: award.itemID,
+        itemName: Object.prototype.hasOwnProperty.call(itemNames, String(award.itemID)) ? itemNames[String(award.itemID)] : '',
+        treatment: treatment
+      };
+    });
+
     var reportCode = extractReportCode_(linkText);
     var report = fetchWarcraftLogsReport_(reportCode, requireWclCredentials_());
     var raidPulls = buildRaidPulls_(report);
-    var rosterIndex = requireRosterIndex_();
     var credits = creditedRaiders_(raidPulls, rosterIndex);
     var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
     var sheetsMetadata = Sheets.Spreadsheets.get(spreadsheet.getId(), {
       fields: 'sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description))'
     });
+    var dateSerial = existingPresenceDateSerial_(presenceRows, openRaidId);
+    if (dateSerial === null) {
+      dateSerial = dateSerialFromReportStart_(raidPulls.startTimeMs);
+    }
 
     outcome = buildEndRaidRequests_({
       configSheet: configSheet,
@@ -113,10 +179,62 @@ function submitEndRaid(linkText, gargulText) {
       sheetsMetadata: sheetsMetadata
     });
 
+    if (importedAwards.length) {
+      outcome.requests = outcome.requests.concat(
+        buildAwardRequests_(awardsSheet.getSheetId(), awardsRows, importedAwards, openRaidId, dateSerial)
+      );
+    }
+
+    outcome.message = outcome.message + '\nLoot awards imported: ' + importedAwards.length + '.';
+    if (rejections.length) {
+      outcome.message += '\nRejected loot lines:\n' + summarizeRejectedLootLines_(rejections);
+    }
+
     return outcome.requests;
   });
 
   return outcome ? outcome.message : 'Raid ended.';
+}
+
+// Serial of the date already typed on the raid's Présence row, so awards keep the same date; null when empty.
+function existingPresenceDateSerial_(presenceRows, raidId) {
+  for (var index = PRESENCE_FIRST_RAID_ROW - 1; index < (presenceRows || []).length; index += 1) {
+    var row = presenceRows[index] || [];
+    if (normalizeCellString_(row[PRESENCE_RAID_ID_COLUMN]).trim() !== raidId) {
+      continue;
+    }
+    var value = row[PRESENCE_DATE_COLUMN];
+    if (typeof value === 'number' && isFinite(value)) {
+      return value;
+    }
+    if (value instanceof Date) {
+      var parts = Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd').split('-');
+      return (Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])) - Date.UTC(1899, 11, 30)) / 86400000;
+    }
+    return null;
+  }
+  return null;
+}
+
+// One text line per rejected loot line for the End raid result.
+function summarizeRejectedLootLines_(rejected) {
+  return (rejected || []).map(function (line) {
+    var parts = ['line ' + line.lineNumber];
+    if (line.checksum) {
+      parts.push('checksum ' + line.checksum);
+    }
+    if (line.date) {
+      parts.push('date ' + line.date);
+    }
+    if (line.time) {
+      parts.push('time ' + line.time);
+    }
+    if (line.winner) {
+      parts.push('winner ' + line.winner);
+    }
+    parts.push('reason: ' + line.reason);
+    return '- ' + parts.join(', ');
+  }).join('\n');
 }
 
 // Extracts one WCL report code from one URL or one bare code; any second link or code is refused.
@@ -365,24 +483,54 @@ function showEndRaidDialog_(openRaidId) {
       '<label style="display:block;margin:0 0 6px 0">WCL link (one report)</label>' +
       '<input id="wcl-link" style="width:100%;box-sizing:border-box;margin:0 0 10px 0" />' +
       '<label style="display:block;margin:0 0 6px 0">Gargul export</label>' +
-      '<textarea id="gargul-text" style="width:100%;height:120px;box-sizing:border-box;margin:0 0 10px 0"></textarea>' +
+      '<textarea id="gargul-text" style="width:100%;height:120px;box-sizing:border-box;margin:0 0 8px 0"></textarea>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">' +
+        '<button onclick="previewLoot()">Prévisualiser le loot</button>' +
+      '</div>' +
+      '<div id="preview-awards" style="margin:0 0 10px 0"></div>' +
+      '<div id="preview-rejected" style="margin:0 0 10px 0"></div>' +
       '<div style="display:flex;gap:8px;align-items:center">' +
         '<button onclick="submitEndRaidForm()">End raid</button>' +
         '<span id="status" style="color:#1E7D32"></span>' +
       '</div>' +
       '<script>' +
+        'function esc(value){return String(value===undefined||value===null?"":value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;");}' +
+        'function currentTreatments(){var map={};var selects=document.querySelectorAll("[data-checksum]");for(var i=0;i<selects.length;i+=1){var select=selects[i];map[select.getAttribute("data-checksum")]=select.value||"";}return map;}' +
+        'function renderPreview(data){' +
+          'var awards=(data&&data.awards)||[];' +
+          'var rejected=(data&&data.rejected)||[];' +
+          'var awardHtml="<p style=\\"margin:0 0 6px 0\\"><strong>Awards valides</strong> ("+awards.length+")</p>";' +
+          'if(!awards.length){awardHtml+="<p style=\\"margin:0\\">Aucune ligne valide.</p>";}else{' +
+            'awardHtml+="<table style=\\"border-collapse:collapse;width:100%\\"><thead><tr><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Winner</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet (ID)</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">OS</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Traitement</th></tr></thead><tbody>";' +
+            'for(var i=0;i<awards.length;i+=1){var row=awards[i];var disabled=row.os===1?" disabled":"";var forced=row.os===1?"NONE":(row.treatment||"");awardHtml+="<tr><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.winner)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemName)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemID)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+(row.os===1?"oui":"")+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\"><select data-checksum=\\""+esc(row.checksum)+"\\""+disabled+"><option value=\\"\\""+(forced===""?" selected":"")+">(choisir)</option><option value=\\"BIS\\""+(forced==="BIS"?" selected":"")+">BIS</option><option value=\\"IMPACT\\""+(forced==="IMPACT"?" selected":"")+">IMPACT</option><option value=\\"NONE\\""+(forced==="NONE"?" selected":"")+">NONE</option></select></td></tr>";}' +
+            'awardHtml+="</tbody></table>";' +
+          '}' +
+          'document.getElementById("preview-awards").innerHTML=awardHtml;' +
+          'var rejectedHtml="<p style=\\"margin:10px 0 6px 0\\"><strong>Lignes rejetées</strong> ("+rejected.length+")</p>";' +
+          'if(!rejected.length){rejectedHtml+="<p style=\\"margin:0\\">Aucune ligne rejetée.</p>";}else{rejectedHtml+="<ul style=\\"margin:0;padding-left:18px\\">";for(var r=0;r<rejected.length;r+=1){var item=rejected[r];rejectedHtml+="<li>Ligne "+esc(item.lineNumber)+"; checksum: "+esc(item.checksum)+"; date: "+esc(item.date)+"; time: "+esc(item.time)+"; winner: "+esc(item.winner)+"; raison: "+esc(item.reason)+"</li>";}rejectedHtml+="</ul>";}' +
+          'document.getElementById("preview-rejected").innerHTML=rejectedHtml;' +
+        '}' +
+        'function previewLoot(){' +
+          'var gargul=document.getElementById("gargul-text").value;' +
+          'var status=document.getElementById("status");' +
+          'status.textContent="Preview...";' +
+          'google.script.run.withSuccessHandler(function(result){status.textContent="";renderPreview(result);})' +
+          '.withFailureHandler(function(error){status.textContent="";alert(error&&error.message?error.message:error);})' +
+          '.previewEndRaidLoot(gargul);' +
+        '}' +
         'function submitEndRaidForm(){' +
           'var link=document.getElementById("wcl-link").value;' +
           'var gargul=document.getElementById("gargul-text").value;' +
+          'var treatments=currentTreatments();' +
           'var status=document.getElementById("status");' +
           'status.textContent="Running...";' +
           'google.script.run.withSuccessHandler(function(message){status.textContent="";alert(message);google.script.host.close();})' +
           '.withFailureHandler(function(error){status.textContent="";alert(error&&error.message?error.message:error);})' +
-          '.submitEndRaid(link,gargul);' +
+          '.submitEndRaid(link,gargul,treatments);' +
         '}' +
       '</script>' +
     '</div>'
-  ).setWidth(620).setHeight(420);
+  ).setWidth(760).setHeight(620);
 
   SpreadsheetApp.getUi().showModalDialog(html, 'End raid');
 }
