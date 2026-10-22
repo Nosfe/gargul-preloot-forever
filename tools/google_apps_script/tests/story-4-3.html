@@ -138,7 +138,7 @@
           contains(formula, '((i<>"")+(d<>"")>0)', 'raid row = Raid (ID) or Date');
         });
         equal(headers[columnOf_(rosterTab, 'tierPresenceMax')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresence')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresenceMax')],
-          'Nombre de raids par palier|Présence totale|Nombre de raids totaux', 'renamed presence columns');
+          'Nombre de raids du palier|Présence totale|Nombre de raids totaux', 'renamed presence columns');
         equal(lifetimePresence.indexOf('Config!'), -1, 'lifetime presence has no date filter');
         equal(impactLoots.indexOf('Config!'), -1, 'Impact loots have no date filter');
         contains(tierMax, '=IF($A2="","",MAX(1,', 'tier max is blank on an empty row');
