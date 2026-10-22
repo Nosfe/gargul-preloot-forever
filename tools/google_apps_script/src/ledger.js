@@ -104,6 +104,7 @@ function parseGargulExport_(text) {
 			checksum: checksum,
 			winner: winner,
 			itemID: itemID,
+			itemName: typeof parsed.itemName === 'string' ? parsed.itemName.trim() : '',
 			rollType: normalizeCellString_(parsed.rollType).trim(),
 			os: Number(parsed.os) === 1 ? 1 : 0,
 			date: date,

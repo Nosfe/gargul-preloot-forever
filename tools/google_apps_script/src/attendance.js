@@ -91,7 +91,7 @@ function previewEndRaidLoot(gargulText) {
         time: award.time,
         winner: award.winner,
         itemID: award.itemID,
-        itemName: Object.prototype.hasOwnProperty.call(namesById, String(award.itemID)) ? namesById[String(award.itemID)] : '',
+        itemName: Object.prototype.hasOwnProperty.call(namesById, String(award.itemID)) ? namesById[String(award.itemID)] : award.itemName,
         os: Number(award.os) === 1 ? 1 : 0,
         treatment: Number(award.os) === 1 ? 'NONE' : award.treatment
       };
@@ -146,7 +146,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
         checksum: award.checksum,
         winner: award.winner,
         itemID: award.itemID,
-        itemName: Object.prototype.hasOwnProperty.call(itemNames, String(award.itemID)) ? itemNames[String(award.itemID)] : '',
+        itemName: Object.prototype.hasOwnProperty.call(itemNames, String(award.itemID)) ? itemNames[String(award.itemID)] : award.itemName,
         treatment: treatment
       };
     });

@@ -336,7 +336,7 @@
         equal(bobAwards.length, 1, 'happy path writes one award for Bob');
         equal(String(anaAwards[0].cells[1]), 'Bâton ancien', 'item name resolved for 777');
         equal(String(anaAwards[1].cells[1]), 'Anneau céleste', 'item name resolved for 888');
-        equal(String(bobAwards[0].cells[1]), '', 'missing item name stays blank');
+        equal(String(bobAwards[0].cells[1]), 'Cape de l\'export', 'export item name used when Objets has none');
         equal(String(bobAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'NONE', 'os row is forced to NONE');
         equal(String(anaAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'BIS', 'chosen Traitement written');
         equal(String(anaAwards[1].cells[AWARDS_TREATMENT_OFFSET]), 'IMPACT', 'second chosen Traitement written');
