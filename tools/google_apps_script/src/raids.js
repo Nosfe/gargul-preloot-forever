@@ -21,6 +21,7 @@ function deleteRaid() {
       summary = built.summary;
       return built.requests;
     });
+    refreshMenu_();
     ui.alert(summary);
   } catch (error) {
     ui.alert('Delete raid failed:\n' + error.message);

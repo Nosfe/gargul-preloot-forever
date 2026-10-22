@@ -39,8 +39,22 @@
         if (entry.type === 'item' && entry.label === label) {
           return entry;
         }
+        if (entry.type === 'submenu') {
+          var found = menuItem(entry.menu, label);
+          if (found) {
+            return found;
+          }
+        }
       }
       return null;
+    }
+
+    function submenu(menu, caption) {
+      return menu.items.filter(function (entry) { return entry.type === 'submenu' && entry.menu.caption === caption; })[0].menu;
+    }
+
+    function itemLabels(menu) {
+      return menu.items.map(function (entry) { return entry.label; }).join(',');
     }
 
     try {
@@ -49,19 +63,19 @@
       onOpen();
       var menu = TracerHarness.getLastMenu();
       equal(menu.caption, 'Loot priority', 'menu title');
-      equal(Boolean(menuItem(menu, 'Set up / refresh workbook')), true, 'menu has setup action');
-      equal(Boolean(menuItem(menu, 'Start raid (export snapshot)')), true, 'menu has start raid action');
-      equal(Boolean(menuItem(menu, 'Cancel started raid')), true, 'menu has cancel raid action');
-      equal(Boolean(menuItem(menu, 'End raid')), true, 'menu has end raid action');
-      equal(Boolean(menuItem(menu, 'Delete raid')), true, 'menu has delete raid action');
-      equal(Boolean(menuItem(menu, 'Set WCL credentials')), true, 'menu has credentials action');
-      equal(Boolean(menuItem(menu, 'Archive tier and activate next')), true, 'menu has tier action');
-      equal(menu.items.filter(function (entry) { return entry.type === 'submenu'; }).length, 0,
-        'menu has no Diagnostics submenu');
-      menu.items.forEach(function (entry) {
-        if (entry.type === 'item') {
-          equal(typeof window[entry.functionName], 'function', 'handler exists for ' + entry.label);
-        }
+      equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Setup', 'two submenus: Raid and Setup');
+      equal(itemLabels(submenu(menu, 'Raid')), 'Start (export snapshot),Delete', 'no started raid: Start and Delete only');
+      equal(itemLabels(submenu(menu, 'Setup')), 'Refresh workbook,WCL credentials,Archive tier and activate next', 'Setup items');
+      ['Start (export snapshot)', 'Delete', 'Refresh workbook', 'WCL credentials', 'Archive tier and activate next'].forEach(function (label) {
+        equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
+      });
+
+      TracerHarness.seedSheet('Config', [keysOf_(tabByName_('Config')), ['forever-t1', '', 7]]);
+      onOpen();
+      menu = TracerHarness.getLastMenu();
+      equal(itemLabels(submenu(menu, 'Raid')), 'Export snapshot again,End,Cancel,Delete', 'started raid: End and Cancel offered');
+      ['Export snapshot again', 'End', 'Cancel'].forEach(function (label) {
+        equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
       });
 
       TracerHarness.seedSheet('BatchProbe', [['flag']], { sheetId: 42001 });

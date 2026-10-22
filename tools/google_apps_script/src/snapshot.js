@@ -48,6 +48,7 @@ function exportRaidSnapshot() {
     });
 
     showSnapshotDialog_(snapshot);
+    refreshMenu_();
   } catch (error) {
     ui.alert('Export raid snapshot failed:\n' + error.message);
   }
@@ -339,7 +340,7 @@ function buildOpenRaidRequests_(context) {
     requests = requests.concat(buildRaidProtectionDeleteRequests_({ sheets: [sheet] }));
   });
 
-  var freezeTabs = ['Roster', 'Rerolls', GRID_TABS.presence.name, GRID_TABS.awards.name]
+  var freezeTabs = ['Roster', 'Rerolls', GRID_TABS.presence.name, 'Raids', GRID_TABS.awards.name]
     .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
     .concat(['Config']);
   freezeTabs.forEach(function (name) {
@@ -550,6 +551,7 @@ function cancelOpenRaid() {
       return requests;
     });
 
+    refreshMenu_();
     ui.alert(raidId
       ? 'Raid ' + raidId + ' annulé : protections retirées, Raid ouvert vidé.'
       : 'Aucun raid ouvert ; protections « ' + RAID_OPEN_PROTECTION_PREFIX + ' » retirées.');

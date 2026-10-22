@@ -10,6 +10,7 @@
 <script src="../src/scores.js"></script>
 <script src="../src/snapshot.js"></script>
 <script src="../src/raids.js"></script>
+<script src="../src/menu.js"></script>
 <script>
   (function () {
     var assertions = 0;
@@ -99,7 +100,7 @@
     }
 
     function protectionCount_() {
-      return ['Roster', 'Rerolls', 'Présence', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config']
+      return ['Roster', 'Rerolls', 'Présence', 'Raids', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config']
         .map(function (name) {
           return (TracerHarness.getSheetMeta(name).protectedRanges || []).length;
         })
@@ -233,12 +234,12 @@
         };
         equal(String(rowsAfterFirst.raids[rowsAfterFirst.raids.length - 1][0]), '4', 'first export appends raid id 4');
         equal(String(rowsAfterFirst.config[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '4', 'first export sets Config open raid id');
-        equal(protectionCount_(), 10, 'first export adds 10 warning-only protections');
+        equal(protectionCount_(), 11, 'first export adds 11 warning-only protections (Raids included)');
 
         var rosterProtections = TracerHarness.getSheetMeta('Roster').protectedRanges;
         truthy(rosterProtections.length > 0, 'Roster has protection');
         contains(rosterProtections[0].description, RAID_OPEN_PROTECTION_PREFIX, 'protection description has prefix');
-        ['Roster', 'Rerolls', 'Présence', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config'].forEach(function (name) {
+        ['Roster', 'Rerolls', 'Présence', 'Raids', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config'].forEach(function (name) {
           var ranges = TracerHarness.getSheetMeta(name).protectedRanges;
           equal(ranges.length + '|' + ranges[0].warningOnly + '|' + ranges[0].description,
             '1|true|Raid ouvert 4 : entrées de score figées', name + ' has one warning-only raid protection');
