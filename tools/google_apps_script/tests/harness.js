@@ -972,6 +972,83 @@
     };
   }
 
+  function createPropertiesStore_(backing) {
+    return {
+      getProperty: function (key) {
+        if (!Object.prototype.hasOwnProperty.call(backing, key)) {
+          return null;
+        }
+        return backing[key];
+      },
+      setProperty: function (key, value) {
+        backing[String(key)] = String(value);
+        return this;
+      },
+      setProperties: function (pairs, deleteAllOthers) {
+        if (deleteAllOthers) {
+          Object.keys(backing).forEach(function (key) {
+            delete backing[key];
+          });
+        }
+        Object.keys(pairs || {}).forEach(function (key) {
+          backing[String(key)] = String(pairs[key]);
+        });
+        return this;
+      },
+      getProperties: function () {
+        return clone(backing);
+      },
+      deleteProperty: function (key) {
+        delete backing[String(key)];
+        return this;
+      },
+      deleteAllProperties: function () {
+        Object.keys(backing).forEach(function (key) {
+          delete backing[key];
+        });
+        return this;
+      }
+    };
+  }
+
+  function buildHttpResponse_(entry) {
+    var bodyText = '';
+    if (entry && Object.prototype.hasOwnProperty.call(entry, 'contentText')) {
+      bodyText = String(entry.contentText);
+    } else if (entry && Object.prototype.hasOwnProperty.call(entry, 'body')) {
+      bodyText = typeof entry.body === 'string' ? entry.body : JSON.stringify(entry.body);
+    }
+    var headers = (entry && entry.headers) || {};
+
+    return {
+      getResponseCode: function () {
+        return Number((entry && entry.statusCode) || 200);
+      },
+      getContentText: function () {
+        return bodyText;
+      },
+      getHeaders: function () {
+        return clone(headers);
+      },
+      getAllHeaders: function () {
+        return clone(headers);
+      }
+    };
+  }
+
+  function urlFetch_(url, params) {
+    state.fetchLog.push({
+      url: String(url),
+      params: clone(params || {})
+    });
+
+    if (!state.fetchResponses.length) {
+      throw new Error('No fake UrlFetchApp response queued for ' + url + '.');
+    }
+
+    return buildHttpResponse_(state.fetchResponses.shift());
+  }
+
   function install() {
     previous.SpreadsheetApp = global.SpreadsheetApp;
     previous.LockService = global.LockService;
@@ -979,6 +1056,8 @@
     previous.HtmlService = global.HtmlService;
     previous.Utilities = global.Utilities;
     previous.Session = global.Session;
+    previous.UrlFetchApp = global.UrlFetchApp;
+    previous.PropertiesService = global.PropertiesService;
 
     state = {
       spreadsheetId: 'test-spreadsheet-id',
@@ -991,6 +1070,9 @@
       alerts: [],
       lastMenu: null,
       modalDialogs: [],
+      fetchResponses: [],
+      fetchLog: [],
+      userProperties: {},
       storeById: {},
       nameIndex: {}
     };
@@ -1082,19 +1164,32 @@
       }
     };
 
+    global.UrlFetchApp = {
+      fetch: urlFetch_
+    };
+
+    global.PropertiesService = {
+      getUserProperties: function () {
+        return createPropertiesStore_(state.userProperties);
+      }
+    };
+
     global.Utilities = {
       Charset: {
         UTF_8: 'UTF_8'
       },
       formatDate: function (date, timeZone, pattern) {
-        if (pattern !== 'yyyy-MM-dd HH:mm:ss') {
+        if (pattern !== 'yyyy-MM-dd HH:mm:ss' && pattern !== 'yyyy-MM-dd') {
           throw new Error('Unsupported formatDate pattern in fake: ' + pattern);
         }
         function pad(n) {
           return (n < 10 ? '0' : '') + n;
         }
-        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
-          ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+        var day = date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+        if (pattern === 'yyyy-MM-dd') {
+          return day;
+        }
+        return day + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
       },
       base64Encode: function (data, charset) {
         if (charset && charset !== 'UTF_8') {
@@ -1145,6 +1240,8 @@
     global.HtmlService = previous.HtmlService;
     global.Utilities = previous.Utilities;
     global.Session = previous.Session;
+    global.UrlFetchApp = previous.UrlFetchApp;
+    global.PropertiesService = previous.PropertiesService;
     state = null;
   }
 
@@ -1234,6 +1331,19 @@
     state.forceLockBusy = Boolean(value);
   }
 
+  function setFetchResponses(responses) {
+    state.fetchResponses = clone(responses || []);
+    state.fetchLog = [];
+  }
+
+  function getFetchLog() {
+    return clone(state.fetchLog);
+  }
+
+  function getUserProperties() {
+    return clone(state.userProperties);
+  }
+
   global.TracerHarness = {
     install: install,
     uninstall: uninstall,
@@ -1248,6 +1358,9 @@
     getSheetMeta: getSheetMeta,
     setLocale: setLocale,
     isLockHeld: isLockHeld,
-    setLockBusy: setLockBusy
+    setLockBusy: setLockBusy,
+    setFetchResponses: setFetchResponses,
+    getFetchLog: getFetchLog,
+    getUserProperties: getUserProperties
   };
 })(window);

@@ -1,0 +1,417 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.4 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/attendance.js"></script>
+<script src="../src/menu.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function truthy(value, label) {
+      assertions += 1;
+      if (!value) {
+        throw new Error(label + ': expected truthy value');
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function loadJsonSync_(path) {
+      var request = new XMLHttpRequest();
+      request.open('GET', path, false);
+      request.send(null);
+      if (request.status !== 0 && request.status !== 200) {
+        throw new Error('Unable to load ' + path + ': status ' + request.status);
+      }
+      return JSON.parse(request.responseText);
+    }
+
+    function textCell_(value) {
+      return { userEnteredValue: { stringValue: String(value) } };
+    }
+
+    function numberCell_(value) {
+      return { userEnteredValue: { numberValue: Number(value) } };
+    }
+
+    function writeCells_(sheetId, rowIndex, columnIndex, values) {
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        updateCells: {
+          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
+          rows: [{ values: values.map(function (value) {
+            return typeof value === 'number' ? numberCell_(value) : textCell_(value);
+          }) }],
+          fields: 'userEnteredValue'
+        }
+      }] }, SpreadsheetApp.getActive().getId());
+    }
+
+    function seedCoreTabs_() {
+      TABS.forEach(function (tab) {
+        if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+          return;
+        }
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
+      TracerHarness.seedSheet('Roster', [
+        keysOf_(tabByName_('Roster')),
+        ['Ana', 'Mage', '', '', ''],
+        ['Bob', 'Mage', '', '', ''],
+        ['Cid', 'Mage', '', '', '']
+      ]);
+      TracerHarness.seedSheet('Rerolls', [
+        keysOf_(tabByName_('Rerolls')),
+        ['Zed', 'Mage', '', '', '', 'Cid']
+      ]);
+      setUpWorkbook();
+    }
+
+    function setStartedRaid_(raidId) {
+      var spreadsheet = SpreadsheetApp.getActive();
+      var configId = spreadsheet.getSheetByName('Config').getSheetId();
+      var raidsId = spreadsheet.getSheetByName('Raids').getSheetId();
+      var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
+
+      writeCells_(configId, 1, 0, ['forever-t1', '2026-10-01', raidId]);
+      writeCells_(raidsId, 1, 0, [raidId]);
+
+      var rosterId = spreadsheet.getSheetByName('Roster').getSheetId();
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        addProtectedRange: {
+          protectedRange: {
+            range: { sheetId: rosterId },
+            warningOnly: true,
+            description: RAID_OPEN_PROTECTION_PREFIX + ' ' + raidId + ' : entrées de score figées'
+          }
+        }
+      }] }, spreadsheet.getId());
+
+      return openRaidColumn;
+    }
+
+    function queueWclSuccess_() {
+      var fixture = loadJsonSync_('../fixtures/wcl-report-sample.json');
+      TracerHarness.setFetchResponses([
+        { statusCode: 200, body: { access_token: 'token' } },
+        { statusCode: 200, body: fixture }
+      ]);
+    }
+
+    function presenceColumnByName_(name) {
+      var header = TracerHarness.getRows('Présence')[0] || [];
+      for (var index = PRESENCE_FIRST_RAIDER_COLUMN; index < header.length; index += 1) {
+        if (header[index] === name) {
+          return index;
+        }
+      }
+      return -1;
+    }
+
+    function findRaidRow_(sheetName, raidId) {
+      var rows = TracerHarness.getRows(sheetName);
+      for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+        if (String((rows[rowIndex] || [])[0]) === String(raidId)) {
+          return { rowIndex: rowIndex, row: rows[rowIndex] || [] };
+        }
+      }
+      return null;
+    }
+
+    try {
+      withHarness(function () {
+        // Happy path matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('client-id', 'client-secret');
+        queueWclSuccess_();
+
+        var message = submitEndRaid('https://www.warcraftlogs.com/reports/ABC123', '');
+        contains(message, 'Unmatched names: Unknown', 'happy path lists unmatched names');
+
+        var configRows = TracerHarness.getRows('Config');
+        equal(String((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')]), '', 'happy path clears open raid');
+
+        var rosterProtections = TracerHarness.getSheetMeta('Roster').protectedRanges || [];
+        equal(rosterProtections.length, 0, 'happy path removes raid protections');
+
+        var presenceRow = findRaidRow_('Présence', 5);
+        truthy(presenceRow, 'happy path creates presence row');
+        equal(String(presenceRow.row[1]), 'Molten Core', 'happy path writes instance on presence row');
+        truthy(typeof presenceRow.row[PRESENCE_DATE_COLUMN] === 'number', 'happy path writes date serial on presence row');
+        equal(presenceRow.row[presenceColumnByName_('Ana')], 1, 'happy path credits Ana');
+        equal(String(presenceRow.row[presenceColumnByName_('Bob')]), '', 'happy path leaves Bob empty');
+        equal(presenceRow.row[presenceColumnByName_('Cid')], 1, 'happy path credits Cid via alt');
+
+        var raidsRow = findRaidRow_('Raids', 5).row;
+        equal(String(raidsRow[columnOf_(tabByName_('Raids'), 'reportCodes')]), 'ABC123', 'happy path writes report code');
+        truthy(String(raidsRow[columnOf_(tabByName_('Raids'), 'importedAt')]).length > 0, 'happy path writes imported timestamp');
+        equal(String(raidsRow[columnOf_(tabByName_('Raids'), 'instance')]), 'Molten Core', 'happy path writes Raids instance');
+        equal(raidsRow[columnOf_(tabByName_('Raids'), 'raidDate')], presenceRow.row[PRESENCE_DATE_COLUMN], 'Raids and Présence get the same date');
+        var expectedSerial = (Date.UTC(new Date(1792713600000).getFullYear(), new Date(1792713600000).getMonth(), new Date(1792713600000).getDate()) - Date.UTC(1899, 11, 30)) / 86400000;
+        equal(presenceRow.row[PRESENCE_DATE_COLUMN], expectedSerial, 'date serial is the report start day');
+        var fetchLog = TracerHarness.getFetchLog();
+        equal(fetchLog[0].url + '|' + fetchLog[0].params.headers.Authorization.indexOf('Basic '), WCL_TOKEN_URL + '|0', 'token request uses Basic auth');
+        equal(fetchLog[1].url + '|' + JSON.parse(fetchLog[1].params.payload).variables.code, WCL_API_URL + '|ABC123', 'report request carries the code');
+        equal((message + TracerHarness.getAlerts().join(' ')).indexOf('client-secret'), -1, 'no secret in result or alerts');
+      });
+
+      function expectRefusedAndUnchanged_(linkText, gargulText, responses, expectedText, label) {
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('client-id', 'client-secret');
+        TracerHarness.setFetchResponses(responses);
+        var before = JSON.stringify([TracerHarness.getRows('Présence'), TracerHarness.getRows('Raids'), TracerHarness.getRows('Config')]);
+        var message = '';
+        try {
+          submitEndRaid(linkText, gargulText);
+        } catch (error) {
+          message = error.message;
+        }
+        contains(message, expectedText, label + ': message');
+        equal(message.indexOf('client-secret'), -1, label + ': no secret');
+        equal(JSON.stringify([TracerHarness.getRows('Présence'), TracerHarness.getRows('Raids'), TracerHarness.getRows('Config')]), before, label + ': nothing written');
+        equal((TracerHarness.getSheetMeta('Roster').protectedRanges || []).length, 1, label + ': raid stays started');
+      }
+
+      withHarness(function () {
+        expectRefusedAndUnchanged_('ABC123 DEF456', '', [], 'Only one WCL link', 'two bare codes');
+        equal(TracerHarness.getFetchLog().length, 0, 'two bare codes: no fetch');
+      });
+      withHarness(function () {
+        expectRefusedAndUnchanged_('https://www.warcraftlogs.com/reports/ABC123 DEF456', '', [], 'Only one WCL link', 'URL plus bare code');
+      });
+      withHarness(function () {
+        expectRefusedAndUnchanged_('ABC123', '', [{ statusCode: 200, body: { access_token: 't' } }, { statusCode: 502, contentText: '<html>Bad gateway</html>' }], 'HTTP 502', 'report HTTP error with HTML body');
+      });
+      withHarness(function () {
+        expectRefusedAndUnchanged_('ABC123', '', [{ statusCode: 200, body: { access_token: 't' } }, { statusCode: 200, body: { errors: [{ message: 'This report does not exist.' }], data: { reportData: { report: null } } } }], 'This report does not exist', 'unknown code');
+      });
+      withHarness(function () {
+        expectRefusedAndUnchanged_('ABC123', 'some loot', [], 'story 4.7', 'Gargul text');
+      });
+      withHarness(function () {
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        PropertiesService.getUserProperties().deleteAllProperties && PropertiesService.getUserProperties().deleteAllProperties();
+        TracerHarness.setFetchResponses([]);
+        var message = '';
+        try {
+          submitEndRaid('ABC123', '');
+        } catch (error) {
+          message = error.message;
+        }
+        contains(message, 'Set WCL credentials', 'no credentials: message');
+        equal(TracerHarness.getFetchLog().length, 0, 'no credentials: nothing fetched');
+        equal((TracerHarness.getSheetMeta('Roster').protectedRanges || []).length, 1, 'no credentials: raid stays started');
+      });
+      withHarness(function () {
+        seedCoreTabs_();
+        saveWclCredentials('client-id', 'client-secret');
+        TracerHarness.setFetchResponses([]);
+        var message = '';
+        try {
+          submitEndRaid('ABC123', '');
+        } catch (error) {
+          message = error.message;
+        }
+        contains(message, 'Start raid first', 'submit with no started raid refused');
+        equal(TracerHarness.getFetchLog().length, 0, 'submit with no started raid: nothing fetched');
+      });
+
+      withHarness(function () {
+        // Two links matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+
+        var before = JSON.stringify({
+          config: TracerHarness.getRows('Config'),
+          raids: TracerHarness.getRows('Raids'),
+          presence: TracerHarness.getRows('Présence')
+        });
+
+        var failed = false;
+        try {
+          submitEndRaid('https://www.warcraftlogs.com/reports/ONE and https://www.warcraftlogs.com/reports/TWO', '');
+        } catch (error) {
+          failed = true;
+          contains(error.message, 'Only one WCL link', 'two links error');
+        }
+        equal(failed, true, 'two links rejects');
+        equal(JSON.stringify({
+          config: TracerHarness.getRows('Config'),
+          raids: TracerHarness.getRows('Raids'),
+          presence: TracerHarness.getRows('Présence')
+        }), before, 'two links writes nothing');
+      });
+
+      withHarness(function () {
+        // Existing Présence row matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var spreadsheet = SpreadsheetApp.getActive();
+        var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
+        var cidColumn = presenceColumnByName_('Cid');
+        writeCells_(presenceId, PRESENCE_FIRST_RAID_ROW - 1, 0, [5, '', 'typed-date']);
+        writeCells_(presenceId, PRESENCE_FIRST_RAID_ROW - 1, cidColumn, ['B']);
+
+        submitEndRaid('ABC123', '');
+        var row = findRaidRow_('Présence', 5).row;
+        equal(String(row[PRESENCE_DATE_COLUMN]), 'typed-date', 'existing row keeps typed date');
+        equal(String(row[cidColumn]), 'B', 'existing row keeps B');
+        equal(row[presenceColumnByName_('Ana')], 1, 'existing row still credits other raiders');
+      });
+
+      withHarness(function () {
+        // No started raid matrix row.
+        seedCoreTabs_();
+        endRaid();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Start raid first', 'no started raid alert');
+      });
+
+      withHarness(function () {
+        // Gargul text matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+
+        var failed = false;
+        try {
+          submitEndRaid('ABC123', 'loot lines here');
+        } catch (error) {
+          failed = true;
+          contains(error.message, 'story 4.7', 'gargul text error');
+        }
+        equal(failed, true, 'gargul text rejects');
+        equal(TracerHarness.getFetchLog().length, 0, 'gargul text does not fetch');
+      });
+
+      withHarness(function () {
+        // No link matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+
+        var failed = false;
+        try {
+          submitEndRaid('', '');
+        } catch (error) {
+          failed = true;
+          contains(error.message, 'WCL link required', 'no link error');
+        }
+        equal(failed, true, 'no link rejects');
+
+        var badLinkError = '';
+        try {
+          submitEndRaid('https://example.com/not a report', '');
+        } catch (error) {
+          badLinkError = error.message;
+        }
+        contains(badLinkError, 'not recognized', 'link with no report code rejected');
+        equal(TracerHarness.getFetchLog().length, 0, 'bad link does not fetch');
+        equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '5', 'bad link keeps the raid started');
+      });
+
+      withHarness(function () {
+        // No credentials matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+
+        var failed = false;
+        try {
+          submitEndRaid('ABC123', '');
+        } catch (error) {
+          failed = true;
+          contains(error.message, 'Set WCL credentials', 'no credentials error');
+        }
+        equal(failed, true, 'no credentials rejects');
+      });
+
+      withHarness(function () {
+        // WCL error matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'very-secret');
+        TracerHarness.setFetchResponses([
+          { statusCode: 401, body: { error_description: 'invalid client' } }
+        ]);
+
+        var failed = false;
+        try {
+          submitEndRaid('ABC123', '');
+        } catch (error) {
+          failed = true;
+          contains(error.message, 'HTTP 401', 'wcl error includes status');
+          equal(String(error.message).indexOf('very-secret') === -1, true, 'wcl error hides secret');
+        }
+        equal(failed, true, 'wcl error rejects');
+      });
+
+      withHarness(function () {
+        // No raider column matrix row.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+
+        var spreadsheet = SpreadsheetApp.getActive();
+        var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
+        var cidColumn = presenceColumnByName_('Cid');
+        writeCells_(presenceId, 0, cidColumn, ['']);
+
+        var message = submitEndRaid('ABC123', '');
+        contains(message, 'Run Set up / refresh workbook', 'missing column result message');
+        var row = findRaidRow_('Présence', 5).row;
+        equal(row[presenceColumnByName_('Ana')], 1, 'missing column still credits matched columns');
+      });
+
+      withHarness(function () {
+        // Credentials are kept in User Properties.
+        saveWclCredentials('stored-id', 'stored-secret');
+        var properties = TracerHarness.getUserProperties();
+        equal(properties.WCL_CLIENT_ID, 'stored-id', 'client id stored in User Properties');
+        equal(properties.WCL_CLIENT_SECRET, 'stored-secret', 'client secret stored in User Properties');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

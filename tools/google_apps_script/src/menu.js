@@ -5,10 +5,10 @@ function onOpen() {
   ui
     .createMenu('Loot priority')
     .addItem('Set up / refresh workbook', 'setUpWorkbook')
-    .addItem('Sync attendance', 'runAttendanceSync')
-    .addItem('Export raid snapshot', 'exportRaidSnapshot')
-    .addItem('Cancel open raid', 'cancelOpenRaid')
-    .addItem('Import raid ledger', 'importRaidLedger')
+    .addItem('Start raid (export snapshot)', 'exportRaidSnapshot')
+    .addItem('Cancel started raid', 'cancelOpenRaid')
+    .addItem('End raid', 'endRaid')
+    .addItem('Set WCL credentials', 'setWclCredentials')
     .addItem('Archive tier and activate next', 'archiveTierAndActivateNext')
     .addToUi();
 }

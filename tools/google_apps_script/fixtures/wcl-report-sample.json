@@ -1,0 +1,60 @@
+{
+  "data": {
+    "reportData": {
+      "report": {
+        "code": "ABC123",
+        "startTime": 1792713600000,
+        "endTime": 1792720800000,
+        "zone": {
+          "name": "Molten Core"
+        },
+        "masterData": {
+          "actors": [
+            { "id": 1, "name": "Ana" },
+            { "id": 2, "name": "Bob" },
+            { "id": 3, "name": "Zed" },
+            { "id": 4, "name": "Unknown" }
+          ]
+        },
+        "fights": [
+          {
+            "id": 101,
+            "encounterID": 1001,
+            "kill": true,
+            "inProgress": false,
+            "startTime": 1792713600000,
+            "endTime": 1792713900000,
+            "friendlyPlayers": [1, 2, 4]
+          },
+          {
+            "id": 102,
+            "encounterID": 1002,
+            "kill": false,
+            "inProgress": false,
+            "startTime": 1792714200000,
+            "endTime": 1792714500000,
+            "friendlyPlayers": [1, 3, 4]
+          },
+          {
+            "id": 103,
+            "encounterID": 1003,
+            "kill": true,
+            "inProgress": false,
+            "startTime": 1792714800000,
+            "endTime": 1792715100000,
+            "friendlyPlayers": [1, 3, 4]
+          },
+          {
+            "id": 104,
+            "encounterID": 1004,
+            "kill": false,
+            "inProgress": false,
+            "startTime": 1792715400000,
+            "endTime": 1792715700000,
+            "friendlyPlayers": [1, 4]
+          }
+        ]
+      }
+    }
+  }
+}
