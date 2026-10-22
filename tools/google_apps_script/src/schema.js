@@ -71,8 +71,8 @@ var CLASS_SPECS = [
   },
   {
     name: 'Druide',
-    specs: ['Équilibre', 'Combat farouche', 'Restauration'],
-    specIcons: { 'Équilibre': '🌙', 'Combat farouche': '🐻', 'Restauration': '🌿' },
+    specs: ['Équilibre', 'Combat farouche (ours)', 'Combat farouche (félin)', 'Restauration'],
+    specIcons: { 'Équilibre': '🌙', 'Combat farouche (ours)': '🐻', 'Combat farouche (félin)': '🐈', 'Restauration': '🌿' },
     colorHex: 'FF7C0A',
     textHex: '1F1F1F'
   }
@@ -82,7 +82,7 @@ var CLASS_SPECS = [
 var SPEC_COLUMNS = [
   { role: 'Tank', className: 'Guerrier', spec: 'Protection', label: 'Guerrier Protection' },
   { role: 'Tank', className: 'Paladin', spec: 'Protection', label: 'Paladin Protection' },
-  { role: 'Tank', className: 'Druide', spec: 'Combat farouche', label: 'Druide Combat farouche (tank)' },
+  { role: 'Tank', className: 'Druide', spec: 'Combat farouche (ours)', label: 'Druide Combat farouche (ours)' },
   { role: 'Heal', className: 'Paladin', spec: 'Sacré', label: 'Paladin Sacré' },
   { role: 'Heal', className: 'Prêtre', spec: 'Discipline', label: 'Prêtre Discipline' },
   { role: 'Heal', className: 'Prêtre', spec: 'Sacré', label: 'Prêtre Sacré' },
@@ -95,7 +95,7 @@ var SPEC_COLUMNS = [
   { role: 'Melee DPS', className: 'Voleur', spec: 'Combat', label: 'Voleur Combat' },
   { role: 'Melee DPS', className: 'Voleur', spec: 'Finesse', label: 'Voleur Finesse' },
   { role: 'Melee DPS', className: 'Chaman', spec: 'Amélioration', label: 'Chaman Amélioration' },
-  { role: 'Melee DPS', className: 'Druide', spec: 'Combat farouche', label: 'Druide Combat farouche (félin)' },
+  { role: 'Melee DPS', className: 'Druide', spec: 'Combat farouche (félin)', label: 'Druide Combat farouche (félin)' },
   { role: 'Ranged DPS', className: 'Chasseur', spec: 'Maîtrise des bêtes', label: 'Chasseur Maîtrise des bêtes' },
   { role: 'Ranged DPS', className: 'Chasseur', spec: 'Précision', label: 'Chasseur Précision' },
   { role: 'Ranged DPS', className: 'Chasseur', spec: 'Survie', label: 'Chasseur Survie' },
@@ -183,6 +183,28 @@ function classHeaderTextHex_(className) {
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
+// _Listes layout (0-based columns): class table A + up to 4 specs, per-row spec lookups for Roster and Rerolls
+// (each spills over 4 columns), and the Classe|Spé → Rôle table read by the Rôle formula.
+var LISTS_LAYOUT = {
+  specCount: 4,
+  rosterLookupColumn: 6,
+  rerollsLookupColumn: 11,
+  roleKeyColumn: 16,
+  roleValueColumn: 17,
+  columnCount: 26
+};
+
+// Warcraft Logs parse colours (text only), highest band first.
+var WCL_PARSE_COLORS = [
+  { min: 100, max: null, hex: 'E5CC80' },
+  { min: 99, max: 100, hex: 'E268A8' },
+  { min: 95, max: 99, hex: 'FF8000' },
+  { min: 75, max: 95, hex: 'A335EE' },
+  { min: 50, max: 75, hex: '0070FF' },
+  { min: 25, max: 50, hex: '1EFF00' },
+  { min: null, max: 25, hex: '666666' }
+];
+
 // Column contract for every data tab, in creation order.
 // Code reads columns by `key` (stable); `label` is what people see in row 1; `note` shows on hover.
 // group: 'input' = filled by the owner, 'log' = written by the script (different tab colour).
@@ -206,8 +228,8 @@ var TABS = [
     columns: [
       { key: 'raiderKey', label: 'Raider (nom exact en jeu)', note: 'Nom du personnage exactement comme en jeu (majuscules et accents compris), sans royaume. Doit être unique.' },
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
-      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, ex. Mage → Arcanes, Feu ou Givre.' },
-      { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
+      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des spés de la classe, ex. Mage → Arcanes, Feu ou Givre ; Druide → Combat farouche (ours) ou (félin).' },
+      { key: 'role', label: 'Rôle', note: 'Rempli automatiquement depuis la classe et la spé, ne pas saisir.', formula: true },
       { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'tierPresence', label: 'Présence palier', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'tierPresenceMax', label: 'Nombre de raids du palier', formerLabels: ['Max palier', 'Nombre de raids par palier'], note: 'Calculé, ne pas saisir.', formula: true },
@@ -226,8 +248,8 @@ var TABS = [
     columns: [
       { key: 'rerollName', label: 'Reroll (nom exact)', note: 'Nom exact du reroll. Sa présence compte pour le personnage principal, jamais son loot.' },
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
-      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des trois spés de la classe, avec emoji.' },
-      { key: 'role', label: 'Rôle', note: 'Tank, Heal, Melee DPS, Ranged DPS ou Caster DPS.' },
+      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des spés de la classe, avec emoji.' },
+      { key: 'role', label: 'Rôle', note: 'Rempli automatiquement depuis la classe et la spé, ne pas saisir.', formula: true },
       { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'mainKey', label: 'Personnage principal', note: 'Nom exact du personnage principal, tel qu\'écrit dans Roster.' }
     ]

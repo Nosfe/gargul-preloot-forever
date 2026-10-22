@@ -201,7 +201,7 @@
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'pre-4.3 Roster is extended');
         var rows = TracerHarness.getRows('Roster');
-        equal(rows[1].slice(0, 5).join('|'), 'Ana|Mage|❄️ Givre|✚ Heal|80', 'existing Roster data A-E kept');
+        equal(rows[1].slice(0, 3).join('|') + '|' + rows[1][4], 'Ana|Mage|❄️ Givre|80', 'existing Roster data kept (Rôle is now a formula)');
         equal(rows[0][5], 'Présence palier', 'first calculated column appended at F');
       });
 

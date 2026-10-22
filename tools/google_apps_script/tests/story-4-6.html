@@ -172,7 +172,7 @@
       writeCells_(rosterId, 3, 0, rosterRowValues_(
         'Cairn',
         'Druide',
-        specDisplayValue_('Druide', 'Combat farouche'),
+        specDisplayValue_('Druide', 'Combat farouche (ours)'),
         ROLE_DISPLAY.Tank.value,
         95,
         8,
@@ -344,7 +344,10 @@
         contains(raiders_({ role: '' }).errors.join(' '), 'rôle', 'missing role rejected');
         contains(raiders_({ spec: 'Ombre' }).errors.join(' '), 'spé inconnue', 'unknown spec rejected');
         equal(raiders_({}).raiders[0].classSpec, 'Mage Feu', 'bare or emoji spec resolves');
-        equal(classSpecLabel_('Druide', 'Combat farouche', 'DPS'), 'Druide Combat farouche (félin)', 'feral non-tank is félin');
+        equal(classSpecLabel_('Druide', 'Combat farouche (félin)', 'DPS'), 'Druide Combat farouche (félin)', 'feral cat is félin');
+        var bearAsDps = '';
+        try { classSpecLabel_('Druide', 'Combat farouche (ours)', 'DPS'); } catch (error) { bearAsDps = error.message; }
+        contains(bearAsDps, 'incompatible', 'bear spec with DPS role rejected');
         var tank = raiders_({ role: ROLE_DISPLAY.Tank.value, class: 'Guerrier', spec: 'Protection', impactBase: '' }).raiders[0];
         equal(tank.role + ':' + tank.impactBase, 'TANK:null', 'tank has null impactBase');
 

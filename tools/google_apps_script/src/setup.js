@@ -74,6 +74,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
     requests = requests.concat(buildRosterFormulaRequests_(sheetId, tab, separator));
+    requests = requests.concat(buildRoleFormulaRequests_(sheetId, tab, separator));
 
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
 
@@ -179,6 +180,59 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
       }
     }
   ];
+}
+
+// Rôle formula on rows 2..201 of Roster and Rerolls: looks up Classe|Spé in the _Listes role table.
+function buildRoleFormulaRequests_(sheetId, tab, argSeparator) {
+  if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+    return [];
+  }
+
+  var classLetter = columnLetter_(columnOf_(tab, 'class'));
+  var specLetter = columnLetter_(columnOf_(tab, 'spec'));
+  var keyLetter = columnLetter_(LISTS_LAYOUT.roleKeyColumn);
+  var valueLetter = columnLetter_(LISTS_LAYOUT.roleValueColumn);
+  var rows = [];
+
+  for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
+    var classCell = '$' + classLetter + rowNumber;
+    var specCell = '$' + specLetter + rowNumber;
+    rows.push({ values: [{ userEnteredValue: { formulaValue: applyArgSeparator_(
+      '=IF(OR(' + classCell + '="",' + specCell + '=""),"",IFERROR(INDEX(\'' + LISTS_TAB.name + '\'!$' + valueLetter + '$2:$' + valueLetter + '$200,' +
+      'MATCH(' + classCell + '&"|"&' + specCell + ',\'' + LISTS_TAB.name + '\'!$' + keyLetter + '$2:$' + keyLetter + '$200,0)),""))',
+      argSeparator || ','
+    ) } }] });
+  }
+
+  return [{
+    updateCells: {
+      start: { sheetId: sheetId, rowIndex: 1, columnIndex: columnOf_(tab, 'role') },
+      rows: rows,
+      fields: 'userEnteredValue'
+    }
+  }];
+}
+
+// WCL parse colours on the parse column: coloured text on white, one exclusive band per rule.
+function buildParseColorRules_(sheetId, parseColumn, argSeparator) {
+  var cell = '$' + columnLetter_(parseColumn) + '2';
+  return WCL_PARSE_COLORS.map(function (band) {
+    var tests = ['ISNUMBER(' + cell + ')'];
+    if (band.min !== null) {
+      tests.push(cell + '>=' + band.min);
+    }
+    if (band.max !== null) {
+      tests.push(cell + '<' + band.max);
+    }
+    return buildConditionalFormatRequest_(
+      sheetId,
+      parseColumn,
+      parseColumn + 1,
+      '=AND(' + tests.join(',') + ')',
+      { backgroundColor: rgbHex_('FFFFFF'), textFormat: { foregroundColor: rgbHex_(band.hex), bold: true } },
+      argSeparator
+    );
+  });
 }
 
 // Exact (case-sensitive) 1-based column of a raider name in row 1 of a sheet; ARRAYFORMULA makes EXACT compare the whole row.
@@ -702,24 +756,11 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
     );
 
     requests = requests.concat(
-      tab.name === 'Roster'
-        ? buildSpecValidationRequests_(sheetId, tab, 'F', 'H')
-        : buildSpecValidationRequests_(sheetId, tab, 'J', 'L')
+      buildSpecValidationRequests_(sheetId, tab, tab.name === 'Roster' ? LISTS_LAYOUT.rosterLookupColumn : LISTS_LAYOUT.rerollsLookupColumn)
     );
 
-    requests.push(
-      buildDataValidationRequest_(sheetId, columnOf_(tab, 'role'), {
-        condition: {
-          type: 'ONE_OF_LIST',
-          values: ROLE_OPTIONS.map(function (value) {
-            return { userEnteredValue: ROLE_DISPLAY[value].value };
-          })
-        },
-        strict: true,
-        showCustomUi: true,
-        inputMessage: 'Choisir un rôle parmi les options proposées.'
-      })
-    );
+    // Rôle is a formula now: drop the old dropdown.
+    requests.push(buildDataValidationRequest_(sheetId, columnOf_(tab, 'role')));
 
     requests.push(
       buildDataValidationRequest_(sheetId, columnOf_(tab, 'dpsParse'), {
@@ -735,10 +776,12 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
   return requests;
 }
 
-// Adds strict dependent spec dropdowns for rows 2..201 from one _Listes helper range per row.
-function buildSpecValidationRequests_(sheetId, tab, helperStartLetter, helperEndLetter) {
+// Adds strict dependent spec dropdowns for rows 2..201 from the row's _Listes lookup spill.
+function buildSpecValidationRequests_(sheetId, tab, helperStartColumn) {
   var requests = [];
   var specColumnIndex = columnOf_(tab, 'spec');
+  var helperStartLetter = columnLetter_(helperStartColumn);
+  var helperEndLetter = columnLetter_(helperStartColumn + LISTS_LAYOUT.specCount - 1);
 
   // Clear the whole column first: the earlier version put a typed-spec check on it.
   requests.push({
@@ -849,30 +892,27 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   var separator = argSeparator || ',';
 
   // Each rule is inserted at index 0, so rules added later win: colours first, red bad-name highlights last.
-  if (tab.name === 'Roster') {
+  if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+    var nameColumn = columnOf_(tab, tab.name === 'Roster' ? 'raiderKey' : 'rerollName');
     requests = requests.concat(
       buildClassColorRules_(
         sheetId,
         columnOf_(tab, 'class'),
-        columnOf_(tab, 'raiderKey'),
+        columnOf_(tab, 'class'),
         columnOf_(tab, 'spec') + 1,
         separator
       )
     );
     requests = requests.concat(buildRoleColorRules_(sheetId, columnOf_(tab, 'role'), separator));
-  }
-
-  if (tab.name === 'Rerolls') {
-    requests = requests.concat(
-      buildClassColorRules_(
-        sheetId,
-        columnOf_(tab, 'class'),
-        columnOf_(tab, 'rerollName'),
-        columnOf_(tab, 'spec') + 1,
-        separator
-      )
-    );
-    requests = requests.concat(buildRoleColorRules_(sheetId, columnOf_(tab, 'role'), separator));
+    requests = requests.concat(buildParseColorRules_(sheetId, columnOf_(tab, 'dpsParse'), separator));
+    requests.push(buildConditionalFormatRequest_(
+      sheetId,
+      nameColumn,
+      nameColumn + 1,
+      '=$' + columnLetter_(nameColumn) + '2<>""',
+      { backgroundColor: rgbHex_('FFFFFF'), textFormat: { foregroundColor: rgbHex_('000000'), bold: true } },
+      separator
+    ));
   }
 
   if (tab.name === 'Roster') {
@@ -944,7 +984,7 @@ function buildRoleColorRules_(sheetId, roleColumn, argSeparator) {
   return requests;
 }
 
-// Rewrites plain role/spec values to emoji display values without touching other cells.
+// Rewrites plain spec values to emoji display values without touching other cells (Rôle is a formula).
 function buildRoleAndSpecRewriteRequests_(existingHeadersByName) {
   var requests = [];
   requests = requests.concat(buildRoleAndSpecRewriteForTab_(existingHeadersByName.Roster, tabByName_('Roster')));
@@ -970,17 +1010,21 @@ function buildRoleAndSpecRewriteForTab_(state, tab) {
     var roleValue = normalizeCellString_(row[roleIndex]);
 
     var roleDisplay = roleDisplayValue_(roleValue);
-    if (roleDisplay && roleDisplay !== roleValue) {
-      requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, roleIndex, roleDisplay));
-    }
-
-    var specDisplay = specDisplayValue_(className, specValue);
+    var specDisplay = specDisplayValue_(className, legacyDruidSpec_(className, specValue, roleDisplay));
     if (specDisplay && specDisplay !== specValue) {
       requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, specIndex, specDisplay));
     }
   }
 
   return requests;
+}
+
+// The former single druid feral spec becomes ours (tank role) or félin (any other role); other specs pass through.
+function legacyDruidSpec_(className, specValue, roleDisplay) {
+  if (className !== 'Druide' || ['Combat farouche', '🐻 Combat farouche'].indexOf(specValue) === -1) {
+    return specValue;
+  }
+  return roleDisplay === ROLE_DISPLAY.Tank.value ? 'Combat farouche (ours)' : 'Combat farouche (félin)';
 }
 
 // One updateCells request that rewrites a single value.

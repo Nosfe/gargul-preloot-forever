@@ -258,7 +258,7 @@ function buildListsTabRequests_(listsState, argSeparator) {
           sheetId: LISTS_TAB.sheetId,
           title: LISTS_TAB.name,
           hidden: true,
-          gridProperties: { columnCount: 12 }
+          gridProperties: { columnCount: LISTS_LAYOUT.columnCount }
         }
       }
     });
@@ -269,9 +269,17 @@ function buildListsTabRequests_(listsState, argSeparator) {
       properties: {
         sheetId: sheetId,
         hidden: true,
-        gridProperties: { columnCount: Math.max(12, listsState.exists ? Number(listsState.maxColumns || 0) : 0) }
+        gridProperties: { columnCount: Math.max(LISTS_LAYOUT.columnCount, listsState.exists ? Number(listsState.maxColumns || 0) : 0) }
       },
       fields: 'hidden,gridProperties.columnCount'
+    }
+  });
+
+  // Earlier layouts put lookups where spills now land; a leftover value would block a spill.
+  requests.push({
+    updateCells: {
+      range: { sheetId: sheetId },
+      fields: '*'
     }
   });
 
@@ -285,8 +293,16 @@ function buildListsTabRequests_(listsState, argSeparator) {
 
   requests.push({
     updateCells: {
-      start: { sheetId: sheetId, rowIndex: 1, columnIndex: 9 },
+      start: { sheetId: sheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.rerollsLookupColumn },
       rows: buildRerollsListsRows_(separator),
+      fields: 'userEnteredValue'
+    }
+  });
+
+  requests.push({
+    updateCells: {
+      start: { sheetId: sheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.roleKeyColumn },
+      rows: buildRoleTableRows_(),
       fields: 'userEnteredValue'
     }
   });
@@ -294,46 +310,64 @@ function buildListsTabRequests_(listsState, argSeparator) {
   return requests;
 }
 
-// Builds rows 2..201 of _Listes: class/spec table in A:D and, in F, a lookup that spills the row's specs into F:H.
-// G:H are never written, otherwise the spill would be blocked.
+// Rows of the Classe|Spé → Rôle table (emoji and bare spec both listed), read by the Rôle formula.
+function buildRoleTableRows_() {
+  var rows = [];
+  SPEC_COLUMNS.forEach(function (entry) {
+    var role = ROLE_DISPLAY[entry.role].value;
+    [specDisplayValue_(entry.className, entry.spec), entry.spec].forEach(function (specText) {
+      rows.push({ values: [
+        { userEnteredValue: { stringValue: entry.className + '|' + specText } },
+        { userEnteredValue: { stringValue: role } }
+      ] });
+    });
+  });
+  return rows;
+}
+
+// Rows 2..201 of _Listes: class/spec table in A:E and, in G, a lookup that spills the Roster row's specs into G:J.
+// H:J are never written, otherwise the spill would be blocked.
 function buildListsRows_(argSeparator) {
   var separator = argSeparator || ',';
   var rows = [];
   var classLetter = columnLetter_(columnOf_(tabByName_('Roster'), 'class'));
+  var specsRange = '$B$2:$' + columnLetter_(LISTS_LAYOUT.specCount) + '$10';
 
   for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
     var classIndex = rowNumber - 2;
     var entry = classIndex < CLASS_SPECS.length ? CLASS_SPECS[classIndex] : null;
-    var values = [
-      { userEnteredValue: { stringValue: entry ? entry.name : '' } },
-      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[0]) : '' } },
-      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[1]) : '' } },
-      { userEnteredValue: { stringValue: entry ? specDisplayValue_(entry.name, entry.specs[2]) : '' } },
-      { userEnteredValue: { stringValue: '' } },
-      {
-        userEnteredValue: {
-          formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Roster!' + classLetter + rowNumber + ',$A$2:$A$10,$B$2:$D$10),"")', separator)
-        }
+    var values = [{ userEnteredValue: { stringValue: entry ? entry.name : '' } }];
+    for (var specIndex = 0; specIndex < LISTS_LAYOUT.specCount; specIndex += 1) {
+      var spec = entry && entry.specs[specIndex];
+      values.push({ userEnteredValue: { stringValue: spec ? specDisplayValue_(entry.name, spec) : '' } });
+    }
+    while (values.length < LISTS_LAYOUT.rosterLookupColumn) {
+      values.push({ userEnteredValue: { stringValue: '' } });
+    }
+    values.push({
+      userEnteredValue: {
+        formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Roster!' + classLetter + rowNumber + ',$A$2:$A$10,' + specsRange + '),"")', separator)
       }
-    ];
+    });
     rows.push({ values: values });
   }
 
   return rows;
 }
 
-// Builds rows 2..201 of _Listes column J: class lookup for Rerolls that spills specs into J:L.
+// Rows 2..201 of _Listes column L: class lookup for Rerolls that spills specs into L:O.
 function buildRerollsListsRows_(argSeparator) {
   var separator = argSeparator || ',';
   var rows = [];
   var classLetter = columnLetter_(columnOf_(tabByName_('Rerolls'), 'class'));
+  var specsRange = '$B$2:$' + columnLetter_(LISTS_LAYOUT.specCount) + '$10';
 
   for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
     rows.push({
       values: [
         {
           userEnteredValue: {
-            formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Rerolls!' + classLetter + rowNumber + ',$A$2:$A$10,$B$2:$D$10),"")', separator)
+            formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Rerolls!' + classLetter + rowNumber + ',$A$2:$A$10,' + specsRange + '),"")', separator)
           }
         }
       ]
