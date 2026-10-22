@@ -394,6 +394,10 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
 
   requests = requests.concat(buildPresenceWidthRequests_(sheetId, allNames.length));
 
+  var presenceSort = buildSortColumnsRequests_(sheetId, allNames, { firstColumn: PRESENCE_FIRST_RAIDER_COLUMN, width: 1 });
+  requests = requests.concat(presenceSort.requests);
+  allNames = presenceSort.names;
+
   var headerValues = [
     { userEnteredValue: { stringValue: 'Raid (ID)' } },
     { userEnteredValue: { stringValue: 'Instance' } },
@@ -669,6 +673,40 @@ function appendMissingNames_(existingNames, rosterNames) {
   return next;
 }
 
+// Moves whole column blocks so names end up in alphabetical order (blank slots last); data travels with them.
+// Each step moves the block for position i leftwards, so destinationIndex is unaffected by the removal.
+function buildSortColumnsRequests_(sheetId, names, layout) {
+  var current = names.slice();
+  var sorted = names.slice().sort(function (left, right) {
+    if (!left || !right) {
+      return left ? -1 : (right ? 1 : 0);
+    }
+    return left.localeCompare(right);
+  });
+  var requests = [];
+
+  for (var target = 0; target < sorted.length; target += 1) {
+    var from = current.indexOf(sorted[target], target);
+    if (from === target) {
+      continue;
+    }
+    requests.push({
+      moveDimension: {
+        source: {
+          sheetId: sheetId,
+          dimension: 'COLUMNS',
+          startIndex: layout.firstColumn + from * layout.width,
+          endIndex: layout.firstColumn + (from + 1) * layout.width
+        },
+        destinationIndex: layout.firstColumn + target * layout.width
+      }
+    });
+    current.splice(target, 0, current.splice(from, 1)[0]);
+  }
+
+  return { requests: requests, names: sorted };
+}
+
 // Sets fixed widths for Présence key columns and raider columns.
 function buildPresenceWidthRequests_(sheetId, raiderCount) {
   var requests = [
@@ -761,6 +799,10 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
   });
 
   requests = requests.concat(buildAwardsWidthRequests_(sheetId, allNames.length));
+
+  var awardsSort = buildSortColumnsRequests_(sheetId, allNames, { firstColumn: 0, width: AWARDS_BLOCK_WIDTH });
+  requests = requests.concat(awardsSort.requests);
+  allNames = awardsSort.names;
 
   if (allNames.length) {
     requests.push({

@@ -612,6 +612,36 @@
     return {};
   }
 
+  // Fake moveDimension (COLUMNS): destinationIndex is in coordinates before the source is removed, like the API.
+  function applyMoveDimension_(request, storeById) {
+    var payload = request.moveDimension || {};
+    var source = payload.source || {};
+    var sheet = storeById[String(source.sheetId)];
+    if (!sheet) {
+      throw new Error('Unknown sheet id in moveDimension: ' + source.sheetId);
+    }
+    if (source.dimension !== 'COLUMNS') {
+      throw new Error('Fake moveDimension currently supports only COLUMNS.');
+    }
+    ensureSheetMeta_(sheet);
+    var start = source.startIndex;
+    var end = source.endIndex;
+    var count = end - start;
+    var destination = payload.destinationIndex;
+    if (end > (sheet.meta.columnCount || 26) || destination > (sheet.meta.columnCount || 26)) {
+      throw new Error('moveDimension beyond grid in ' + sheet.title);
+    }
+    var insertAt = destination > start ? destination - count : destination;
+    sheet.rows = sheet.rows.map(function (row) {
+      var next = (row || []).slice();
+      ensureRowLength_(next, end);
+      var moved = next.splice(start, count);
+      Array.prototype.splice.apply(next, [insertAt, 0].concat(moved));
+      return next;
+    });
+    return {};
+  }
+
   function applyMergeCells_(request, storeById) {
     var payload = request.mergeCells || {};
     var range = payload.range || {};
@@ -815,6 +845,10 @@
       }
       if (request.copyPaste) {
         replies.push(applyCopyPaste_(request, workingStore));
+        return;
+      }
+      if (request.moveDimension) {
+        replies.push(applyMoveDimension_(request, workingStore));
         return;
       }
 

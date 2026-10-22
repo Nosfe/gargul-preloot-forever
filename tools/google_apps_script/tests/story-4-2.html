@@ -493,7 +493,7 @@
 
         setUpWorkbook();
         var header = TracerHarness.getRows('Pr\u00e9sence')[0];
-        equal(header[3] + '|' + header[4] + '|' + header[5], 'Ana||Bob', 'blank header keeps its slot');
+        equal(header[3] + '|' + header[4] + '|' + header[5], 'Ana|Bob|', 'blank header slot moves after the names');
         equal(TracerHarness.getSheetMeta('Pr\u00e9sence').columnCount, 40, 'refresh never shrinks the grid');
       });
 
