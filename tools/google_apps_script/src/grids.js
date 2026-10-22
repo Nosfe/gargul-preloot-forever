@@ -15,9 +15,9 @@ function buildGridRequests_(argSeparator) {
   requests = requests.concat(buildGridMigrationDeleteRequests_(states));
   requests = requests.concat(buildListsTabRequests_(states.lists, separator));
   requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator,
-    { state: states.presenceArchive, activeNames: activeNames }));
+    { state: states.presenceArchive, activeNames: activeNames }, metadataBySheetId));
   requests = requests.concat(buildAwardsGridRequests_(states.awards, rosterNames,
-    { state: states.awardsArchive, activeNames: activeNames }));
+    { state: states.awardsArchive, activeNames: activeNames }, metadataBySheetId, separator));
   ITEM_TABS.forEach(function (itemTab, index) {
     requests = requests.concat(
       buildTierItemsGridRequests_(states.itemTabs[index], metadataBySheetId, separator, itemTab)
@@ -343,7 +343,7 @@ function buildRerollsListsRows_(argSeparator) {
 }
 
 // Creates or refreshes the Présence grid without rewriting raid data rows.
-function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive) {
+function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive, metadataBySheetId) {
   var separator = argSeparator || ',';
   var requests = [];
   var existingGrid = presenceState.exists && presenceState.sheetId !== 1101;
@@ -440,11 +440,11 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
       },
       cell: {
         userEnteredFormat: {
-          backgroundColor: rgbHex_('073763'),
+          backgroundColor: rgbHex_(RARITY_STYLE.rareHeader.background),
           horizontalAlignment: 'CENTER',
           textFormat: {
             bold: true,
-            foregroundColor: rgbHex_('FFFFFF')
+            foregroundColor: rgbHex_(RARITY_STYLE.rareHeader.text)
           },
           wrapStrategy: 'WRAP'
         }
@@ -464,15 +464,36 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
       },
       cell: {
         userEnteredFormat: {
+          backgroundColor: rgbHex_(RARITY_STYLE.subHeader.background),
           horizontalAlignment: 'CENTER',
           textFormat: { bold: true }
         }
       },
-      fields: 'userEnteredFormat(horizontalAlignment,textFormat)'
+      fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat)'
     }
   });
 
+  if (existingGrid) {
+    requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {}));
+  }
+  if (allNames.length) {
+    var firstCell = columnLetter_(PRESENCE_FIRST_RAIDER_COLUMN) + (PRESENCE_FIRST_RAID_ROW);
+    requests.push(buildConditionalFormatRequestAtRow_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
+      '=' + firstCell + '=1', rarityFormat_(RARITY_STYLE.rareCell), separator));
+    requests.push(buildConditionalFormatRequestAtRow_(sheetId, PRESENCE_FIRST_RAIDER_COLUMN, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
+      '=' + firstCell + '="B"', rarityFormat_(RARITY_STYLE.epicCell), separator));
+  }
+
   return requests;
+}
+
+// Conditional-format payload: light background with bold coloured text, or muted text alone.
+function rarityFormat_(style) {
+  var format = { textFormat: { foregroundColor: rgbHex_(style.text), bold: Boolean(style.background) } };
+  if (style.background) {
+    format.backgroundColor = rgbHex_(style.background);
+  }
+  return format;
 }
 
 // Reads existing Présence row-1 raider headers from column D onward; blanks keep their slot so names never shift.
@@ -651,7 +672,7 @@ function buildColumnWidthRequest_(sheetId, startIndex, endIndex, pixelSize) {
 }
 
 // Creates or refreshes the Awards blocks while preserving existing entries.
-function buildAwardsGridRequests_(awardsState, rosterNames, archive) {
+function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataBySheetId, argSeparator) {
   var requests = [];
   var existingGrid = awardsState.exists && !isLegacyAwardsSheet_(awardsState);
   var sheetId = existingGrid ? awardsState.sheetId : GRID_TABS.awards.sheetId;
@@ -736,12 +757,12 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive) {
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: rgbHex_('073763'),
+            backgroundColor: rgbHex_(RARITY_STYLE.epicHeader.background),
             horizontalAlignment: 'CENTER',
             textFormat: {
               bold: true,
-              fontSize: 16,
-              foregroundColor: rgbHex_('FFFFFF')
+              fontSize: 14,
+              foregroundColor: rgbHex_(RARITY_STYLE.epicHeader.text)
             }
           }
         },
@@ -760,14 +781,19 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive) {
         },
         cell: {
           userEnteredFormat: {
+            backgroundColor: rgbHex_(RARITY_STYLE.subHeader.background),
             horizontalAlignment: 'CENTER',
             textFormat: { bold: true },
             wrapStrategy: 'WRAP'
           }
         },
-        fields: 'userEnteredFormat(horizontalAlignment,textFormat,wrapStrategy)'
+        fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,textFormat,wrapStrategy)'
       }
     });
+  }
+
+  if (existingGrid) {
+    requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId || {}));
   }
 
   for (var i = 0; i < allNames.length; i += 1) {
@@ -816,6 +842,17 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive) {
       showCustomUi: true,
       inputMessage: 'Traitement : BIS, IMPACT ou NONE.'
     }));
+
+    // Whole award row tinted by its Traitement: BIS legendary, IMPACT epic, NONE muted.
+    var treatmentCell = '$' + columnLetter_(start + AWARDS_TREATMENT_OFFSET) + AWARDS_FIRST_ROW;
+    [
+      { value: 'BIS', style: RARITY_STYLE.legendaryCell },
+      { value: 'IMPACT', style: RARITY_STYLE.epicCell },
+      { value: 'NONE', style: RARITY_STYLE.muted }
+    ].forEach(function (rule) {
+      requests.push(buildConditionalFormatRequestAtRow_(sheetId, start, start + AWARDS_BLOCK_WIDTH, AWARDS_FIRST_ROW - 1,
+        '=' + treatmentCell + '="' + rule.value + '"', rarityFormat_(rule.style), argSeparator));
+    });
   }
 
   return requests;

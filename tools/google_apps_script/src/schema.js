@@ -140,9 +140,20 @@ var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
 });
 
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
-var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Raids', 'Awards']
+var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
-  .concat([ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, 'Config', '_Listes']);
+  .concat(['Raids', 'Config', ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, '_Listes']);
+
+// Light WoW item-rarity tints for Présence (rare blue) and Awards (epic purple, legendary orange for BIS).
+var RARITY_STYLE = {
+  rareHeader: { background: 'DCE9F7', text: '0B4F9C' },
+  rareCell: { background: 'E8F1FC', text: '0070DD' },
+  epicHeader: { background: 'EDE1F7', text: '6A1FA8' },
+  epicCell: { background: 'F4ECFB', text: 'A335EE' },
+  legendaryCell: { background: 'FFF1E0', text: 'C65F00' },
+  subHeader: { background: 'F3F3F3', text: '1F1F1F' },
+  muted: { text: '8A8A8A' }
+};
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };

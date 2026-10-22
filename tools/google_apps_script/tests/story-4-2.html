@@ -236,8 +236,8 @@
           });
 
         equal(order.join(','),
-          'Roster,Rerolls,1011,Raids,1012,1021,1022,1023,1024,1025,Config,1020',
-          'tabs ordered as Roster, Rerolls, Pr\u00e9sence, Raids, Awards, Objets, Config, _Listes');
+          'Roster,Rerolls,1011,1012,1021,1022,1023,1024,1025,Raids,Config,1020',
+          'tabs ordered as Roster, Rerolls, Pr\u00e9sence, Awards, Objets, Raids, Config, _Listes');
       });
 
       withHarness(function () {
@@ -456,9 +456,20 @@
         var before = {
           merges: awardsMeta.merges.length,
           rules: TracerHarness.getSheetMeta('Objets Heal').conditionalFormatRules.length,
+          presenceRules: TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules.length,
+          awardsRules: awardsMeta.conditionalFormatRules.length,
           roster: JSON.stringify(TracerHarness.getRows('Roster'))
         };
+        var ruleFormulas = function (name) {
+          return TracerHarness.getSheetMeta(name).conditionalFormatRules.map(function (rule) {
+            return rule.booleanRule.condition.values[0].userEnteredValue;
+          }).sort().join(' ');
+        };
+        equal(ruleFormulas('Pr\u00e9sence'), '=D3="B" =D3=1', 'Pr\u00e9sence tints 1 (rare) and B (epic)');
+        equal(ruleFormulas('Awards'), ['=$D3="BIS"', '=$D3="IMPACT"', '=$D3="NONE"', '=$I3="BIS"', '=$I3="IMPACT"', '=$I3="NONE"'].join(' '), 'Awards rows tinted by Traitement per block');
         setUpWorkbook();
+        equal(TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules.length, before.presenceRules, 'rerun keeps Pr\u00e9sence rule count stable');
+        equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, before.awardsRules, 'rerun keeps Awards rule count stable');
         equal(TracerHarness.getSheetMeta('Awards').merges.length, before.merges, 'rerun keeps merge count stable');
         equal(TracerHarness.getSheetMeta('Objets Heal').conditionalFormatRules.length, before.rules, 'rerun keeps rule count stable');
         equal(JSON.stringify(TracerHarness.getRows('Roster')), before.roster, 'rerun keeps Roster data unchanged');
