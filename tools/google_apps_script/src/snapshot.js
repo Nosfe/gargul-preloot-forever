@@ -43,7 +43,8 @@ function exportRaidSnapshot() {
       return buildOpenRaidRequests_({
         spreadsheet: spreadsheet,
         sheetsMetadata: sheetsMetadata,
-        raidId: raidId
+        raidId: raidId,
+        tierId: normalizeCellString_(configRow[columnOf_(tabByName_('Config'), 'tierId')]).trim()
       });
     });
 
@@ -311,11 +312,18 @@ function buildOpenRaidRequests_(context) {
   var configSheet = snapshotSheet_(spreadsheet, 'Config');
   var configOpenRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
   var protectionDescription = RAID_OPEN_PROTECTION_PREFIX + ' ' + raidId + ' : entrées de score figées';
+  var raidsTab = tabByName_('Raids');
+  var raidsValues = [];
+  raidsValues[columnOf_(raidsTab, 'raidId')] = { userEnteredValue: { numberValue: Number(raidId) } };
+  raidsValues[columnOf_(raidsTab, 'raidTier')] = { userEnteredValue: { stringValue: String(context.tierId || '') } };
+  for (var i = 0; i < raidsValues.length; i += 1) {
+    raidsValues[i] = raidsValues[i] || {};
+  }
 
   requests.push({
     appendCells: {
       sheetId: raidsSheet.getSheetId(),
-      rows: [{ values: [{ userEnteredValue: { numberValue: Number(raidId) } }] }],
+      rows: [{ values: raidsValues }],
       fields: 'userEnteredValue'
     }
   });
@@ -526,11 +534,13 @@ function cancelOpenRaid() {
       });
 
       var raidIdColumn = columnOf_(tabByName_('Raids'), 'raidId');
+      var raidTierColumn = columnOf_(tabByName_('Raids'), 'raidTier');
       var raidsRows = requireCurrentLayout_(raidsSheet.getDataRange().getValues(), 'Raids');
       for (var rowIndex = raidsRows.length - 1; rowIndex >= 1; rowIndex -= 1) {
         var row = raidsRows[rowIndex] || [];
+        // Raid > Start writes only the ID and the tier; anything else means End raid already filled it.
         var onlyId = row.every(function (value, column) {
-          return column === raidIdColumn || normalizeCellString_(value) === '';
+          return column === raidIdColumn || column === raidTierColumn || normalizeCellString_(value) === '';
         });
         if (normalizeCellString_(row[raidIdColumn]).trim() === raidId && onlyId) {
           requests.push({

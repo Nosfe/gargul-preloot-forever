@@ -99,10 +99,17 @@
       };
     }
 
+    // Raid-start protections only (Config also carries its own permanent protection).
+    function raidProtections_(name) {
+      return (TracerHarness.getSheetMeta(name).protectedRanges || []).filter(function (range) {
+        return String(range.description || '').indexOf(RAID_OPEN_PROTECTION_PREFIX) === 0;
+      });
+    }
+
     function protectionCount_() {
       return ['Roster', 'Présence', 'Raids', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config']
         .map(function (name) {
-          return (TracerHarness.getSheetMeta(name).protectedRanges || []).length;
+          return raidProtections_(name).length;
         })
         .reduce(function (sum, count) { return sum + count; }, 0);
     }
@@ -225,6 +232,11 @@
           config: TracerHarness.getRows('Config')
         };
         equal(String(rowsAfterFirst.raids[rowsAfterFirst.raids.length - 1][0]), '4', 'first export appends raid id 4');
+        equal(String(rowsAfterFirst.raids[rowsAfterFirst.raids.length - 1][columnOf_(tabByName_('Raids'), 'raidTier')]), 'forever-t1', 'Raid > Start stamps the active tier from Config');
+        var configProtections = function () {
+          return TracerHarness.getSheetMeta('Config').protectedRanges.filter(function (range) { return range.description === CONFIG_PROTECTION_DESCRIPTION; }).length;
+        };
+        equal(configProtections(), 1, 'Config protection kept by Raid > Start');
         equal(String(rowsAfterFirst.config[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '4', 'first export sets Config open raid id');
         equal(protectionCount_(), 10, 'first export adds 10 warning-only protections (Raids included)');
 
@@ -232,7 +244,7 @@
         truthy(rosterProtections.length > 0, 'Roster has protection');
         contains(rosterProtections[0].description, RAID_OPEN_PROTECTION_PREFIX, 'protection description has prefix');
         ['Roster', 'Présence', 'Raids', 'Awards', 'Objets Tank', 'Objets Heal', 'Objets Melee DPS', 'Objets Ranged DPS', 'Objets Caster DPS', 'Config'].forEach(function (name) {
-          var ranges = TracerHarness.getSheetMeta(name).protectedRanges;
+          var ranges = raidProtections_(name);
           equal(ranges.length + '|' + ranges[0].warningOnly + '|' + ranges[0].description,
             '1|true|Raid ouvert 4 : entrées de score figées', name + ' has one warning-only raid protection');
         });
@@ -254,6 +266,7 @@
 
         cancelOpenRaid();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Raid 4 annulé', 'cancel reports the raid');
+        equal(configProtections(), 1, 'Config protection kept by Raid > Cancel');
         equal(protectionCount_(), 0, 'cancel removes every raid protection');
         equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '', 'cancel clears Raid ouvert');
         var raidsAfterCancel = TracerHarness.getRows('Raids');

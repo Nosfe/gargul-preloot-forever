@@ -509,7 +509,22 @@ function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, ar
     });
   }
 
+  var dateCell = '$' + columnLetter_(PRESENCE_DATE_COLUMN) + PRESENCE_FIRST_RAID_ROW;
+  requests.push(buildConditionalFormatRequestAtRow_(sheetId, 0, totalColumns, PRESENCE_FIRST_RAID_ROW - 1,
+    '=AND(ISNUMBER(' + dateCell + '),' + dateCell + '<' + TIER_START_REF + ')', oldTierFormat_(), separator));
+
   return requests;
+}
+
+// Config's Début du palier as seen from a conditional format (rules cannot reference another tab directly).
+var TIER_START_REF = 'N(INDIRECT("Config!B2"))';
+
+// Grey text on a light background for rows of previous tiers.
+function oldTierFormat_() {
+  return {
+    backgroundColor: rgbHex_(OLD_TIER_STYLE.background),
+    textFormat: { foregroundColor: rgbHex_(OLD_TIER_STYLE.text), bold: false }
+  };
 }
 
 // Conditional-format payload: light background with bold coloured text.
@@ -955,6 +970,15 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
       requests.push(buildConditionalFormatRequestAtRow_(sheetId, start, start + AWARDS_BLOCK_WIDTH, AWARDS_FIRST_ROW - 1,
         '=' + treatmentCell + '="' + rule.value + '"', rarityFormat_(rule.style), argSeparator));
     });
+
+    // Award of a previous tier, mirroring the loot formulas: its Date, else its raid's Présence date; no usable date counts as current.
+    var dateCell = '$' + columnLetter_(start + AWARDS_DATE_OFFSET) + AWARDS_FIRST_ROW;
+    var raidCell = '$' + columnLetter_(start + AWARDS_RAID_ID_OFFSET) + AWARDS_FIRST_ROW;
+    var awardDate = 'N(IF(' + dateCell + '<>"",' + dateCell + ',IFERROR(VLOOKUP(' + raidCell + ',INDIRECT("\'' + GRID_TABS.presence.name + '\'!$A$' +
+      PRESENCE_FIRST_RAID_ROW + ':$C$1000"),' + (PRESENCE_DATE_COLUMN - PRESENCE_RAID_ID_COLUMN + 1) + ',FALSE),"")))';
+    requests.push(buildConditionalFormatRequestAtRow_(sheetId, start, start + AWARDS_BLOCK_WIDTH, AWARDS_FIRST_ROW - 1,
+      '=AND(' + awardDate + '>0,' + awardDate + '<' + TIER_START_REF + ')',
+      oldTierFormat_(), argSeparator));
   }
 
   return requests;

@@ -199,6 +199,22 @@
       return {};
     }
 
+    // Range-limited value clear (rows from startRowIndex; all columns unless bounded).
+    if (updateCells.range && updateCells.fields === 'userEnteredValue' && !updateCells.rows) {
+      var clearRange = updateCells.range;
+      var firstRow = Number(clearRange.startRowIndex || 0);
+      var lastRow = clearRange.endRowIndex === undefined ? sheet.rows.length : Number(clearRange.endRowIndex);
+      for (var r = firstRow; r < Math.min(lastRow, sheet.rows.length); r += 1) {
+        var clearRow = sheet.rows[r] || [];
+        var firstCol = Number(clearRange.startColumnIndex || 0);
+        var lastCol = clearRange.endColumnIndex === undefined ? clearRow.length : Number(clearRange.endColumnIndex);
+        for (var c = firstCol; c < Math.min(lastCol, clearRow.length); c += 1) {
+          clearRow[c] = '';
+        }
+      }
+      return {};
+    }
+
     rows.forEach(function (rowDef) {
       var width = ((rowDef && rowDef.values) || []).length;
       if (columnIndex + width > (sheet.meta.columnCount || 26)) {
@@ -994,6 +1010,12 @@
       },
       getSpreadsheetLocale: function () {
         return state.locale;
+      },
+      getSheets: function () {
+        var spreadsheet = this;
+        return Object.keys(state.nameIndex).map(function (name) {
+          return spreadsheet.getSheetByName(name);
+        });
       },
       getSheetByName: function (name) {
         if (!Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {

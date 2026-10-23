@@ -10,7 +10,7 @@ function setUpWorkbook() {
       var existingHeadersByName = readExistingHeadersByName_();
       // Existing rules and banding are needed so they can be replaced instead of duplicated.
       var sheetsMetadata = Sheets.Spreadsheets.get(spreadsheet.getId(), {
-        fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId)'
+        fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'
       });
       var plan = buildSetupPlan_(existingHeadersByName, sheetsMetadata, separator);
       return plan.requests;
@@ -76,6 +76,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
 
     requests = requests.concat(buildRosterFormulaRequests_(sheetId, tab, separator));
     requests = requests.concat(buildRoleFormulaRequests_(sheetId, tab, separator));
+    requests = requests.concat(buildConfigProtectionRequests_(sheetId, tab, metadataBySheetId));
 
     requests = requests.concat(buildDeleteExistingLayoutRequests_(sheetId, metadataBySheetId));
 
@@ -554,11 +555,35 @@ function sheetMetadataById_(sheetsMetadata) {
     }
     byId[sheetId] = {
       conditionalFormats: item.conditionalFormats || [],
-      bandedRanges: item.bandedRanges || []
+      bandedRanges: item.bandedRanges || [],
+      protectedRanges: item.protectedRanges || []
     };
   }
 
   return byId;
+}
+
+// Config tier cells (Palier actif, Début du palier, Raid en cours) warn on manual edits; Serveur WCL stays free.
+// Sheets cannot hard-lock the owner, so the protection is warning-only; the old one is replaced, never duplicated.
+function buildConfigProtectionRequests_(sheetId, tab, metadataBySheetId) {
+  if (tab.name !== 'Config') {
+    return [];
+  }
+  var requests = ((metadataBySheetId[sheetId] || {}).protectedRanges || []).filter(function (range) {
+    return range.description === CONFIG_PROTECTION_DESCRIPTION;
+  }).map(function (range) {
+    return { deleteProtectedRange: { protectedRangeId: range.protectedRangeId } };
+  });
+  requests.push({
+    addProtectedRange: {
+      protectedRange: {
+        range: { sheetId: sheetId, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: columnOf_(tab, 'openRaidId') + 1 },
+        description: CONFIG_PROTECTION_DESCRIPTION,
+        warningOnly: true
+      }
+    }
+  });
+  return requests;
 }
 
 // Fixed id lets later requests in the same batch target the new tab.
@@ -923,6 +948,18 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
         separator
       )
     );
+  }
+
+  if (tab.name === 'Raids') {
+    var raidDateCell = '$' + columnLetter_(columnOf_(tab, 'raidDate')) + '2';
+    requests.push(buildConditionalFormatRequest_(
+      sheetId,
+      0,
+      labelsOf_(tab).length,
+      '=AND(ISNUMBER(' + raidDateCell + '),' + raidDateCell + '<' + TIER_START_REF + ')',
+      oldTierFormat_(),
+      separator
+    ));
   }
 
   return requests;

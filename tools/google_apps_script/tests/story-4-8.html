@@ -1,0 +1,223 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Story 4.8 tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/raids.js"></script>
+<script src="../src/tier.js"></script>
+<script src="../src/menu.js"></script>
+<script>
+  (function () {
+    var assertions = 0;
+
+    function equal(actual, expected, label) {
+      assertions += 1;
+      if (actual !== expected) {
+        throw new Error(label + ': expected ' + expected + ', got ' + actual);
+      }
+    }
+
+    function contains(text, expectedSubstring, label) {
+      assertions += 1;
+      if (String(text).indexOf(expectedSubstring) === -1) {
+        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
+      }
+    }
+
+    function withHarness(fn) {
+      TracerHarness.install();
+      try {
+        fn();
+      } finally {
+        TracerHarness.uninstall();
+      }
+    }
+
+    function writeCells_(sheetId, rowIndex, columnIndex, values) {
+      Sheets.Spreadsheets.batchUpdate({ requests: [{
+        updateCells: {
+          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
+          rows: [{ values: values.map(function (value) {
+            if (typeof value === 'number') {
+              return { userEnteredValue: { numberValue: value } };
+            }
+            return { userEnteredValue: { stringValue: String(value) } };
+          }) }],
+          fields: 'userEnteredValue'
+        }
+      }] }, SpreadsheetApp.getActive().getId());
+    }
+
+    function sheetIdOf_(name) {
+      return SpreadsheetApp.getActive().getSheetByName(name).getSheetId();
+    }
+
+    function throwsMessage_(fn) {
+      try {
+        fn();
+      } catch (error) {
+        return error.message;
+      }
+      return '';
+    }
+
+    // Refreshed workbook; Config tier t1 from START_T1 when `tierId` is given; two raids; Tank items.
+    var START_T1 = dateSerialFromIso_('2026-10-01');
+    function seedWorkbook_(tierId) {
+      TABS.forEach(function (tab) {
+        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+      });
+      setUpWorkbook();
+      if (tierId) {
+        writeCells_(sheetIdOf_('Config'), 1, 0, [tierId, START_T1]);
+      }
+      var raidsTab = tabByName_('Raids');
+      var raidOne = [];
+      raidOne[columnOf_(raidsTab, 'raidId')] = 1;
+      raidOne[columnOf_(raidsTab, 'instance')] = 'Molten Core';
+      raidOne[columnOf_(raidsTab, 'raidDate')] = START_T1 + 3;
+      raidOne[columnOf_(raidsTab, 'raidTier')] = '';
+      var raidTwo = raidOne.slice();
+      raidTwo[columnOf_(raidsTab, 'raidId')] = 2;
+      raidTwo[columnOf_(raidsTab, 'raidTier')] = 't0';
+      var raidThree = raidOne.slice();
+      raidThree[columnOf_(raidsTab, 'raidId')] = 3;
+      raidThree[columnOf_(raidsTab, 'raidDate')] = dateSerialFromIso_('2026-11-05');
+      writeCells_(sheetIdOf_('Raids'), 1, 0, raidOne);
+      writeCells_(sheetIdOf_('Raids'), 2, 0, raidTwo);
+      writeCells_(sheetIdOf_('Raids'), 3, 0, raidThree);
+      // Objets Tank: item 777 with two specs filled, item 888 with none, a row with only a Statut.
+      var tankId = sheetIdOf_('Objets Tank');
+      writeCells_(tankId, 3, 0, [777, 'Hache', 'Deux mains', 'BIS', 0.12, 'IMPACT', 0.3]);
+      writeCells_(tankId, 4, 0, [888, 'Cape', 'Dos']);
+      writeCells_(tankId, 5, 0, ['', '', '', 'NORMAL']);
+    }
+
+    try {
+      withHarness(function () {
+        // Happy path: t1 \u2192 t2.
+        seedWorkbook_('t1');
+        var summary = submitNewTier('t2', '2026-11-01');
+        contains(summary, 'Palier t2 actif depuis le 01/11/2026', 'summary names the new tier');
+        contains(summary, '2 raid(s) marqué(s)', 'summary counts stamped raids');
+
+        var config = TracerHarness.getRows('Config')[1];
+        equal(config[0] + '|' + config[1], 't2|' + dateSerialFromIso_('2026-11-01'), 'Config gets the new tier and start date');
+
+        var raidsTier = columnOf_(tabByName_('Raids'), 'raidTier');
+        var raids = TracerHarness.getRows('Raids');
+        equal(raids[1][raidsTier] + '|' + raids[2][raidsTier] + '|' + raids[3][raidsTier], 't1|t0|t2', 'blank raid tiers stamped by date (before the start: outgoing; from it: new), others kept');
+
+        var archive = TracerHarness.getRows('Objets (t1)');
+        equal(archive[0].join('|'), 'R\u00f4le|Objet (ID)|Objet|Emplacement|Sp\u00e9|Statut|Gain (%)', 'archive header (long layout)');
+        var tankSpecs = SPEC_COLUMNS.filter(function (entry) { return entry.role === 'Tank'; });
+        equal(archive[1].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[0].label + '|BIS|0.12', 'one row per filled spec (1)');
+        equal(archive[2].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[1].label + '|IMPACT|0.3', 'one row per filled spec (2)');
+        equal(archive[3].join('|'), 'Tank|888|Cape|Dos|||', 'item with no spec keeps one row');
+        equal(archive[4].join('|'), 'Tank||||' + tankSpecs[0].label + '|NORMAL|', 'row without ID or name still archived');
+        equal(archive.length, 5, 'nothing else archived');
+        var archiveProtections = TracerHarness.getSheetMeta('Objets (t1)').protectedRanges;
+        equal(archiveProtections.length + '|' + archiveProtections[0].warningOnly + '|' + archiveProtections[0].description,
+          '1|true|' + TIER_ARCHIVE_PROTECTION_DESCRIPTION, 'archive is read-only (warning)');
+
+        var tank = TracerHarness.getRows('Objets Tank');
+        equal(tank[2][0] + '|' + tank[2][OBJETS_SLOT_COLUMN], 'Objet (ID)|Emplacement', 'live Objets headers kept');
+        equal(tank.slice(3).map(function (row) { return row.join(''); }).join(''), '', 'live Objets emptied');
+        equal(TracerHarness.getSheetMeta('Objets Tank').dataValidations.some(function (entry) {
+          return entry.range.startColumnIndex === OBJETS_SLOT_COLUMN && entry.rule;
+        }), true, 'live Objets dropdowns kept');
+      });
+
+      withHarness(function () {
+        // First tier: nothing to stamp or archive.
+        seedWorkbook_('');
+        var summary = submitNewTier('t1', '2026-10-01');
+        equal(summary, 'Palier t1 actif depuis le 01/10/2026.', 'first tier summary');
+        equal(TracerHarness.getRows('Config')[1][0], 't1', 'first tier set');
+        equal(TracerHarness.getRows('Raids')[1][columnOf_(tabByName_('Raids'), 'raidTier')], '', 'no stamp for the first tier');
+        equal(SpreadsheetApp.getActive().getSheetByName('Objets ()'), null, 'no archive for the first tier');
+        equal(TracerHarness.getRows('Objets Tank')[3][0], 777, 'live Objets kept for the first tier');
+      });
+
+      withHarness(function () {
+        // Refusals write nothing.
+        seedWorkbook_('t1');
+        var before = JSON.stringify(['Config', 'Raids', 'Objets Tank'].map(function (name) { return TracerHarness.getRows(name); }));
+        contains(throwsMessage_(function () { submitNewTier('t1', '2026-11-01'); }), 'd\u00e9j\u00e0 actif', 'same tier refused');
+        contains(throwsMessage_(function () { submitNewTier('t2', '2026-10-01'); }), 'apr\u00e8s le 01/10/2026', 'start not after current refused');
+        contains(throwsMessage_(function () { submitNewTier('', '2026-11-01'); }), 'obligatoire', 'empty tier refused');
+        contains(throwsMessage_(function () { submitNewTier('t2', '2026-02-30'); }), 'invalide', 'invalid date refused');
+        TracerHarness.seedSheet('Objets (t1)', [['x']]);
+        contains(throwsMessage_(function () { submitNewTier('t2', '2026-11-01'); }), 'existe d\u00e9j\u00e0', 'existing archive refused');
+        equal(JSON.stringify(['Config', 'Raids', 'Objets Tank'].map(function (name) { return TracerHarness.getRows(name); })), before, 'refusals write nothing');
+      });
+
+      withHarness(function () {
+        // A raid in progress: the menu refuses before the dialog, and the server call refuses too.
+        seedWorkbook_('t1');
+        writeCells_(sheetIdOf_('Config'), 1, columnOf_(tabByName_('Config'), 'openRaidId'), [3]);
+        openNewTierDialog();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'raid en cours (3)', 'menu refuses during a raid');
+        equal(TracerHarness.getLastModalDialog(), null, 'no dialog during a raid');
+        contains(throwsMessage_(function () { submitNewTier('t2', '2026-11-01'); }), 'raid en cours', 'server refuses during a raid');
+      });
+
+      withHarness(function () {
+        // Dialog: inputs, recap confirmation; opening it writes nothing.
+        seedWorkbook_('t1');
+        var before = JSON.stringify(TracerHarness.getRows('Config'));
+        openNewTierDialog();
+        var dialog = TracerHarness.getLastModalDialog();
+        equal(dialog.title, 'Nouveau palier', 'dialog title');
+        contains(dialog.html, 'Palier actuel : t1, depuis le 01/10/2026', 'dialog shows the current tier');
+        contains(dialog.html, 'type="date"', 'start date input');
+        contains(dialog.html, 'window.confirm(recap', 'confirmation with the recap');
+        contains(dialog.html, 'Palier sortant', 'recap names the outgoing tier');
+        contains(dialog.html, '.submitNewTier(tier,start)', 'confirmed values go to the server');
+        equal(JSON.stringify(TracerHarness.getRows('Config')), before, 'opening the dialog writes nothing');
+      });
+
+      withHarness(function () {
+        // Raid > Start stamps the active tier on the new Raids row.
+        seedWorkbook_('t1');
+        var requests = buildOpenRaidRequests_({ spreadsheet: SpreadsheetApp.getActive(), sheetsMetadata: { sheets: [] }, raidId: '5', tierId: 't1' });
+        var values = requests[0].appendCells.rows[0].values;
+        equal(values[columnOf_(tabByName_('Raids'), 'raidId')].userEnteredValue.numberValue + '|' +
+          values[columnOf_(tabByName_('Raids'), 'raidTier')].userEnteredValue.stringValue, '5|t1', 'new raid row carries the active tier');
+      });
+
+      withHarness(function () {
+        // Config protection: warning-only on Palier actif, D\u00e9but du palier, Raid en cours; not duplicated by refreshes.
+        seedWorkbook_('t1');
+        setUpWorkbook();
+        var ranges = TracerHarness.getSheetMeta('Config').protectedRanges.filter(function (range) {
+          return range.description === CONFIG_PROTECTION_DESCRIPTION;
+        });
+        equal(ranges.length + '|' + ranges[0].warningOnly, '1|true', 'one warning-only Config protection after two refreshes');
+        equal(ranges[0].range.startColumnIndex + ':' + ranges[0].range.endColumnIndex, '0:' + (columnOf_(tabByName_('Config'), 'openRaidId') + 1), 'Serveur WCL left editable');
+      });
+
+      withHarness(function () {
+        // Menu entry.
+        onOpen();
+        var menu = TracerHarness.getLastMenu();
+        var setup = menu.items.filter(function (entry) { return entry.type === 'submenu' && entry.menu.caption === 'Setup'; })[0].menu;
+        var item = setup.items.filter(function (entry) { return entry.label === 'Nouveau palier'; })[0];
+        equal(item.functionName, 'openNewTierDialog', 'Setup > Nouveau palier opens the dialog');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

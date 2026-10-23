@@ -499,11 +499,30 @@
         var ruleFormulas = function (name) {
           return TracerHarness.getSheetMeta(name).conditionalFormatRules.map(function (rule) {
             return rule.booleanRule.condition.values[0].userEnteredValue;
-          }).sort().join(' ');
+          }).filter(function (formula) { return formula.indexOf('INDIRECT("Config!B2")') === -1; }).sort().join(' ');
+        };
+        var greyRules = function (name) {
+          return TracerHarness.getSheetMeta(name).conditionalFormatRules.filter(function (rule) {
+            return rule.booleanRule.condition.values[0].userEnteredValue.indexOf('INDIRECT("Config!B2")') !== -1;
+          });
         };
         equal(ruleFormulas('Pr\u00e9sence'), '=AND(OR($A3<>"",$C3<>""),D$1<>"",OR(D3="",D3=0)) =D3="B" =D3=1', 'Pr\u00e9sence tints 1, B, and empty/0 on raid rows');
         equal(classHeaderTextHex_('Mage') + '|' + classHeaderTextHex_('Pr\u00eatre') + '|' + classHeaderTextHex_(''), '3FC7EB|6E6E6E|' + HEADER_STYLE.text, 'class header text colours');
         equal(ruleFormulas('Awards'), ['=$D3="BIS"', '=$D3="CLASS_BOUND"', '=$D3="IMPACT"', '=$D3="NORMAL"', '=$I3="BIS"', '=$I3="CLASS_BOUND"', '=$I3="IMPACT"', '=$I3="NORMAL"'].join(' '), 'Awards rows tinted by Traitement per block');
+        // Old-tier grey rules: added last (index 0), so they win over the tints.
+        var presenceGrey = greyRules('Pr\u00e9sence');
+        equal(presenceGrey.length + '|' + presenceGrey[0].booleanRule.condition.values[0].userEnteredValue, '1|=AND(ISNUMBER($C3),$C3<N(INDIRECT("Config!B2")))', 'Pr\u00e9sence old-tier rows greyed from the raid date');
+        equal(presenceGrey[0].ranges[0].startColumnIndex + ':' + presenceGrey[0].ranges[0].startRowIndex, '0:2', 'Pr\u00e9sence grey covers whole raid rows');
+        equal(TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules[0].booleanRule.condition.values[0].userEnteredValue,
+          presenceGrey[0].booleanRule.condition.values[0].userEnteredValue, 'Pr\u00e9sence grey rule has top priority');
+        var awardsGrey = greyRules('Awards');
+        equal(awardsGrey.length, 2, 'one Awards grey rule per block');
+        var anaGrey = awardsGrey.filter(function (rule) { return rule.ranges[0].startColumnIndex === 0; })[0].booleanRule.condition.values[0].userEnteredValue;
+        contains(anaGrey, 'N(IF($A3<>"",$A3,IFERROR(VLOOKUP($E3,INDIRECT("\'Pr\u00e9sence\'!$A$3:$C$1000"),3,FALSE),"")))', 'Awards grey uses the award Date, else its raid date');
+        contains(anaGrey, '>0,', 'an award with no usable date stays current, like the loot formulas');
+        equal(JSON.stringify(TracerHarness.getSheetMeta('Awards').conditionalFormatRules[0].booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_(OLD_TIER_STYLE.text)), 'grey text colour');
+        var raidsGrey = greyRules('Raids');
+        equal(raidsGrey.length + '|' + raidsGrey[0].booleanRule.condition.values[0].userEnteredValue, '1|=AND(ISNUMBER($C2),$C2<N(INDIRECT("Config!B2")))', 'Raids old-tier rows greyed');
         setUpWorkbook();
         equal(TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules.length, before.presenceRules, 'rerun keeps Pr\u00e9sence rule count stable');
         equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, before.awardsRules, 'rerun keeps Awards rule count stable');

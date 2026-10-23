@@ -176,6 +176,13 @@ var PRESENCE_STYLE = {
 // Prefix used by warning-only protections while a raid is open.
 var RAID_OPEN_PROTECTION_PREFIX = 'Raid ouvert';
 
+// Warning-only protections: Config tier cells (set by Nouveau palier and the raid actions) and tier archives.
+var CONFIG_PROTECTION_DESCRIPTION = 'Config : géré par Preloot (Nouveau palier, Raid)';
+var TIER_ARCHIVE_PROTECTION_DESCRIPTION = 'Archive de palier : lecture seule';
+
+// Rows dated before Début du palier (previous tiers): greyed out, they no longer count in the scores.
+var OLD_TIER_STYLE = { background: 'F5F5F5', text: '9E9E9E' };
+
 // Class colour as header text; white (Prêtre) and pale yellow (Voleur) are unreadable on light blue.
 var CLASS_HEADER_TEXT_OVERRIDES = { 'Prêtre': '6E6E6E', 'Voleur': 'B8A200' };
 
@@ -264,7 +271,8 @@ var TABS = [
       { key: 'instance', label: 'Instance', note: 'Nom de l\'instance. Écrit par le script.' },
       { key: 'raidDate', label: 'Date du raid', note: 'Date du raid. Écrit par le script.' },
       { key: 'reportCodes', label: 'Rapports WCL', note: 'Codes de rapports importés pour ce raid, séparés par des espaces.' },
-      { key: 'importedAt', label: 'Importé le', note: 'Date et heure du dernier import de rapport pour ce raid.' }
+      { key: 'importedAt', label: 'Importé le', note: 'Date et heure du dernier import de rapport pour ce raid.' },
+      { key: 'raidTier', label: 'Palier (ID)', note: 'Palier du raid : écrit par Raid > Start, et par Nouveau palier pour les raids sans palier.' }
     ]
   }
 ];
