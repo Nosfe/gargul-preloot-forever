@@ -2,7 +2,7 @@
 var WCL_CHARACTER_API_URL = 'https://fresh.warcraftlogs.com/api/v2/client';
 var WCL_PARSE_BATCH_SIZE = 25;
 
-// Menu action: fills Parse WCL moyen for Roster and Rerolls with (best + median performance average) / 2.
+// Menu action: fills Parse WCL moyen for Roster with (best + median performance average) / 2.
 function updateWclParses() {
   var ui = SpreadsheetApp.getUi();
 
@@ -16,13 +16,10 @@ function updateWclParses() {
         throw new Error('Un raid est démarré : le parse compte dans les scores, mettez-le à jour après la fin du raid.');
       }
       var realm = parseWclRealm_(configRow[columnOf_(configTab, 'wclRealm')]);
-      var targets = [];
-      ['Roster', 'Rerolls'].forEach(function (tabName) {
-        var sheet = snapshotSheet_(spreadsheet, tabName);
-        targets = targets.concat(parseTargets_(sheet, requireCurrentLayout_(sheet.getDataRange().getValues(), tabName), tabByName_(tabName)));
-      });
+      var rosterSheet = snapshotSheet_(spreadsheet, 'Roster');
+      var targets = parseTargets_(rosterSheet, requireCurrentLayout_(rosterSheet.getDataRange().getValues(), 'Roster'), tabByName_('Roster'));
       if (!targets.length) {
-        throw new Error('Aucun personnage dans Roster ou Rerolls.');
+        throw new Error('Aucun personnage dans Roster.');
       }
 
       var token = getWclAccessToken_(requireWclCredentials_());
@@ -52,7 +49,7 @@ function parseWclRealm_(value) {
 
 // One target per named row: where to write and which metric to read (healers HPS, others DPS).
 function parseTargets_(sheet, rows, tab) {
-  var nameColumn = columnOf_(tab, tab.name === 'Roster' ? 'raiderKey' : 'rerollName');
+  var nameColumn = columnOf_(tab, 'raiderKey');
   var roleColumn = columnOf_(tab, 'role');
   var targets = [];
   for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {

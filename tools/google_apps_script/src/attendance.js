@@ -312,7 +312,7 @@ function creditedRaiders_(raidPulls, rosterIndex) {
   ((raidPulls || {}).pulls || []).forEach(function (pull) {
     var seenForPull = Object.create(null);
     (pull.names || []).forEach(function (name) {
-      var resolved = resolveAttendanceKey_(rosterIndex, name);
+      var resolved = findRaiderKey_(rosterIndex, name);
       if (!resolved) {
         unmatchedByName[name] = true;
         return;

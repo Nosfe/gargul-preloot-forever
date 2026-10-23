@@ -160,11 +160,6 @@ function validateAwards_(lines, rosterIndex, blockNames) {
 
 	(lines || []).forEach(function (line) {
 		var winner = normalizeCellString_(line.winner);
-		if (rosterIndex && rosterIndex.rerollToMain && Object.prototype.hasOwnProperty.call(rosterIndex.rerollToMain, winner)) {
-			rejected.push(buildRejectedFromLine_(line, 'Winner is a Rerolls alt.'));
-			return;
-		}
-
 		if (!findRaiderKey_(rosterIndex, winner)) {
 			rejected.push(buildRejectedFromLine_(line, 'Winner is not an exact Roster key.'));
 			return;

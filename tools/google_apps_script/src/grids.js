@@ -4,7 +4,7 @@ function buildGridRequests_(argSeparator) {
   var spreadsheet = SpreadsheetApp.getActive();
   var states = gridSheetStates_(spreadsheet);
   var rosterNames = readSortedRosterNames_(spreadsheet);
-  var activeNames = readActiveNames_(spreadsheet, rosterNames);
+  var activeNames = readActiveNames_(rosterNames);
   var classByName = readClassByName_(spreadsheet);
   var metadataBySheetId = sheetMetadataById_(Sheets.Spreadsheets.get(spreadsheet.getId(), {
     fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId)'
@@ -44,6 +44,7 @@ function gridSheetStates_(spreadsheet) {
     presenceArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.presence.name),
     awardsArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.awards.name),
     butin: readSheetState_(spreadsheet, 'Butin'),
+    removedTabs: REMOVED_TAB_NAMES.map(function (name) { return readSheetState_(spreadsheet, name); }),
     lists: readSheetState_(spreadsheet, LISTS_TAB.name)
   };
 }
@@ -231,6 +232,11 @@ function buildGridMigrationDeleteRequests_(states) {
   if (states.tierItems.exists) {
     requests.push(buildDeleteSheetRequest_(states.tierItems.sheetId));
   }
+  states.removedTabs.forEach(function (state) {
+    if (state.exists) {
+      requests.push(buildDeleteSheetRequest_(state.sheetId));
+    }
+  });
 
   return requests;
 }
@@ -294,14 +300,6 @@ function buildListsTabRequests_(listsState, argSeparator) {
 
   requests.push({
     updateCells: {
-      start: { sheetId: sheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.rerollsLookupColumn },
-      rows: buildRerollsListsRows_(separator),
-      fields: 'userEnteredValue'
-    }
-  });
-
-  requests.push({
-    updateCells: {
       start: { sheetId: sheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.roleKeyColumn },
       rows: buildRoleTableRows_(),
       fields: 'userEnteredValue'
@@ -351,28 +349,6 @@ function buildListsRows_(argSeparator) {
       }
     });
     rows.push({ values: values });
-  }
-
-  return rows;
-}
-
-// Rows 2..201 of _Listes column L: class lookup for Rerolls that spills specs into L:O.
-function buildRerollsListsRows_(argSeparator) {
-  var separator = argSeparator || ',';
-  var rows = [];
-  var classLetter = columnLetter_(columnOf_(tabByName_('Rerolls'), 'class'));
-  var specsRange = '$B$2:$' + columnLetter_(LISTS_LAYOUT.specCount) + '$10';
-
-  for (var rowNumber = 2; rowNumber <= 201; rowNumber += 1) {
-    rows.push({
-      values: [
-        {
-          userEnteredValue: {
-            formulaValue: applyArgSeparator_('=IFERROR(XLOOKUP(Rerolls!' + classLetter + rowNumber + ',$A$2:$A$10,' + specsRange + '),"")', separator)
-          }
-        }
-      ]
-    });
   }
 
   return rows;
@@ -544,7 +520,7 @@ function rarityFormat_(style) {
   };
 }
 
-// Raider-name header text in the raider's class colour (Roster or Rerolls); unknown names keep the header colour.
+// Raider-name header text in the raider's class colour from Roster; unknown names keep the header colour.
 function buildClassHeaderTextRequest_(sheetId, startColumn, width, className) {
   return {
     repeatCell: {
@@ -570,7 +546,7 @@ function buildGridRuleResetRequests_(sheetId, archiveState, metadataBySheetId) {
   return requests;
 }
 
-// Moves the column blocks of names not in Roster/Rerolls to the archive tab, and brings archived blocks back
+// Moves the column blocks of names not in Roster to the archive tab, and brings archived blocks back
 // for names listed again. Moves are cut-and-paste of whole columns, so values, formats and validations travel.
 // Présence archive rows line up with Présence rows: its key columns (A:C) are refreshed on each archive.
 // Returns the requests and the grid names left after the move (kept in place, then restored at the end).
@@ -1555,51 +1531,33 @@ function buildConditionalFormatRequestAtRow_(sheetId, startColumnIndex, endColum
   };
 }
 
-// Class of each Roster and Rerolls name, for class-coloured raider headers.
+// Class of each Roster name, for class-coloured raider headers.
 function readClassByName_(spreadsheet) {
   var classByName = Object.create(null);
-  [['Roster', 'raiderKey'], ['Rerolls', 'rerollName']].forEach(function (entry) {
-    var sheet = spreadsheet.getSheetByName(entry[0]);
-    if (!sheet) {
-      return;
+  var sheet = spreadsheet.getSheetByName('Roster');
+  if (!sheet) {
+    return classByName;
+  }
+  var tab = tabByName_('Roster');
+  var nameColumn = columnOf_(tab, 'raiderKey');
+  var rows = sheet.getDataRange().getValues();
+  // Read before this batch's column migrations run, so find Classe in the live header, not the contract.
+  var liveClassColumn = indexOfHeader_((rows[0] || []).map(function (cell) { return String(cell).trim(); }), ['class', 'Classe']);
+  var classColumn = liveClassColumn !== -1 ? liveClassColumn : columnOf_(tab, 'class');
+  rows.slice(1).forEach(function (row) {
+    var name = (row || [])[nameColumn];
+    if (name !== '' && name !== null && name !== undefined && !classByName[String(name)]) {
+      classByName[String(name)] = String(row[classColumn] || '');
     }
-    var tab = tabByName_(entry[0]);
-    var nameColumn = columnOf_(tab, entry[1]);
-    var rows = sheet.getDataRange().getValues();
-    // Read before this batch's column migrations run, so find Classe in the live header, not the contract.
-    var liveClassColumn = indexOfHeader_((rows[0] || []).map(function (cell) { return String(cell).trim(); }), ['class', 'Classe']);
-    var classColumn = liveClassColumn !== -1 ? liveClassColumn : columnOf_(tab, 'class');
-    rows.slice(1).forEach(function (row) {
-      var name = (row || [])[nameColumn];
-      if (name !== '' && name !== null && name !== undefined && !classByName[String(name)]) {
-        classByName[String(name)] = String(row[classColumn] || '');
-      }
-    });
   });
   return classByName;
 }
 
-// Names whose Présence/Awards columns stay active: Roster raiders plus Rerolls names.
-function readActiveNames_(spreadsheet, rosterNames) {
+// Names whose Présence/Awards columns stay active: the Roster raiders (an empty Roster archives nothing, see buildArchiveMoveRequests_).
+function readActiveNames_(rosterNames) {
   var active = Object.create(null);
-  // An empty Roster is more likely a mistake than a disbanded guild: no active names means no archiving.
-  if (!rosterNames.length) {
-    return active;
-  }
   rosterNames.forEach(function (name) {
     active[name] = true;
-  });
-
-  var rerollsSheet = spreadsheet.getSheetByName('Rerolls');
-  if (!rerollsSheet) {
-    return active;
-  }
-  var nameColumn = columnOf_(tabByName_('Rerolls'), 'rerollName');
-  rerollsSheet.getDataRange().getValues().slice(1).forEach(function (row) {
-    var value = (row || [])[nameColumn];
-    if (value !== '' && value !== null && value !== undefined) {
-      active[String(value)] = true;
-    }
   });
   return active;
 }

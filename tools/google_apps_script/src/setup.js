@@ -177,9 +177,9 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   ];
 }
 
-// Rôle formula on rows 2..201 of Roster and Rerolls: looks up Classe|Spé in the _Listes role table.
+// Rôle formula on Roster rows 2..201: looks up Classe|Spé in the _Listes role table.
 function buildRoleFormulaRequests_(sheetId, tab, argSeparator) {
-  if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+  if (tab.name !== 'Roster') {
     return [];
   }
 
@@ -273,7 +273,7 @@ function deletedSheetIdsFromRequests_(requests) {
   return ids;
 }
 
-// Applies this batch's Roster/Rerolls column migrations to the read headers and rows, so the header check
+// Applies this batch's Roster/Config column migrations to the read headers and rows, so the header check
 // and the role/spec rewrite see the real post-migration columns.
 function effectiveHeadersByName_(existingHeadersByName) {
   var next = Object.create(null);
@@ -305,21 +305,6 @@ function effectiveHeadersByName_(existingHeadersByName) {
         return copy;
       }),
       hasDataRows: roster.hasDataRows
-    };
-  }
-
-  var rerolls = next.Rerolls;
-  if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
-    next.Rerolls = {
-      sheetId: rerolls.sheetId,
-      // Exactly two old columns, so the new contract labels are the post-insert headers.
-      headers: labelsOf_(tabByName_('Rerolls')),
-      rows: (rerolls.rows || []).map(function (row) {
-        var copy = (row || []).slice();
-        copy.splice(1, 0, '', '', '', '');
-        return copy;
-      }),
-      hasDataRows: rerolls.hasDataRows
     };
   }
 
@@ -357,7 +342,6 @@ function legacyRosterColumns_(headers) {
 function buildLegacyTabMigrationRequests_(existingHeadersByName) {
   var requests = [];
   var roster = existingHeadersByName.Roster;
-  var rerolls = existingHeadersByName.Rerolls;
   var config = existingHeadersByName.Config;
 
   if (config && legacyConfigWindowColumn_(config.headers || []) !== -1) {
@@ -384,20 +368,6 @@ function buildLegacyTabMigrationRequests_(existingHeadersByName) {
     });
   }
 
-  if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
-    requests.push({
-      insertDimension: {
-        range: {
-          sheetId: rerolls.sheetId,
-          dimension: 'COLUMNS',
-          startIndex: 1,
-          endIndex: 5
-        },
-        inheritFromBefore: true
-      }
-    });
-  }
-
   return requests;
 }
 
@@ -409,15 +379,6 @@ function isLegacyRosterHeaders_(headers) {
 // True when an existing Roster predates the "Groupe de raid" column (inserted at B, right after the name).
 function needsRosterGroupColumn_(headers) {
   return headers.length > 0 && indexOfHeader_(headers, ['raidGroup', 'Groupe de raid']) === -1;
-}
-
-// True when Rerolls is exactly the 2-column pre-polish contract; any extra column falls through to the header check.
-function isLegacyRerollsHeaders_(headers) {
-  if (!headers || headers.length !== 2) {
-    return false;
-  }
-  return (headers[0] === 'rerollName' || headers[0] === 'Reroll (nom exact)') &&
-    (headers[1] === 'mainKey' || headers[1] === 'Personnage principal');
 }
 
 // First index in headers that matches any candidate, else -1.
@@ -446,9 +407,9 @@ function buildDeleteColumnRequest_(sheetId, index) {
   };
 }
 
-// Bold text on every data cell of Roster and Rerolls (rows 2+); only the bold flag is touched.
+// Bold text on every Roster data cell (rows 2+); only the bold flag is touched.
 function buildBoldDataRequests_(sheetId, tab) {
-  if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+  if (tab.name !== 'Roster') {
     return [];
   }
   return [{
@@ -684,8 +645,6 @@ function buildColumnWidthRequests_(sheetId, tab) {
   var widthsByKey = {
     raiderKey: 210,
     raidGroup: 130,
-    rerollName: 210,
-    mainKey: 210,
     class: 130,
     spec: 170,
     role: 150,
@@ -756,7 +715,7 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
     });
   }
 
-  if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+  if (tab.name === 'Roster') {
     requests.push(
       buildDataValidationRequest_(sheetId, columnOf_(tab, 'class'), {
         condition: {
@@ -772,7 +731,7 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
     );
 
     requests = requests.concat(
-      buildSpecValidationRequests_(sheetId, tab, tab.name === 'Roster' ? LISTS_LAYOUT.rosterLookupColumn : LISTS_LAYOUT.rerollsLookupColumn)
+      buildSpecValidationRequests_(sheetId, tab, LISTS_LAYOUT.rosterLookupColumn)
     );
 
     // Rôle is a formula now: drop the old dropdown.
@@ -920,8 +879,8 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   var separator = argSeparator || ',';
 
   // Each rule is inserted at index 0, so rules added later win: colours first, red bad-name highlights last.
-  if (tab.name === 'Roster' || tab.name === 'Rerolls') {
-    var nameColumn = columnOf_(tab, tab.name === 'Roster' ? 'raiderKey' : 'rerollName');
+  if (tab.name === 'Roster') {
+    var nameColumn = columnOf_(tab, 'raiderKey');
     requests = requests.concat(
       buildClassColorRules_(
         sheetId,
@@ -966,32 +925,6 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
     );
   }
 
-  if (tab.name === 'Rerolls') {
-    var rerollNameLetter = columnLetter_(columnOf_(tab, 'rerollName'));
-    var mainKeyLetter = columnLetter_(columnOf_(tab, 'mainKey'));
-    requests.push(
-      buildConditionalFormatRequest_(
-        sheetId,
-        0,
-        1,
-        '=AND($' + rerollNameLetter + '2<>"",SUMPRODUCT(--EXACT($' + rerollNameLetter + '$2:$' + rerollNameLetter + ',$' + rerollNameLetter + '2))+SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$' + rerollNameLetter + '2))>1)',
-        { backgroundColor: rgbHex_('FFE5E5') },
-        separator
-      )
-    );
-
-    requests.push(
-      buildConditionalFormatRequest_(
-        sheetId,
-        columnOf_(tab, 'mainKey'),
-        columnOf_(tab, 'mainKey') + 1,
-        '=AND($' + mainKeyLetter + '2<>"",SUMPRODUCT(--EXACT(INDIRECT("Roster!A2:A"),$' + mainKeyLetter + '2))=0)',
-        { backgroundColor: rgbHex_('FFE5E5') },
-        separator
-      )
-    );
-  }
-
   return requests;
 }
 
@@ -1024,10 +957,7 @@ function buildRoleColorRules_(sheetId, roleColumn, argSeparator) {
 
 // Rewrites plain spec values to emoji display values without touching other cells (Rôle is a formula).
 function buildRoleAndSpecRewriteRequests_(existingHeadersByName) {
-  var requests = [];
-  requests = requests.concat(buildRoleAndSpecRewriteForTab_(existingHeadersByName.Roster, tabByName_('Roster')));
-  requests = requests.concat(buildRoleAndSpecRewriteForTab_(existingHeadersByName.Rerolls, tabByName_('Rerolls')));
-  return requests;
+  return buildRoleAndSpecRewriteForTab_(existingHeadersByName.Roster, tabByName_('Roster'));
 }
 
 // Builds per-cell rewrite requests for one tab state.

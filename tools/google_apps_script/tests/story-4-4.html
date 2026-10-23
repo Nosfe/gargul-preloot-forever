@@ -80,7 +80,7 @@
 
     function seedCoreTabs_() {
       TABS.forEach(function (tab) {
-        if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+        if (tab.name === 'Roster') {
           return;
         }
         TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
@@ -90,10 +90,6 @@
         ['Ana', 'Raid 1', 'Mage', '', '', ''],
         ['Bob', 'Raid 1', 'Mage', '', '', ''],
         ['Cid', 'Raid 2', 'Mage', '', '', '']
-      ]);
-      TracerHarness.seedSheet('Rerolls', [
-        keysOf_(tabByName_('Rerolls')),
-        ['Zed', 'Mage', '', '', '', 'Cid']
       ]);
       setUpWorkbook();
     }
@@ -159,6 +155,7 @@
 
         var message = submitEndRaid('https://www.warcraftlogs.com/reports/ABC123', '');
         contains(message, 'Unmatched names: Unknown', 'happy path lists unmatched names');
+        contains(message, 'Zed', 'a report character not in Roster is listed as unmatched');
 
         var configRows = TracerHarness.getRows('Config');
         equal(String((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')]), '', 'happy path clears open raid');
@@ -171,8 +168,8 @@
         equal(String(presenceRow.row[1]), 'Molten Core', 'happy path writes instance on presence row');
         truthy(typeof presenceRow.row[PRESENCE_DATE_COLUMN] === 'number', 'happy path writes date serial on presence row');
         equal(presenceRow.row[presenceColumnByName_('Ana')], 1, 'happy path credits Ana');
-        equal(String(presenceRow.row[presenceColumnByName_('Bob')]), '', 'happy path leaves Bob empty');
-        equal(presenceRow.row[presenceColumnByName_('Cid')], 1, 'happy path credits Cid via alt');
+        equal(String(presenceRow.row[presenceColumnByName_('Bob')] || ''), '', 'happy path leaves Bob empty');
+        equal(String(presenceRow.row[presenceColumnByName_('Cid')] || ''), '', 'a report character not in Roster credits nobody');
 
         var raidsRow = findRaidRow_('Raids', 5).row;
         equal(String(raidsRow[columnOf_(tabByName_('Raids'), 'reportCodes')]), 'ABC123', 'happy path writes report code');
@@ -375,16 +372,20 @@
       });
 
       withHarness(function () {
-        // No raider column matrix row.
+        // No raider column matrix row: Zed is added to Roster so two raiders are credited, then Zed's column is blanked.
         seedCoreTabs_();
+        var rosterRows = TracerHarness.getRows('Roster').filter(function (row) { return String(row[0] || ''); });
+        rosterRows.push(['Zed', 'Raid 2', 'Mage']);
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+        setUpWorkbook();
         setStartedRaid_(5);
         saveWclCredentials('id', 'secret');
         queueWclSuccess_();
 
         var spreadsheet = SpreadsheetApp.getActive();
         var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
-        var cidColumn = presenceColumnByName_('Cid');
-        writeCells_(presenceId, 0, cidColumn, ['']);
+        var zedColumn = presenceColumnByName_('Zed');
+        writeCells_(presenceId, 0, zedColumn, ['']);
 
         var message = submitEndRaid('ABC123', '');
         contains(message, 'Run Set up / refresh workbook', 'missing column result message');
@@ -426,14 +427,14 @@
         var roster = TracerHarness.getRows('Roster');
         equal(roster[1][parseColumn] + '|' + roster[2][parseColumn], '75|92.8', 'parse = rounded (best + median) / 2');
         equal(String(roster[3][parseColumn]), '', 'unknown character keeps its parse');
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Sans classement WCL (inchangés) : Cid, Zed', 'summary lists characters without rankings');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Sans classement WCL (inchangés) : Cid', 'summary lists characters without rankings');
         var request = TracerHarness.getFetchLog()[1];
         var query = JSON.parse(request.params.payload).query;
         equal(request.url, WCL_CHARACTER_API_URL, 'character query goes to the Fresh API');
         contains(query, 'c0: character(name: "Ana", serverSlug: "thunderstrike", serverRegion: "eu") { zoneRankings(metric: dps) }', 'DPS metric and realm from Config');
         contains(query, 'c1: character(name: "Bob"', 'second raider in the same request');
         contains(query.split('c1:')[1], 'metric: hps', 'healer uses HPS');
-        contains(query, 'c3: character(name: "Zed"', 'Rerolls characters included');
+        equal(query.indexOf('c3:'), -1, 'only the three Roster characters are queried');
       });
 
       withHarness(function () {

@@ -5,5 +5,5 @@
 {"checksum":"csum-dup","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:20","raidId":"@GPRAID","treatment":"NORMAL"},
 {"checksum":"csum-dup","winner":"Bob","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:21","raidId":"@GPRAID","treatment":"BIS"},
 {"checksum":"csum-unknown","winner":"Unknown","itemID":111,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:25","raidId":"@GPRAID","treatment":"BIS"},
-{"checksum":"csum-reroll","winner":"Zed","itemID":222,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:30","raidId":"@GPRAID","treatment":"BIS"},
+{"checksum":"csum-not-in-roster","winner":"Zed","itemID":222,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:30","raidId":"@GPRAID","treatment":"BIS"},
 {"checksum":"csum-bad-item","winner":"Ana","itemID":"x99","rollType":"MS","os":0,"date":"2026-10-22","time":"21:35","raidId":"@GPRAID","treatment":"BIS"},

@@ -53,7 +53,7 @@
       });
     }
 
-    // Seeds the live workbook as it was before this change (old Roster, Rerolls, Raids and technical tabs).
+    // Seeds the live workbook as it was before this change (old Roster, the removed alt tab with a row, Raids and technical tabs).
     function seedLegacyLiveWorkbook() {
       TracerHarness.seedSheet('Config', [['tierId', 'bisWindowId']]);
       TracerHarness.seedSheet('Roster', [
@@ -81,37 +81,18 @@
       return null;
     }
 
-    // Rerolls row in the current layout: name, class, spec, role, parse, main.
-    function rerollRow(name, main) {
-      return [name, '', '', '', '', main];
-    }
-
     function rosterLookupTests() {
-      var rerollHeader = keysOf_(tabByName_('Rerolls'));
-      var index = buildRosterIndex_(
-        [['raiderKey'], ['Ana'], ['ana']],
-        [rerollHeader, rerollRow('AnaAlt', 'Ana')]
-      );
+      var index = buildRosterIndex_([['raiderKey'], ['Ana'], ['ana']]);
 
       equal(findRaiderKey_(index, 'Ana'), 'Ana', 'exact key lookup for Ana');
       equal(findRaiderKey_(index, 'ana'), 'ana', 'exact key lookup for ana');
       equal(findRaiderKey_(index, 'ANA'), null, 'lookup does not case-fold');
-      equal(resolveAttendanceKey_(index, 'AnaAlt'), 'Ana', 'attendance resolves reroll to main');
-      equal(resolveAttendanceKey_(index, 'Ana'), 'Ana', 'attendance keeps direct raider key');
+      equal(findRaiderKey_(index, 'AnaAlt'), null, 'a name not in Roster resolves to nothing');
 
-      var duplicateIndex = buildRosterIndex_([['raiderKey'], ['Ana'], ['Ana']], [rerollHeader]);
+      var duplicateIndex = buildRosterIndex_([['raiderKey'], ['Ana'], ['Ana']]);
       contains(duplicateIndex.errors[0], 'duplicate key "Ana"', 'duplicate key includes key name');
 
-      var badReroll = buildRosterIndex_(
-        [['raiderKey'], ['Ana'], ['Mira']],
-        [rerollHeader, rerollRow('Ana', 'Ana'), rerollRow('AltOne', 'MissingMain'), rerollRow('AltOne', 'Mira')]
-      );
-      equal(badReroll.errors.length, 3, 'bad reroll scenarios produce three errors');
-      contains(badReroll.errors[0], 'must not match a roster key', 'reroll name collision error');
-      contains(badReroll.errors[1], 'is not in roster keys', 'missing main key error');
-      contains(badReroll.errors[2], 'duplicate rerollName', 'duplicate reroll error');
-
-      var whitespaceIndex = buildRosterIndex_([['raiderKey'], ['Ana ']], [rerollHeader]);
+      var whitespaceIndex = buildRosterIndex_([['raiderKey'], ['Ana ']]);
       contains(whitespaceIndex.errors[0], 'leading/trailing whitespace', 'whitespace error mentions reason');
     }
 
@@ -129,10 +110,7 @@
         var raids = TracerHarness.getRows('Raids')[0];
         equal(raids.slice(0, 5).join(','), 'Raid (ID),Instance,Date du raid,Rapports WCL,Import\u00e9 le', 'Raids merged headers');
 
-        var rerolls = TracerHarness.getRows('Rerolls');
-        equal(rerolls[0].slice(0, 6).join(','), 'Reroll (nom exact),Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen,Personnage principal', 'Rerolls headers migrated');
-        equal(rerolls[1][0], 'AnaAlt', 'Reroll name kept');
-        equal(rerolls[1][5], 'Ana', 'Reroll main moved to column F');
+        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted even with a data row');
 
         var roster = TracerHarness.getRows('Roster');
         equal(roster[0].slice(0, 6).join(','), 'Raider (nom exact en jeu),Groupe de raid,Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen', 'Roster headers migrated, Groupe de raid inserted in B');
@@ -233,26 +211,6 @@
       });
 
       withHarness(function () {
-        seedCoreFlatTabs(['Roster', 'Rerolls']);
-        TracerHarness.seedSheet('Roster', [
-          ['raiderKey', 'class', 'spec', 'role', 'dpsParse'],
-          ['Ana', 'Mage', '', 'Heal', '80']
-        ]);
-        TracerHarness.seedSheet('Rerolls', [
-          ['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey'],
-          ['AnaAlt', 'Pr\u00eatre', '', '', '', 'Ana']
-        ]);
-
-        setUpWorkbook();
-
-        var rerollsMeta = TracerHarness.getSheetMeta('Rerolls');
-        var specRule = validationForColumn(rerollsMeta, columnOf_(tabByName_('Rerolls'), 'spec'));
-        equal(specRule.condition.type, 'ONE_OF_RANGE', 'Rerolls spec uses ONE_OF_RANGE');
-        contains(specRule.condition.values[0].userEnteredValue, "'_Listes'!$L2:$O2", 'Rerolls spec points to L:O helper range');
-        equal(validationForColumn(rerollsMeta, columnOf_(tabByName_('Rerolls'), 'role')), null, 'Rerolls R\u00f4le has no dropdown');
-      });
-
-      withHarness(function () {
         seedCoreFlatTabs();
         TracerHarness.seedSheet('Diagnostics', [['x']]);
 
@@ -263,7 +221,7 @@
           .map(function (request) {
             var id = request.updateSheetProperties.properties.sheetId;
             var name = null;
-            ['Roster', 'Rerolls', 'Raids', 'Awards', 'Config'].forEach(function (candidate) {
+            ['Roster', 'Raids', 'Awards', 'Config'].forEach(function (candidate) {
               var sheet = SpreadsheetApp.getActive().getSheetByName(candidate);
               if (sheet && sheet.getSheetId() === id) {
                 name = candidate;
@@ -273,8 +231,8 @@
           });
 
         equal(order.join(','),
-          'Roster,Rerolls,1011,1012,1021,1022,1023,1024,1025,Raids,Config,1020',
-          'tabs ordered as Roster, Rerolls, Pr\u00e9sence, Awards, Objets, Raids, Config, _Listes');
+          'Roster,1011,1012,1021,1022,1023,1024,1025,Raids,Config,1020',
+          'tabs ordered as Roster, Pr\u00e9sence, Awards, Objets, Raids, Config, _Listes');
       });
 
       withHarness(function () {
@@ -323,10 +281,10 @@
           TracerHarness.getSheetMeta('Butin') === null, true, 'Attendance, Bench and Butin deleted');
         equal(TracerHarness.getSheetMeta('Raids') !== null, true, 'Raids recreated');
 
-        var before = JSON.stringify(['Roster', 'Rerolls', 'Raids'].map(function (name) { return TracerHarness.getRows(name); }));
+        var before = JSON.stringify(['Roster', 'Raids'].map(function (name) { return TracerHarness.getRows(name); }));
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 're-run after migration succeeds');
-        equal(JSON.stringify(['Roster', 'Rerolls', 'Raids'].map(function (name) { return TracerHarness.getRows(name); })), before,
+        equal(JSON.stringify(['Roster', 'Raids'].map(function (name) { return TracerHarness.getRows(name); })), before,
           're-run after migration moves no data and repeats no migration');
       });
 
@@ -342,20 +300,39 @@
       });
 
       withHarness(function () {
-        seedCoreFlatTabs(['Rerolls']);
-        TracerHarness.seedSheet('Rerolls', [['rerollName', 'mainKey', 'Notes'], ['AnaAlt', 'Ana', 'keep']]);
+        // Removed alt tab in its last layout, with a row: refresh deletes it and _Listes keeps no lookup for it.
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey'], ['AnaAlt', 'Prêtre', '', '', '', 'Ana']]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Header conflict in tab "Rerolls"', 'old Rerolls with an extra column aborts');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'refresh with the removed alt tab succeeds');
+        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted');
+        var lists = TracerHarness.getRows('_Listes');
+        equal([11, 12, 13, 14].map(function (c) { return lists[1][c] || ''; }).join(''), '', '_Listes L:O stay empty');
+        equal(lists.some(function (row) { return row.some(function (cell) { return String(cell).indexOf('Rerolls!') !== -1; }); }), false, 'no _Listes formula reads the removed tab');
+        var priestRow = lists.filter(function (row) { return row[0] === 'Prêtre'; })[0];
+        equal(priestRow.slice(1, 4).join(','), '📿 Discipline,✨ Sacré,🌑 Ombre', 'Prêtre specs offered with emoji');
       });
 
       withHarness(function () {
-        seedCoreFlatTabs(['Rerolls']);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls')), ['AnaAlt', 'Prêtre', '', '', '', 'Ana']]);
+        // Removed alt tab with headers only: refresh deletes it too.
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey']]);
         setUpWorkbook();
-        var lists = TracerHarness.getRows('_Listes');
-        contains(lists[1][11], 'XLOOKUP(Rerolls!B2', '_Listes L2 looks up the Rerolls class');
-        var priestRow = lists.filter(function (row) { return row[0] === 'Prêtre'; })[0];
-        equal(priestRow.slice(1, 4).join(','), '📿 Discipline,✨ Sacré,🌑 Ombre', 'Prêtre specs offered with emoji');
+        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'empty removed alt tab deleted');
+      });
+
+      withHarness(function () {
+        // A former alt with grid columns: its tab goes, and its Présence/Awards columns archive like any name not in Roster.
+        seedCoreFlatTabs();
+        seedRoster(['Ana', 'AnaAlt']);
+        setUpWorkbook();
+        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey'], ['AnaAlt', '', '', '', '', 'Ana']]);
+        seedRoster(['Ana']);
+        setUpWorkbook();
+        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted with its row');
+        equal(TracerHarness.getRows('Pr\u00e9sence')[0].slice(3).filter(function (v) { return v; }).join('|'), 'Ana', 'former alt column left Pr\u00e9sence');
+        equal(TracerHarness.getRows('Pr\u00e9sence (archive)')[0][3], 'AnaAlt', 'former alt Pr\u00e9sence column archived');
+        equal(TracerHarness.getRows('Awards (archive)')[0][0], 'AnaAlt', 'former alt Awards block archived');
       });
 
       withHarness(function () {
@@ -560,13 +537,14 @@
         TracerHarness.setLocale('fr_FR');
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'fr_FR setup succeeds');
-        ['Roster', 'Rerolls', 'Objets Caster DPS'].forEach(function (name) {
+        ['Roster', 'Objets Caster DPS'].forEach(function (name) {
           TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
             equal(rule.booleanRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr ' + name + ' rule has no commas');
           });
         });
         contains(TracerHarness.getRows('_Listes')[1][6], ';', 'fr _Listes formula uses semicolons');
         // Fresh workbook: setup created Roster itself.
+        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'fresh workbook has no alt tab');
         equal(TracerHarness.getRows('Roster')[0][1], 'Groupe de raid', 'fresh Roster has Groupe de raid in B');
         equal(validationForColumn(TracerHarness.getSheetMeta('Roster'), 1).condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'Raid 1,Raid 2', 'fresh Roster group dropdown');
       });
@@ -583,7 +561,6 @@
 
       withHarness(function () {
         TracerHarness.seedSheet('Roster', [['raiderKey'], ['Ana'], ['Ana']]);
-        TracerHarness.seedSheet('Rerolls', [keysOf_(tabByName_('Rerolls'))]);
         var threw = false;
         try {
           requireRosterIndex_();
@@ -613,7 +590,7 @@
         var bold = buildSetupRequests_(Object.create(null), { sheets: [] }, ',').filter(function (request) {
           return request.repeatCell && request.repeatCell.fields === 'userEnteredFormat.textFormat.bold';
         });
-        equal(bold.length, 2, 'bold data cells on Roster and Rerolls only');
+        equal(bold.length, 1, 'bold data cells on Roster only');
         equal(bold[0].repeatCell.range.startRowIndex, 1, 'bold starts below the header');
       });
 

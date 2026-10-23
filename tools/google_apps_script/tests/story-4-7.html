@@ -88,7 +88,7 @@
 
     function seedCoreTabs_() {
       TABS.forEach(function (tab) {
-        if (tab.name === 'Roster' || tab.name === 'Rerolls') {
+        if (tab.name === 'Roster') {
           return;
         }
         TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
@@ -98,10 +98,6 @@
         ['Ana', 'Raid 1', 'Mage', '', '', ''],
         ['Bob', 'Raid 1', 'Mage', '', '', ''],
         ['Cid', 'Raid 2', 'Mage', '', '', '']
-      ]);
-      TracerHarness.seedSheet('Rerolls', [
-        keysOf_(tabByName_('Rerolls')),
-        ['Zed', 'Mage', '', '', '', 'Cid']
       ]);
       setUpWorkbook();
 
@@ -220,10 +216,10 @@
         var parsed = parseGargulExport_(sampleText);
         var validated = validateAwards_(parsed.lines, requireRosterIndex_(), readAwardsBlockNames_(TracerHarness.getRows('Awards')));
         equal(validated.lines.length, 3, 'validator keeps only roster winners with awards blocks');
-        equal(validated.rejected.length, 2, 'validator rejects unknown winner and reroll winner');
+        equal(validated.rejected.length, 2, 'validator rejects both winners not in Roster');
         var reasons = {};
         validated.rejected.forEach(function (row) { reasons[row.winner] = row.reason; });
-        contains(reasons.Zed, 'Rerolls alt', 'reroll winner gets the reroll reason');
+        contains(reasons.Zed, 'not an exact Roster key', 'a winner who is not in Roster gets the roster reason');
         contains(reasons.Unknown, 'not an exact Roster key', 'unknown winner gets the roster reason');
       });
 

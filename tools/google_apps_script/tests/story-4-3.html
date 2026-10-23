@@ -232,13 +232,11 @@
 
       withHarness(function () {
         TABS.forEach(function (tab) {
-          if (tab.name !== 'Roster' && tab.name !== 'Rerolls') {
+          if (tab.name !== 'Roster') {
             TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
           }
         });
-        var rerollsHeader = keysOf_(tabByName_('Rerolls'));
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Bob', 'Mage'], ['Cid', 'Mage']]);
-        TracerHarness.seedSheet('Rerolls', [rerollsHeader, ['Zed', 'Mage', '', '', '', 'Ana']]);
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', '', 'Mage'], ['Bob', '', 'Mage'], ['Cid', '', 'Mage'], ['Zed', '', 'Mage']]);
         setUpWorkbook();
 
         var spreadsheet = SpreadsheetApp.getActive();
@@ -255,15 +253,15 @@
           ] }], fields: 'userEnteredValue' } }
         ] }, spreadsheet.getId());
 
-        // Bob leaves the Roster; Zed stays because he is in Rerolls.
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Cid', 'Mage']]);
+        // Bob leaves the Roster; Ana, Cid and Zed stay.
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', '', 'Mage'], ['Cid', '', 'Mage'], ['Zed', '', 'Mage']]);
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'archive run succeeds');
-        equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, 2 * 4, 'Awards rules rebuilt for the 2 remaining blocks');
+        equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, 3 * 4, 'Awards rules rebuilt for the 3 remaining blocks');
         equal(TracerHarness.getSheetMeta('Awards (archive)').conditionalFormatRules.length, 0, 'archived block carries no stale rules');
 
         var presence = TracerHarness.getRows('Présence');
-        equal(presence[0].slice(3, 6).join('|'), 'Ana|Cid|Zed', 'Bob column left Présence, Rerolls name kept');
+        equal(presence[0].slice(3, 6).join('|'), 'Ana|Cid|Zed', 'Bob column left Présence, Roster names kept');
         equal(presence[2].slice(0, 6).join('|'), 'R1|MC|2026-11-02|1|1|1', 'remaining Présence values follow their names');
         var presenceArchive = TracerHarness.getRows('Présence (archive)');
         equal(presenceArchive[0].slice(0, 4).join('|'), 'Raid (ID)|Instance|Date|Bob', 'Bob column archived with raid key columns');
@@ -280,7 +278,7 @@
         equal(JSON.stringify([TracerHarness.getRows('Présence'), TracerHarness.getRows('Awards'), TracerHarness.getRows('Présence (archive)'), TracerHarness.getRows('Awards (archive)')]), archived, 'rerun moves nothing');
 
         // Bob comes back: his history returns in alphabetical place.
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Mage'], ['Bob', 'Mage'], ['Cid', 'Mage']]);
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', '', 'Mage'], ['Bob', '', 'Mage'], ['Cid', '', 'Mage'], ['Zed', '', 'Mage']]);
         setUpWorkbook();
         presence = TracerHarness.getRows('Présence');
         equal(presence[0].slice(3, 7).join('|') + ' ' + presence[2].slice(3, 7).join('|'), 'Ana|Bob|Cid|Zed 1|B|1|1', 'Bob Présence restored in order with its value');
@@ -291,7 +289,7 @@
         equal(TracerHarness.getRows('Awards (archive)')[0].join(''), '', 'Awards archive emptied');
 
         // A new raider sorting before raiders with data takes their place; their data moves along.
-        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Aaron', 'Mage'], ['Ana', 'Mage'], ['Bob', 'Mage'], ['Cid', 'Mage']]);
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Aaron', '', 'Mage'], ['Ana', '', 'Mage'], ['Bob', '', 'Mage'], ['Cid', '', 'Mage'], ['Zed', '', 'Mage']]);
         setUpWorkbook();
         presence = TracerHarness.getRows('Présence');
         equal(presence[0].slice(3, 8).join('|') + ' ' + presence[2].slice(3, 8).join('|'), 'Aaron|Ana|Bob|Cid|Zed |1|B|1|1', 'new name sorted first, data follows names');

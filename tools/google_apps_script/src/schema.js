@@ -1,7 +1,7 @@
 // Roster roles shown to the owner; story 4.6 maps them to Interchange v1 (TANK, HEALER, DPS).
 var ROLE_OPTIONS = ['Tank', 'Heal', 'Melee DPS', 'Ranged DPS', 'Caster DPS'];
 
-// Display values and colours for role dropdowns in Roster and Rerolls.
+// Display values and colours for the Roster role column.
 var ROLE_DISPLAY = {
   'Tank': { value: '🛡️ Tank', colorHex: 'C9D6E3', textHex: '1F1F1F' },
   'Heal': { value: '✚ Heal', colorHex: 'C8E6C9', textHex: '1F1F1F' },
@@ -128,7 +128,7 @@ var AWARDS_TREATMENT_OFFSET = 3;
 var AWARDS_RAID_ID_OFFSET = 4;
 var AWARDS_FIRST_ROW = 3;
 
-// Columns of raiders no longer in Roster or Rerolls move here; they come back when the name is listed again.
+// Columns of raiders no longer in Roster move here; they come back when the name is listed again.
 var ARCHIVE_TABS = {
   presence: { name: 'Présence (archive)', sheetId: 1016 },
   awards: { name: 'Awards (archive)', sheetId: 1017 }
@@ -150,7 +150,7 @@ var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains
 var RAID_GROUPS = ['Raid 1', 'Raid 2'];
 
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
-var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
+var TAB_ORDER = ['Roster', 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
   .concat(['Raids', 'Config', ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, '_Listes']);
 
@@ -194,12 +194,14 @@ function classHeaderTextHex_(className) {
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
-// _Listes layout (0-based columns): class table A + up to 4 specs, per-row spec lookups for Roster and Rerolls
-// (each spills over 4 columns), and the Classe|Spé → Rôle table read by the Rôle formula.
+// Tabs from earlier layouts that setup deletes, data included (owner decision 2026-10-23: every character is in Roster).
+var REMOVED_TAB_NAMES = ['Rerolls'];
+
+// _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
+// (spills over 4 columns), and the Classe|Spé → Rôle table read by the Rôle formula.
 var LISTS_LAYOUT = {
   specCount: 4,
   rosterLookupColumn: 6,
-  rerollsLookupColumn: 11,
   roleKeyColumn: 16,
   roleValueColumn: 17,
   columnCount: 26
@@ -250,19 +252,6 @@ var TABS = [
       { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'impactBase', label: 'Impact (sans gain objet)', note: 'Calculé, ne pas saisir.', formula: true }
-    ]
-  },
-  {
-    name: 'Rerolls',
-    sheetId: 1003,
-    group: 'input',
-    columns: [
-      { key: 'rerollName', label: 'Reroll (nom exact)', note: 'Nom exact du reroll. Sa présence compte pour le personnage principal, jamais son loot.' },
-      { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
-      { key: 'spec', label: 'Spé', note: 'Spécialisation : une des spés de la classe, avec emoji.' },
-      { key: 'role', label: 'Rôle', note: 'Rempli automatiquement depuis la classe et la spé, ne pas saisir.', formula: true },
-      { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
-      { key: 'mainKey', label: 'Personnage principal', note: 'Nom exact du personnage principal, tel qu\'écrit dans Roster.' }
     ]
   },
   {

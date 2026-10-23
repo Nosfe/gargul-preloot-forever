@@ -332,7 +332,7 @@ function buildOpenRaidRequests_(context) {
     requests = requests.concat(buildRaidProtectionDeleteRequests_({ sheets: [sheet] }));
   });
 
-  var freezeTabs = ['Roster', 'Rerolls', GRID_TABS.presence.name, 'Raids', GRID_TABS.awards.name]
+  var freezeTabs = ['Roster', GRID_TABS.presence.name, 'Raids', GRID_TABS.awards.name]
     .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
     .concat(['Config']);
   freezeTabs.forEach(function (name) {
