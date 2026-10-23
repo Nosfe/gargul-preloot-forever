@@ -208,8 +208,8 @@
         onOpen();
         var menu = TracerHarness.getLastMenu();
         var setup = menu.items.filter(function (entry) { return entry.type === 'submenu' && entry.menu.caption === 'Setup'; })[0].menu;
-        var item = setup.items.filter(function (entry) { return entry.label === 'Nouveau palier'; })[0];
-        equal(item.functionName, 'openNewTierDialog', 'Setup > Nouveau palier opens the dialog');
+        var item = setup.items.filter(function (entry) { return entry.label === 'New tier'; })[0];
+        equal(item.functionName, 'openNewTierDialog', 'Setup > New tier opens the dialog');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';

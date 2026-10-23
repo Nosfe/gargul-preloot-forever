@@ -17,7 +17,7 @@ function onOpen() {
         .addItem('WCL credentials', 'setWclCredentials')
         .addItem('Update WCL parses', 'updateWclParses')
         .addItem('Show Gargul export format', 'showGargulExportFormat')
-        .addItem('Nouveau palier', 'openNewTierDialog')
+        .addItem('New tier', 'openNewTierDialog')
     )
     .addToUi();
 }
