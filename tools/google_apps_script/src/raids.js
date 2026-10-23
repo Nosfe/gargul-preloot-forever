@@ -1,30 +1,75 @@
-// Menu action: deletes one raid everywhere (Raids row, Présence row, its loot in Awards and the archives).
+// Menu action: picks a raid from the Raids tab, then deletes it everywhere after a confirmation.
 function deleteRaid() {
   var ui = SpreadsheetApp.getUi();
-  var response = ui.prompt(
-    'Delete raid',
-    'Raid (ID) à supprimer. Sa ligne Raids, sa ligne Présence et ses loots dans Awards (archives comprises) seront supprimés.',
-    ui.ButtonSet.OK_CANCEL
-  );
-  if (response.getSelectedButton() !== ui.Button.OK) {
-    return;
-  }
-  var raidId = normalizeCellString_(response.getResponseText()).trim();
-  if (!raidId) {
+  var choices = raidChoices_(SpreadsheetApp.getActive());
+  if (!choices.length) {
+    ui.alert('Aucun raid dans l\'onglet Raids.');
     return;
   }
 
-  try {
-    var summary = '';
-    applyBatch_(function () {
-      var built = buildDeleteRaidRequests_(SpreadsheetApp.getActive(), raidId);
-      summary = built.summary;
-      return built.requests;
-    });
-    ui.alert(summary);
-  } catch (error) {
-    ui.alert('Delete raid failed:\n' + error.message);
+  var options = choices.map(function (choice) {
+    return '<option value="' + snapshotEscapeHtml_(choice.raidId) + '">' + snapshotEscapeHtml_(choice.label) + '</option>';
+  }).join('');
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:Verdana,Arial,sans-serif;padding:12px">' +
+      '<p style="margin:0 0 8px 0">Sa ligne Raids, sa ligne Présence et ses loots dans Awards (archives comprises) seront supprimés.</p>' +
+      '<select id="raid" style="width:100%;padding:4px">' + options + '</select>' +
+      '<div style="margin-top:12px;display:flex;gap:8px;align-items:center">' +
+        '<button id="delete" onclick="confirmDelete()">Supprimer</button>' +
+        '<button onclick="google.script.host.close()">Annuler</button>' +
+        '<span id="status"></span>' +
+      '</div>' +
+      '<script>' +
+        'function confirmDelete(){' +
+          'var select=document.getElementById("raid");' +
+          'var label=select.options[select.selectedIndex].text;' +
+          'if(!window.confirm("Supprimer définitivement le raid "+label+" ?")){return;}' +
+          'document.getElementById("delete").disabled=true;' +
+          'document.getElementById("status").textContent="Suppression...";' +
+          'google.script.run' +
+            '.withSuccessHandler(function(message){alert(message);google.script.host.close();})' +
+            '.withFailureHandler(function(error){document.getElementById("delete").disabled=false;document.getElementById("status").textContent="";alert("Delete raid failed:\\n"+error.message);})' +
+            '.submitDeleteRaid(select.value);' +
+        '}' +
+      '</script>' +
+    '</div>'
+  ).setWidth(520).setHeight(200);
+
+  ui.showModalDialog(html, 'Delete raid');
+}
+
+// Called by the Delete raid dialog after the owner confirmed; returns the summary.
+function submitDeleteRaid(raidId) {
+  var id = normalizeCellString_(raidId).trim();
+  if (!id) {
+    throw new Error('Choisir un raid.');
   }
+  var summary = '';
+  applyBatch_(function () {
+    var built = buildDeleteRaidRequests_(SpreadsheetApp.getActive(), id);
+    summary = built.summary;
+    return built.requests;
+  });
+  return summary;
+}
+
+// One choice per Raids row: "Raid (ID) - Instance - Date du raid", blank parts left out.
+function raidChoices_(spreadsheet) {
+  var sheet = spreadsheet.getSheetByName('Raids');
+  if (!sheet) {
+    return [];
+  }
+  var tab = tabByName_('Raids');
+  var timeZone = Session.getScriptTimeZone();
+  return sheet.getDataRange().getValues().slice(1).map(function (row) {
+    var raidId = normalizeCellString_(row[columnOf_(tab, 'raidId')]).trim();
+    var date = row[columnOf_(tab, 'raidDate')];
+    var dateText = date instanceof Date ? Utilities.formatDate(date, timeZone, 'dd/MM/yyyy') : normalizeCellString_(date).trim();
+    var parts = [raidId, normalizeCellString_(row[columnOf_(tab, 'instance')]).trim(), dateText].filter(function (part) { return part; });
+    return { raidId: raidId, label: parts.join(' - ') };
+  }).filter(function (choice) {
+    return choice.raidId;
+  });
 }
 
 // All requests that remove one raid; rows are deleted bottom-up so earlier indexes stay valid.

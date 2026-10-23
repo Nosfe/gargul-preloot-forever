@@ -3,7 +3,7 @@ function onOpen() {
   var ui = SpreadsheetApp.getUi();
 
   ui
-    .createMenu('Loot priority')
+    .createMenu('Preloot')
     .addSubMenu(
       ui.createMenu('Raid')
         .addItem('Start (export snapshot)', 'exportRaidSnapshot')
