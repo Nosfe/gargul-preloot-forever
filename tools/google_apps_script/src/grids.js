@@ -143,7 +143,8 @@ function itemTabHasLegacyOrder_(state) {
   }
 
   var labels = rows[2] || [];
-  for (var column = 2; column + 1 < labels.length; column += 2) {
+  var firstSpecColumn = labels[OBJETS_SLOT_COLUMN] === 'Emplacement' ? OBJETS_FIRST_SPEC_COLUMN : 2;
+  for (var column = firstSpecColumn; column + 1 < labels.length; column += 2) {
     if (labels[column] === 'Gain (%)' && labels[column + 1] === 'Statut') {
       return true;
     }
@@ -1037,7 +1038,9 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
   var specs = SPEC_COLUMNS.filter(function (entry) { return entry.role === itemTab.role; });
   var existingGrid = tierState.exists;
   var sheetId = existingGrid ? tierState.sheetId : itemTab.sheetId;
-  var totalColumns = 2 + (specs.length * 2);
+  var totalColumns = OBJETS_FIRST_SPEC_COLUMN + (specs.length * 2);
+  // Tabs built before the Emplacement column get it inserted so owner data shifts with its spec.
+  var needsSlotColumn = existingGrid && ((tierState.rows || [])[2] || [])[OBJETS_SLOT_COLUMN] !== 'Emplacement';
 
   if (!existingGrid) {
     requests.push({
@@ -1050,14 +1053,29 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
     });
   }
 
+  if (needsSlotColumn) {
+    requests.push({
+      insertDimension: {
+        range: {
+          sheetId: sheetId,
+          dimension: 'COLUMNS',
+          startIndex: OBJETS_SLOT_COLUMN,
+          endIndex: OBJETS_SLOT_COLUMN + 1
+        },
+        inheritFromBefore: false
+      }
+    });
+  }
+
   requests.push({
     updateSheetProperties: {
       properties: {
         sheetId: sheetId,
         gridProperties: {
-          columnCount: gridColumnCount_(tierState, existingGrid, totalColumns),
+          columnCount: gridColumnCount_(tierState, existingGrid,
+            Math.max(totalColumns, needsSlotColumn ? Number(tierState.maxColumns || 0) + 1 : 0)),
           frozenRowCount: 3,
-          frozenColumnCount: 2
+          frozenColumnCount: OBJETS_FIRST_SPEC_COLUMN
         }
       },
       fields: 'gridProperties.columnCount,gridProperties.frozenRowCount,gridProperties.frozenColumnCount'
@@ -1140,6 +1158,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
   }
   requests = requests.concat(buildTierGainRuleRequests_(sheetId, separator, specs));
   requests = requests.concat(buildTierStatusValidationRequests_(sheetId, specs));
+  requests = requests.concat(buildTierSlotValidationRequests_(sheetId));
   requests = requests.concat(buildTierStatusTextFormatRequests_(sheetId, specs));
   requests = requests.concat(buildTierGainFormatRequests_(sheetId, specs));
 
@@ -1148,7 +1167,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
 
 // Builds the three item-grid header rows for the given specs.
 function buildTierHeaderRows_(specs) {
-  var totalColumns = 2 + (specs.length * 2);
+  var totalColumns = OBJETS_FIRST_SPEC_COLUMN + (specs.length * 2);
   var row1 = [];
   var row2 = [];
   var row3 = [];
@@ -1161,12 +1180,13 @@ function buildTierHeaderRows_(specs) {
 
   row3[0] = { userEnteredValue: { stringValue: 'Objet (ID)' } };
   row3[1] = { userEnteredValue: { stringValue: 'Objet' } };
+  row3[OBJETS_SLOT_COLUMN] = { userEnteredValue: { stringValue: 'Emplacement' } };
 
   var roleStartByName = Object.create(null);
   var roleEndByName = Object.create(null);
 
   specs.forEach(function (entry, index) {
-    var statusColumn = 2 + (index * 2);
+    var statusColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     row2[statusColumn] = { userEnteredValue: { stringValue: entry.spec } };
     row3[statusColumn] = { userEnteredValue: { stringValue: 'Statut' } };
     row3[statusColumn + 1] = { userEnteredValue: { stringValue: 'Gain (%)' } };
@@ -1192,7 +1212,7 @@ function buildTierSpecLabelStyleRequests_(sheetId, specs) {
   });
 
   return specs.map(function (entry, index) {
-    var gainColumn = 2 + (index * 2);
+    var gainColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     var colors = classColorByName[entry.className] || { bg: 'FFFFFF', text: '1F1F1F' };
 
     return {
@@ -1228,11 +1248,11 @@ function buildTierMergeRequests_(sheetId, specs) {
 
   while (index < specs.length) {
     var roleName = specs[index].role;
-    var roleStart = 2 + (index * 2);
+    var roleStart = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     var roleEnd = roleStart;
 
     while (index < specs.length && specs[index].role === roleName) {
-      roleEnd = 2 + (index * 2) + 2;
+      roleEnd = OBJETS_FIRST_SPEC_COLUMN + (index * 2) + 2;
       index += 1;
     }
 
@@ -1251,7 +1271,7 @@ function buildTierMergeRequests_(sheetId, specs) {
   }
 
   specs.forEach(function (_, specIndex) {
-    var gainColumn = 2 + (specIndex * 2);
+    var gainColumn = OBJETS_FIRST_SPEC_COLUMN + (specIndex * 2);
     requests.push({
       mergeCells: {
         range: {
@@ -1273,11 +1293,12 @@ function buildTierMergeRequests_(sheetId, specs) {
 function buildTierWidthRequests_(sheetId, specs) {
   var requests = [
     buildColumnWidthRequest_(sheetId, 0, 1, 120),
-    buildColumnWidthRequest_(sheetId, 1, 2, 220)
+    buildColumnWidthRequest_(sheetId, 1, 2, 220),
+    buildColumnWidthRequest_(sheetId, OBJETS_SLOT_COLUMN, OBJETS_SLOT_COLUMN + 1, 130)
   ];
 
   specs.forEach(function (_, index) {
-    var statusColumn = 2 + (index * 2);
+    var statusColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     requests.push(buildColumnWidthRequest_(sheetId, statusColumn, statusColumn + 1, 120));
     requests.push(buildColumnWidthRequest_(sheetId, statusColumn + 1, statusColumn + 2, 105));
   });
@@ -1290,7 +1311,7 @@ function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var gainColumn = 2 + (index * 2) + 1;
+    var gainColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2) + 1;
     var gainLetter = columnLetter_(gainColumn);
 
     requests.push(
@@ -1326,7 +1347,7 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var statusColumn = 2 + (index * 2);
+    var statusColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     // Clear both columns of the pair: before the swap the Statut dropdown sat on today's Gain column.
     requests.push(buildDataValidationRequestByRange_(sheetId, {
       startRowIndex: 3,
@@ -1357,12 +1378,29 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
   return requests;
 }
 
+// Emplacement dropdown from row 4 to the sheet bottom.
+function buildTierSlotValidationRequests_(sheetId) {
+  return [buildDataValidationRequestByRange_(sheetId, {
+    startRowIndex: 3,
+    startColumnIndex: OBJETS_SLOT_COLUMN,
+    endColumnIndex: OBJETS_SLOT_COLUMN + 1
+  }, {
+    condition: {
+      type: 'ONE_OF_LIST',
+      values: ITEM_SLOTS.map(function (slot) { return { userEnteredValue: slot }; })
+    },
+    strict: true,
+    showCustomUi: true,
+    inputMessage: 'Emplacement de l\'objet.'
+  })];
+}
+
 // Applies percent number format on all gain columns from row 4 onward.
 function buildTierGainFormatRequests_(sheetId, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var gainColumn = 2 + (index * 2) + 1;
+    var gainColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2) + 1;
     requests.push({
       repeatCell: {
         range: {
@@ -1392,7 +1430,7 @@ function buildTierStatusTextFormatRequests_(sheetId, specs) {
   var requests = [];
 
   specs.forEach(function (_, index) {
-    var statusColumn = 2 + (index * 2);
+    var statusColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     requests.push({
       repeatCell: {
         range: {

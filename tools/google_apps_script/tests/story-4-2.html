@@ -185,13 +185,33 @@
         setUpWorkbook();
 
         var rows = TracerHarness.getRows('Objets Heal');
-        equal(rows[2][2], 'Statut', 'Objets row 3 first of pair is Statut');
-        equal(rows[2][3], 'Gain (%)', 'Objets row 3 second of pair is Gain (%)');
+        equal(rows[2][2], 'Emplacement', 'Objets row 3 has Emplacement in column C');
+        equal(rows[2][3], 'Statut', 'Objets row 3 first of pair is Statut');
+        equal(rows[2][4], 'Gain (%)', 'Objets row 3 second of pair is Gain (%)');
 
         var meta = TracerHarness.getSheetMeta('Objets Heal');
-        var statusRule = validationForColumn(meta, 2);
+        var statusRule = validationForColumn(meta, 3);
         equal(statusRule.condition.values.map(function (value) { return value.userEnteredValue; }).join(','),
           'BIS,IMPACT,CLASS_BOUND,NORMAL', 'Objets statut values reduced');
+        equal(validationForColumn(meta, 2).condition.values.length, ITEM_SLOTS.length, 'Emplacement dropdown on column C');
+      });
+
+      withHarness(function () {
+        // Tab built before the Emplacement column: owner data moves right with its spec.
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet('Objets Heal', [
+          ['', '', 'Heal'],
+          ['', '', 'Sacr\u00e9'],
+          ['Objet (ID)', 'Objet', 'Statut', 'Gain (%)'],
+          [19019, 'Thunderfury', 'BIS', 0.03]
+        ]);
+
+        setUpWorkbook();
+
+        var rows = TracerHarness.getRows('Objets Heal');
+        equal(rows[3].slice(0, 5).join('|'), '19019|Thunderfury||BIS|0.03', 'existing item keeps its Statut and Gain under its spec');
+        setUpWorkbook();
+        equal(TracerHarness.getRows('Objets Heal')[3].slice(0, 5).join('|'), '19019|Thunderfury||BIS|0.03', 'second refresh inserts nothing more');
       });
 
       withHarness(function () {
@@ -351,9 +371,9 @@
         } }] }, SpreadsheetApp.getActive().getId());
         setUpWorkbook();
         var meta = TracerHarness.getSheetMeta('Objets Heal');
-        equal(validationForColumn(meta, 3), null, 'old Statut dropdown removed from the Gain column');
+        equal(validationForColumn(meta, 4), null, 'old Statut dropdown removed from the Gain column');
         var formulas = meta.conditionalFormatRules.map(function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue; });
-        equal(formulas.indexOf('=D4<0') !== -1 && formulas.indexOf('=C4<0') === -1, true, 'gain rules moved to the second column of the pair');
+        equal(formulas.indexOf('=E4<0') !== -1 && formulas.indexOf('=D4<0') === -1, true, 'gain rules moved to the second column of the pair');
       });
 
       withHarness(function () {
@@ -362,7 +382,7 @@
         var caster = TracerHarness.getSheetMeta('Objets Caster DPS');
         var casterRows = TracerHarness.getRows('Objets Caster DPS');
         equal(casterRows[1].filter(function (v) { return v; }).length, 9, '9 Caster DPS spec labels');
-        equal(caster.frozenRowCount + ':' + caster.frozenColumnCount, '3:2', 'Objets rows 1-3 and A-B frozen');
+        equal(caster.frozenRowCount + ':' + caster.frozenColumnCount, '3:3', 'Objets rows 1-3 and A-C frozen');
         equal(caster.conditionalFormatRules.length, 18, 'red and green rules per Caster spec');
         var specCount = 0;
         ITEM_TABS.forEach(function (itemTab) {
@@ -447,13 +467,13 @@
         equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,CLASS_BOUND,NONE', 'Bob block Traitement dropdown');
 
         var tierRows = TracerHarness.getRows('Objets Tank');
-        equal(tierRows[2][2] + ',' + tierRows[2][3], 'Statut,Gain (%)', 'Objets pair is Statut then Gain');
+        equal(tierRows[2][2] + ',' + tierRows[2][3] + ',' + tierRows[2][4], 'Emplacement,Statut,Gain (%)', 'Objets: Emplacement, then Statut then Gain');
         var tierMeta = TracerHarness.getSheetMeta('Objets Tank');
         var tierFormulas = tierMeta.conditionalFormatRules.map(function (rule) {
           return rule.booleanRule.condition.values[0].userEnteredValue;
         });
-        equal(tierFormulas.indexOf('=D4<0') !== -1 && tierFormulas.indexOf('=D4>=1/50') !== -1, true, 'gain rules on the second column of the pair');
-        equal(validationForColumn(tierMeta, 3), null, 'no Statut dropdown left on the Gain column');
+        equal(tierFormulas.indexOf('=E4<0') !== -1 && tierFormulas.indexOf('=E4>=1/50') !== -1, true, 'gain rules on the second column of the pair');
+        equal(validationForColumn(tierMeta, 4), null, 'no Statut dropdown left on the Gain column');
 
         var lists = TracerHarness.getRows('_Listes');
         var mageRow = lists.filter(function (row) { return row[0] === 'Mage'; })[0];

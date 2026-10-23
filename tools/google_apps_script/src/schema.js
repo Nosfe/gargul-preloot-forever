@@ -139,6 +139,13 @@ var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
   return { role: role, name: 'Objets ' + role, sheetId: 1021 + index };
 });
 
+// Objets columns: A Objet (ID), B Objet, C Emplacement, then one Statut/Gain pair per spec.
+var OBJETS_SLOT_COLUMN = 2;
+var OBJETS_FIRST_SPEC_COLUMN = 3;
+var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
+  'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
+  'Distance', 'Relique'];
+
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
 var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))

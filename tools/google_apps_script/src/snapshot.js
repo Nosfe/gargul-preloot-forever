@@ -236,8 +236,8 @@ function buildSnapshotItems_(itemStates) {
       }
 
       specs.forEach(function (spec, specIndex) {
-        var statutCell = normalizeCellString_(row[2 + (specIndex * 2)]).trim();
-        var gainCell = row[3 + (specIndex * 2)];
+        var statutCell = normalizeCellString_(row[OBJETS_FIRST_SPEC_COLUMN + (specIndex * 2)]).trim();
+        var gainCell = row[OBJETS_FIRST_SPEC_COLUMN + 1 + (specIndex * 2)];
         if (!statutCell && (gainCell === '' || gainCell === null || gainCell === undefined)) {
           return;
         }

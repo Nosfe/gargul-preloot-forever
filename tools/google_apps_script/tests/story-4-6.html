@@ -197,7 +197,7 @@
         var sheetId = spreadsheet.getSheetByName(tabName).getSheetId();
         var row = TracerHarness.getRows(tabName)[1] || [];
         var statusColumn = -1;
-        for (var column = 2; column < row.length; column += 2) {
+        for (var column = OBJETS_FIRST_SPEC_COLUMN; column < row.length; column += 2) {
           if (row[column] === specLabel) {
             statusColumn = column;
             break;
@@ -361,15 +361,15 @@
           var rows = [[], [], []].concat([cells]);
           return buildSnapshotItems_([{ role: 'Caster DPS', rows: rows }]);
         }
-        contains(items_([12.5, 'X', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'non-integer itemID rejected');
-        contains(items_([12, 'X', 'IMPACT', 'abc']).errors.join(' '), 'gain non numérique', 'non-numeric gain rejected');
-        equal(items_([12, 'X', 'IMPACT', '']).items[0].specs[0].gainFraction, null, 'blank gain exported as null');
+        contains(items_([12.5, 'X', 'Doigt', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'non-integer itemID rejected');
+        contains(items_([12, 'X', 'Doigt', 'IMPACT', 'abc']).errors.join(' '), 'gain non numérique', 'non-numeric gain rejected');
+        equal(items_([12, 'X', 'Doigt', 'IMPACT', '']).items[0].specs[0].gainFraction, null, 'blank gain exported as null');
         var dup = buildSnapshotItems_([
-          { role: 'Caster DPS', rows: [[], [], [], [12, 'X', 'IMPACT', 0.1], [12, 'X', 'BIS', 0.2]] }
+          { role: 'Caster DPS', rows: [[], [], [], [12, 'X', 'Doigt', 'IMPACT', 0.1], [12, 'X', 'Doigt', 'BIS', 0.2]] }
         ]);
         contains(dup.errors.join(' '), 'en double', 'same itemID+classSpec twice rejected');
         contains(dup.errors.join(' '), 'Objets Caster DPS ligne 5', 'item error names the tab and row');
-        contains(items_([0, 'X', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'itemID 0 rejected');
+        contains(items_([0, 'X', 'Doigt', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'itemID 0 rejected');
 
         var twice = buildSnapshotRaiders_([keysOf_(rosterTab), row_({}), row_({})]);
         contains(twice.errors.join(' '), 'Zoe: nom en double', 'duplicate raider name rejected');
