@@ -774,6 +774,19 @@ function buildColumnWidthRequest_(sheetId, startIndex, endIndex, pixelSize) {
   };
 }
 
+// Former Traitement value NONE is now NORMAL; rewrites award rows only, never the header rows.
+function buildLegacyNoneTreatmentRequest_(sheetId) {
+  return {
+    findReplace: {
+      find: 'NONE',
+      replacement: 'NORMAL',
+      matchCase: true,
+      matchEntireCell: true,
+      range: { sheetId: sheetId, startRowIndex: AWARDS_FIRST_ROW - 1 }
+    }
+  };
+}
+
 // Creates or refreshes the Awards blocks while preserving existing entries.
 function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataBySheetId, argSeparator, classByName) {
   var requests = [];
@@ -793,7 +806,11 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
 
   var existingNames = existingGrid ? readAwardsBlockNames_(awardsState.rows || []) : [];
   if (existingGrid) {
+    requests.push(buildLegacyNoneTreatmentRequest_(sheetId));
     requests = requests.concat(buildGridRuleResetRequests_(sheetId, archive && archive.state, metadataBySheetId));
+  }
+  if (archive && archive.state && archive.state.exists) {
+    requests.push(buildLegacyNoneTreatmentRequest_(archive.state.sheetId));
   }
   if (existingGrid && archive) {
     var awardsMove = buildArchiveMoveRequests_(
@@ -943,18 +960,18 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
           { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
           { userEnteredValue: 'CLASS_BOUND' },
-          { userEnteredValue: 'NONE' }
+          { userEnteredValue: 'NORMAL' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou NONE.'
+      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou NORMAL.'
     }));
 
-    // Whole award row tinted by its Traitement with WoW rarity: NONE uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
+    // Whole award row tinted by its Traitement with WoW rarity: NORMAL uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
     var treatmentCell = '$' + columnLetter_(start + AWARDS_TREATMENT_OFFSET) + AWARDS_FIRST_ROW;
     [
-      { value: 'NONE', style: RARITY_STYLE.uncommon },
+      { value: 'NORMAL', style: RARITY_STYLE.uncommon },
       { value: 'CLASS_BOUND', style: RARITY_STYLE.rare },
       { value: 'BIS', style: RARITY_STYLE.epic },
       { value: 'IMPACT', style: RARITY_STYLE.legendary }

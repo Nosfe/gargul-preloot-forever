@@ -235,7 +235,7 @@
         equal(preview.rejected.length, 6, 'preview returns merged rejected lines');
         equal(preview.awards[0].itemName.length > 0, true, 'preview resolves item names from Objets tabs');
         var osAward = preview.awards.filter(function (award) { return award.os === 1; })[0];
-        equal(osAward.treatment, 'NONE', 'preview forces os award treatment to NONE');
+        equal(osAward.treatment, 'NORMAL', 'preview forces os award treatment to NORMAL');
       });
 
       withHarness(function () {
@@ -302,7 +302,7 @@
           submitEndRaid('ABC123', sampleText, {
             'csum-ana-bis': 'BIS',
             'csum-ana-impact': 'IMPACT',
-            'csum-bob-os': 'NONE'
+            'csum-bob-os': 'NORMAL'
           });
         } catch (error) {
           failedMessage = error.message;
@@ -316,7 +316,7 @@
       });
 
       withHarness(function () {
-        // Happy path + rejected lines + OS forced NONE matrix rows.
+        // Happy path + rejected lines + OS forced NORMAL matrix rows.
         seedCoreTabs_();
         setStartedRaid_(5);
         saveWclCredentials('id', 'secret');
@@ -340,7 +340,7 @@
         equal(String(anaAwards[0].cells[1]), 'Bâton ancien', 'item name resolved for 777');
         equal(String(anaAwards[1].cells[1]), 'Anneau céleste', 'item name resolved for 888');
         equal(String(bobAwards[0].cells[1]), 'Cape de l\'export', 'export item name used when Objets has none');
-        equal(String(bobAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'NONE', 'os row is forced to NONE');
+        equal(String(bobAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'NORMAL', 'os row is forced to NORMAL');
         equal(String(anaAwards[0].cells[AWARDS_TREATMENT_OFFSET]), 'BIS', 'chosen Traitement written');
         equal(String(anaAwards[1].cells[AWARDS_TREATMENT_OFFSET]), 'IMPACT', 'second chosen Traitement written');
         equal(String(anaAwards[0].cells[AWARDS_RAID_ID_OFFSET]), '5', 'Raid (ID) written');
@@ -364,7 +364,7 @@
         var spreadsheet = SpreadsheetApp.getActive();
         var awardsSheetId = spreadsheet.getSheetByName('Awards').getSheetId();
         var anaStart = findAwardBlockStart_('Ana');
-        writeCells_(awardsSheetId, AWARDS_FIRST_ROW - 1, anaStart, ['old-date', 'Old Item', 123, 'NONE', 4]);
+        writeCells_(awardsSheetId, AWARDS_FIRST_ROW - 1, anaStart, ['old-date', 'Old Item', 123, 'NORMAL', 4]);
 
         var singleAward = '{"checksum":"append-1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"22:00","raidId":"","treatment":"BIS"},';
         submitEndRaid('ABC123', singleAward, { 'append-1': 'BIS' });

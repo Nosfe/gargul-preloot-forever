@@ -265,7 +265,7 @@
 
         var awards = TracerHarness.getRows('Awards');
         equal(awards[0][0] + '|' + awards[0][5], 'Ana|Cid', 'Bob block left Awards');
-        equal(awards[2].slice(5, 10).join('|'), 'C-d|C-o|3|NONE|R1', 'Cid block keeps its entry');
+        equal(awards[2].slice(5, 10).join('|'), 'C-d|C-o|3|NORMAL|R1', 'Cid block keeps its entry, former NONE rewritten as NORMAL');
         var awardsArchive = TracerHarness.getRows('Awards (archive)');
         equal(awardsArchive[0][0] + '|' + awardsArchive[2].slice(0, 5).join('|'), 'Bob|B-d|B-o|2|IMPACT|R1', 'Bob block archived with its entry');
 
@@ -280,7 +280,7 @@
         equal(presence[0].slice(3, 7).join('|') + ' ' + presence[2].slice(3, 7).join('|'), 'Ana|Bob|Cid|Zed 1|B|1|1', 'Bob Présence restored in order with its value');
         awards = TracerHarness.getRows('Awards');
         equal(awards[0][5] + '|' + awards[2].slice(5, 10).join('|'), 'Bob|B-d|B-o|2|IMPACT|R1', 'Bob Awards block restored in order');
-        equal(awards[0][10] + '|' + awards[2].slice(10, 15).join('|'), 'Cid|C-d|C-o|3|NONE|R1', 'Cid block moved with its entry');
+        equal(awards[0][10] + '|' + awards[2].slice(10, 15).join('|'), 'Cid|C-d|C-o|3|NORMAL|R1', 'Cid block moved with its entry');
         equal(TracerHarness.getRows('Présence (archive)')[0].slice(3).join(''), '', 'Présence archive emptied');
         equal(TracerHarness.getRows('Awards (archive)')[0].join(''), '', 'Awards archive emptied');
 
