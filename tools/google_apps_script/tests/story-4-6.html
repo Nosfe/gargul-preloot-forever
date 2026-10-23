@@ -410,7 +410,7 @@
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'old Config migrates');
         var config = TracerHarness.getRows('Config');
         equal(config[0].slice(0, 3).join('|') + ' ' + config[1].slice(0, 3).join('|'),
-          'Palier actif (ID)|Début du palier|Raid ouvert (ID) forever-t1|46327|', 'BiS window ID column removed, values kept, date relabelled');
+          'Palier actif (ID)|Début du palier|Raid en cours forever-t1|46327|', 'BiS window ID column removed, values kept, date relabelled');
         contains(TracerHarness.getRows('Roster')[1][columnOf_(tabByName_('Roster'), 'tierPresence')], 'N(Config!$B$2)', 'Roster formulas follow the moved start date');
       });
 
