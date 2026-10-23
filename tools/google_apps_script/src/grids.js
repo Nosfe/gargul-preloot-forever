@@ -1381,6 +1381,19 @@ function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
         argSeparator
       )
     );
+
+    // Statut cell only, same WoW rarity colours as the Awards Traitement.
+    var statusColumn = gainColumn - 1;
+    var statusLetter = columnLetter_(statusColumn);
+    [
+      { value: 'NORMAL', style: RARITY_STYLE.uncommon },
+      { value: 'CLASS_BOUND', style: RARITY_STYLE.rare },
+      { value: 'BIS', style: RARITY_STYLE.epic },
+      { value: 'IMPACT', style: RARITY_STYLE.legendary }
+    ].forEach(function (rule) {
+      requests.push(buildConditionalFormatRequestAtRow_(sheetId, statusColumn, statusColumn + 1, 3,
+        '=' + statusLetter + '4="' + rule.value + '"', rarityFormat_(rule.style), argSeparator));
+    });
   });
 
   return requests;

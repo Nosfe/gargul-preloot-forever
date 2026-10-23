@@ -383,7 +383,11 @@
         var casterRows = TracerHarness.getRows('Objets Caster DPS');
         equal(casterRows[1].filter(function (v) { return v; }).length, 9, '9 Caster DPS spec labels');
         equal(caster.frozenRowCount + ':' + caster.frozenColumnCount, '3:3', 'Objets rows 1-3 and A-C frozen');
-        equal(caster.conditionalFormatRules.length, 18, 'red and green rules per Caster spec');
+        equal(caster.conditionalFormatRules.length, 9 * 6, 'red and green gain rules plus 4 Statut colours per Caster spec');
+        var casterStatusRules = caster.conditionalFormatRules.filter(function (rule) {
+          return rule.ranges[0].startColumnIndex === OBJETS_FIRST_SPEC_COLUMN;
+        }).map(function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue; }).sort().join(' ');
+        equal(casterStatusRules, '=D4="BIS" =D4="CLASS_BOUND" =D4="IMPACT" =D4="NORMAL"', 'Statut colours sit on the Statut column only');
         var specCount = 0;
         ITEM_TABS.forEach(function (itemTab) {
           specCount += TracerHarness.getRows(itemTab.name)[1].filter(function (v) { return v; }).length;
