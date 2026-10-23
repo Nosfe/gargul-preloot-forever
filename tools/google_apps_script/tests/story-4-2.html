@@ -369,9 +369,9 @@
           specCount += TracerHarness.getRows(itemTab.name)[1].filter(function (v) { return v; }).length;
         });
         equal(specCount, 28, 'the five Objets tabs hold all 28 specs');
-        equal(TracerHarness.getRows('Objets Melee DPS')[1].indexOf('Druide Combat farouche (félin)') !== -1, true, 'feral cat under Melee DPS');
+        equal(TracerHarness.getRows('Objets Melee DPS')[1].indexOf('Combat farouche (félin)') !== -1, true, 'feral cat under Melee DPS');
         equal(TracerHarness.getRows('Objets Tank')[1].filter(function (v) { return v; }).join(','),
-          'Guerrier Protection,Paladin Protection,Druide Combat farouche (ours)', 'Tank specs as mapped');
+          'Protection,Protection,Combat farouche (ours)', 'Tank specs show the spec name only');
         equal(TracerHarness.getSheetMeta('Présence').frozenRowCount + ':' + TracerHarness.getSheetMeta('Présence').frozenColumnCount, '2:3', 'Présence frozen');
         equal(TracerHarness.getSheetMeta('Awards').frozenRowCount, 2, 'Awards frozen');
         equal(labelsOf_(tabByName_('Roster'))[2], 'Spé', 'labels keep accents');
@@ -444,7 +444,7 @@
         var traitement = awardsMeta.dataValidations.filter(function (entry) {
           return entry.range.startColumnIndex === 8 && entry.rule;
         })[0];
-        equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,NONE', 'Bob block Traitement dropdown');
+        equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,CLASS_BOUND,NONE', 'Bob block Traitement dropdown');
 
         var tierRows = TracerHarness.getRows('Objets Tank');
         equal(tierRows[2][2] + ',' + tierRows[2][3], 'Statut,Gain (%)', 'Objets pair is Statut then Gain');
@@ -494,7 +494,7 @@
         };
         equal(ruleFormulas('Pr\u00e9sence'), '=AND(OR($A3<>"",$C3<>""),D$1<>"",OR(D3="",D3=0)) =D3="B" =D3=1', 'Pr\u00e9sence tints 1, B, and empty/0 on raid rows');
         equal(classHeaderTextHex_('Mage') + '|' + classHeaderTextHex_('Pr\u00eatre') + '|' + classHeaderTextHex_(''), '3FC7EB|6E6E6E|' + HEADER_STYLE.text, 'class header text colours');
-        equal(ruleFormulas('Awards'), ['=$D3="BIS"', '=$D3="IMPACT"', '=$D3="NONE"', '=$I3="BIS"', '=$I3="IMPACT"', '=$I3="NONE"'].join(' '), 'Awards rows tinted by Traitement per block');
+        equal(ruleFormulas('Awards'), ['=$D3="BIS"', '=$D3="CLASS_BOUND"', '=$D3="IMPACT"', '=$D3="NONE"', '=$I3="BIS"', '=$I3="CLASS_BOUND"', '=$I3="IMPACT"', '=$I3="NONE"'].join(' '), 'Awards rows tinted by Traitement per block');
         setUpWorkbook();
         equal(TracerHarness.getSheetMeta('Pr\u00e9sence').conditionalFormatRules.length, before.presenceRules, 'rerun keeps Pr\u00e9sence rule count stable');
         equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, before.awardsRules, 'rerun keeps Awards rule count stable');

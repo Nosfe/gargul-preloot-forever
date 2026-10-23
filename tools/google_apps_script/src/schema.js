@@ -150,6 +150,7 @@ var TOTAL_ROW_BACKGROUND = 'F3F3F3';
 
 // Awards rows tinted by Traitement with WoW item-rarity colours.
 var RARITY_STYLE = {
+  uncommon: { background: 'EAF6E6', text: '1A8C00' },
   rare: { background: 'E8F1FC', text: '0070DD' },
   epic: { background: 'F4ECFB', text: 'A335EE' },
   legendary: { background: 'FFF1E0', text: 'C65F00' }

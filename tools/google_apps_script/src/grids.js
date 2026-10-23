@@ -941,18 +941,20 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
         values: [
           { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
+          { userEnteredValue: 'CLASS_BOUND' },
           { userEnteredValue: 'NONE' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Traitement : BIS, IMPACT ou NONE.'
+      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou NONE.'
     }));
 
-    // Whole award row tinted by its Traitement with WoW rarity: NONE rare, BIS epic, IMPACT legendary.
+    // Whole award row tinted by its Traitement with WoW rarity: NONE uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
     var treatmentCell = '$' + columnLetter_(start + AWARDS_TREATMENT_OFFSET) + AWARDS_FIRST_ROW;
     [
-      { value: 'NONE', style: RARITY_STYLE.rare },
+      { value: 'NONE', style: RARITY_STYLE.uncommon },
+      { value: 'CLASS_BOUND', style: RARITY_STYLE.rare },
       { value: 'BIS', style: RARITY_STYLE.epic },
       { value: 'IMPACT', style: RARITY_STYLE.legendary }
     ].forEach(function (rule) {
@@ -1165,7 +1167,7 @@ function buildTierHeaderRows_(specs) {
 
   specs.forEach(function (entry, index) {
     var statusColumn = 2 + (index * 2);
-    row2[statusColumn] = { userEnteredValue: { stringValue: entry.label } };
+    row2[statusColumn] = { userEnteredValue: { stringValue: entry.spec } };
     row3[statusColumn] = { userEnteredValue: { stringValue: 'Statut' } };
     row3[statusColumn + 1] = { userEnteredValue: { stringValue: 'Gain (%)' } };
 

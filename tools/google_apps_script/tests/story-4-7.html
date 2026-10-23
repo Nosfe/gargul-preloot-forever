@@ -201,6 +201,9 @@
 
         var spaced = parseGargulExport_('{"checksum":"s1","winner":"Ana ","itemID":777,"os":0,"treatment":"BIS"}');
         equal(spaced.lines[0].winner, 'Ana ', 'parser keeps the winner untrimmed');
+
+        var classBound = parseGargulExport_('{"checksum":"cb1","winner":"Ana","itemID":777,"os":0,"treatment":"CLASS_BOUND"}');
+        equal(classBound.lines[0].treatment, 'CLASS_BOUND', 'CLASS_BOUND is a known treatment');
       });
 
       withHarness(function () {
