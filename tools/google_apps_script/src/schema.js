@@ -146,6 +146,9 @@ var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains
   'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
   'Distance', 'Relique'];
 
+// Roster "Groupe de raid" dropdown values; used only for filtering.
+var RAID_GROUPS = ['Raid 1', 'Raid 2'];
+
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
 var TAB_ORDER = ['Roster', 'Rerolls', 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
@@ -236,6 +239,7 @@ var TABS = [
     group: 'input',
     columns: [
       { key: 'raiderKey', label: 'Raider (nom exact en jeu)', note: 'Nom du personnage exactement comme en jeu (majuscules et accents compris), sans royaume. Doit être unique.' },
+      { key: 'raidGroup', label: 'Groupe de raid', note: 'Groupe de raid du personnage (Raid 1 ou Raid 2), pour filtrer le Roster.' },
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
       { key: 'spec', label: 'Spé', note: 'Spécialisation : une des spés de la classe, ex. Mage → Arcanes, Feu ou Givre ; Druide → Combat farouche (ours) ou (félin).' },
       { key: 'role', label: 'Rôle', note: 'Rempli automatiquement depuis la classe et la spé, ne pas saisir.', formula: true },

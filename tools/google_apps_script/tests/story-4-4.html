@@ -87,9 +87,9 @@
       });
       TracerHarness.seedSheet('Roster', [
         keysOf_(tabByName_('Roster')),
-        ['Ana', 'Mage', '', '', ''],
-        ['Bob', 'Mage', '', '', ''],
-        ['Cid', 'Mage', '', '', '']
+        ['Ana', 'Raid 1', 'Mage', '', '', ''],
+        ['Bob', 'Raid 1', 'Mage', '', '', ''],
+        ['Cid', 'Raid 2', 'Mage', '', '', '']
       ]);
       TracerHarness.seedSheet('Rerolls', [
         keysOf_(tabByName_('Rerolls')),
@@ -434,6 +434,21 @@
         contains(query, 'c1: character(name: "Bob"', 'second raider in the same request');
         contains(query.split('c1:')[1], 'metric: hps', 'healer uses HPS');
         contains(query, 'c3: character(name: "Zed"', 'Rerolls characters included');
+      });
+
+      withHarness(function () {
+        // Roster without Groupe de raid (setup not re-run): the parse would land in the wrong column, so it refuses.
+        seedParseWorkbook_('EU/Thunderstrike');
+        var rosterRows = TracerHarness.getRows('Roster').map(function (row) {
+          var copy = row.slice();
+          copy.splice(columnOf_(tabByName_('Roster'), 'raidGroup'), 1);
+          return copy;
+        });
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+        updateWclParses();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'parse update refuses a Roster without Groupe de raid');
+        equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'outdated Roster untouched');
+        equal(TracerHarness.getFetchLog().length, 0, 'no WCL call for an outdated Roster');
       });
 
       withHarness(function () {

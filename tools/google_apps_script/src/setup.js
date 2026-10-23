@@ -41,10 +41,11 @@ function formulaArgSeparator_() {
 // then delete the old rules/banding and add the current ones. A header conflict throws: nothing is written.
 function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   var separator = argSeparator || ',';
-  // Grids first: they delete obsolete tabs and create _Listes, which the Roster Spé dropdown references.
+  // Column migrations run first: the _Listes lookup written by the grids would otherwise shift with an inserted column.
+  var requests = buildLegacyTabMigrationRequests_(existingHeadersByName);
+  // Grids next: they delete obsolete tabs and create _Listes, which the Roster Spé dropdown references.
   // Grids read live sheet data inside the lock, so this part of the plan is not pure.
-  var requests = buildGridRequests_(separator);
-  requests = requests.concat(buildLegacyTabMigrationRequests_(existingHeadersByName));
+  requests = requests.concat(buildGridRequests_(separator));
   var effectiveHeadersByName = effectiveHeadersByName_(existingHeadersByName);
   var deletedSheetIds = deletedSheetIdsFromRequests_(requests);
   var metadataBySheetId = sheetMetadataById_(sheetsMetadata);
@@ -313,6 +314,21 @@ function effectiveHeadersByName_(existingHeadersByName) {
     };
   }
 
+  roster = next.Roster;
+  if (roster && needsRosterGroupColumn_(roster.headers || [])) {
+    var groupLabel = labelsOf_(tabByName_('Roster'))[columnOf_(tabByName_('Roster'), 'raidGroup')];
+    next.Roster = {
+      sheetId: roster.sheetId,
+      headers: roster.headers.slice(0, 1).concat([groupLabel], roster.headers.slice(1)),
+      rows: (roster.rows || []).map(function (row) {
+        var copy = (row || []).slice();
+        copy.splice(1, 0, '');
+        return copy;
+      }),
+      hasDataRows: roster.hasDataRows
+    };
+  }
+
   var rerolls = next.Rerolls;
   if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
     next.Rerolls = {
@@ -373,6 +389,20 @@ function buildLegacyTabMigrationRequests_(existingHeadersByName) {
     });
   }
 
+  if (roster && needsRosterGroupColumn_(roster.headers || [])) {
+    requests.push({
+      insertDimension: {
+        range: {
+          sheetId: roster.sheetId,
+          dimension: 'COLUMNS',
+          startIndex: 1,
+          endIndex: 2
+        },
+        inheritFromBefore: true
+      }
+    });
+  }
+
   if (rerolls && isLegacyRerollsHeaders_(rerolls.headers || [])) {
     requests.push({
       insertDimension: {
@@ -394,6 +424,11 @@ function buildLegacyTabMigrationRequests_(existingHeadersByName) {
 function isLegacyRosterHeaders_(headers) {
   return indexOfHeader_(headers, ['tankPriority', 'Priorité tank']) !== -1 ||
     indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)']) !== -1;
+}
+
+// True when an existing Roster predates the "Groupe de raid" column (inserted at B, right after the name).
+function needsRosterGroupColumn_(headers) {
+  return headers.length > 0 && indexOfHeader_(headers, ['raidGroup', 'Groupe de raid']) === -1;
 }
 
 // True when Rerolls is exactly the 2-column pre-polish contract; any extra column falls through to the header check.
@@ -668,6 +703,7 @@ function buildHeaderStyleRequests_(sheetId, tab) {
 function buildColumnWidthRequests_(sheetId, tab) {
   var widthsByKey = {
     raiderKey: 210,
+    raidGroup: 130,
     rerollName: 210,
     mainKey: 210,
     class: 130,
@@ -772,6 +808,18 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
         inputMessage: 'Parse WCL moyen entre 1 et 100.'
       })
     );
+  }
+
+  if (tab.name === 'Roster') {
+    requests.push(buildDataValidationRequest_(sheetId, columnOf_(tab, 'raidGroup'), {
+      condition: {
+        type: 'ONE_OF_LIST',
+        values: RAID_GROUPS.map(function (group) { return { userEnteredValue: group }; })
+      },
+      strict: true,
+      showCustomUi: true,
+      inputMessage: 'Groupe de raid : ' + RAID_GROUPS.join(' ou ') + '.'
+    }));
   }
   return requests;
 }
@@ -916,6 +964,16 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
   }
 
   if (tab.name === 'Roster') {
+    // Groupe de raid looks like the raider name.
+    var groupColumn = columnOf_(tab, 'raidGroup');
+    requests.push(buildConditionalFormatRequest_(
+      sheetId,
+      groupColumn,
+      groupColumn + 1,
+      '=$' + columnLetter_(groupColumn) + '2<>""',
+      { backgroundColor: rgbHex_('FFFFFF'), textFormat: { foregroundColor: rgbHex_('000000'), bold: true } },
+      separator
+    ));
     requests.push(
       buildConditionalFormatRequest_(
         sheetId,

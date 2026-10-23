@@ -1565,8 +1565,11 @@ function readClassByName_(spreadsheet) {
     }
     var tab = tabByName_(entry[0]);
     var nameColumn = columnOf_(tab, entry[1]);
-    var classColumn = columnOf_(tab, 'class');
-    sheet.getDataRange().getValues().slice(1).forEach(function (row) {
+    var rows = sheet.getDataRange().getValues();
+    // Read before this batch's column migrations run, so find Classe in the live header, not the contract.
+    var liveClassColumn = indexOfHeader_((rows[0] || []).map(function (cell) { return String(cell).trim(); }), ['class', 'Classe']);
+    var classColumn = liveClassColumn !== -1 ? liveClassColumn : columnOf_(tab, 'class');
+    rows.slice(1).forEach(function (row) {
       var name = (row || [])[nameColumn];
       if (name !== '' && name !== null && name !== undefined && !classByName[String(name)]) {
         classByName[String(name)] = String(row[classColumn] || '');

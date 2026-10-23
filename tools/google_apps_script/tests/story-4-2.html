@@ -119,6 +119,7 @@
       withHarness(function () {
         seedLegacyLiveWorkbook();
 
+        equal(readClassByName_(SpreadsheetApp.getActive()).Ana, 'Mage', 'class read from the live header before the Groupe de raid insert');
         setUpWorkbook();
 
         equal(TracerHarness.getSheetMeta('RaidReports'), null, 'RaidReports deleted');
@@ -134,9 +135,10 @@
         equal(rerolls[1][5], 'Ana', 'Reroll main moved to column F');
 
         var roster = TracerHarness.getRows('Roster');
-        equal(roster[0].slice(0, 5).join(','), 'Raider (nom exact en jeu),Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen', 'Roster headers migrated');
-        equal(roster[1].slice(0, 3).join(',') + ',' + roster[1][4], 'Ana,Mage,\u2744\ufe0f Givre,80', 'Roster spec rewritten with emoji, parse kept');
-        contains(roster[1][3], "MATCH($B2&\"|\"&$C2,'_Listes'!$Q$2:$Q$200,0)", 'Roster R\u00f4le is the Classe|Sp\u00e9 lookup formula');
+        equal(roster[0].slice(0, 6).join(','), 'Raider (nom exact en jeu),Groupe de raid,Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen', 'Roster headers migrated, Groupe de raid inserted in B');
+        equal(roster[1].slice(0, 4).join(',') + ',' + roster[1][5], 'Ana,,Mage,\u2744\ufe0f Givre,80', 'Roster spec rewritten with emoji, parse kept');
+        contains(roster[1][4], "MATCH($C2&\"|\"&$D2,'_Listes'!$Q$2:$Q$200,0)", 'Roster R\u00f4le is the Classe|Sp\u00e9 lookup formula');
+        contains(TracerHarness.getRows('_Listes')[1][6], 'XLOOKUP(Roster!C2', '_Listes spec lookup reads the shifted Classe column');
       });
 
       withHarness(function () {
@@ -144,12 +146,12 @@
         seedCoreFlatTabs(['Roster']);
         TracerHarness.seedSheet('Roster', [
           keysOf_(tabByName_('Roster')),
-          ['Bear', 'Druide', '\ud83d\udc3b Combat farouche', ROLE_DISPLAY.Tank.value, ''],
-          ['Cat', 'Druide', 'Combat farouche', 'Melee DPS', '']
+          ['Bear', '', 'Druide', '\ud83d\udc3b Combat farouche', ROLE_DISPLAY.Tank.value, ''],
+          ['Cat', '', 'Druide', 'Combat farouche', 'Melee DPS', '']
         ]);
         setUpWorkbook();
         var rows = TracerHarness.getRows('Roster');
-        equal(rows[1][2] + '|' + rows[2][2], '\ud83d\udc3b Combat farouche (ours)|\ud83d\udc08 Combat farouche (f\u00e9lin)', 'legacy feral spec split by role');
+        equal(rows[1][3] + '|' + rows[2][3], '\ud83d\udc3b Combat farouche (ours)|\ud83d\udc08 Combat farouche (f\u00e9lin)', 'legacy feral spec split by role');
       });
 
       withHarness(function () {
@@ -398,7 +400,7 @@
           'Protection,Protection,Combat farouche (ours)', 'Tank specs show the spec name only');
         equal(TracerHarness.getSheetMeta('Présence').frozenRowCount + ':' + TracerHarness.getSheetMeta('Présence').frozenColumnCount, '2:3', 'Présence frozen');
         equal(TracerHarness.getSheetMeta('Awards').frozenRowCount, 2, 'Awards frozen');
-        equal(labelsOf_(tabByName_('Roster'))[2], 'Spé', 'labels keep accents');
+        equal(labelsOf_(tabByName_('Roster'))[3], 'Spé', 'labels keep accents');
       });
 
       withHarness(function () {
@@ -441,7 +443,7 @@
       // Restored grid, refresh, locale and conflict tests (current Roster layout).
       function seedRoster(names) {
         TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster'))].concat(names.map(function (name) {
-          return [name, 'Mage', '', '', ''];
+          return [name, '', 'Mage', '', '', ''];
         })));
       }
 
@@ -495,15 +497,19 @@
         var rosterMeta = TracerHarness.getSheetMeta('Roster');
         var formulaOf = function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue; };
         contains(formulaOf(rosterMeta.conditionalFormatRules[0]), 'EXACT', 'duplicate-name highlight has top priority');
-        var mageRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$B2="Mage"'; })[0];
-        equal(mageRule.ranges[0].startColumnIndex + ':' + mageRule.ranges[0].endColumnIndex, '1:3', 'class colour covers Classe and Sp\u00e9 only');
+        var mageRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$C2="Mage"'; })[0];
+        equal(mageRule.ranges[0].startColumnIndex + ':' + mageRule.ranges[0].endColumnIndex, '2:4', 'class colour covers Classe and Sp\u00e9 only');
         var nameRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$A2<>""'; })[0];
         equal(JSON.stringify(nameRule.booleanRule.format.backgroundColor) + nameRule.booleanRule.format.textFormat.bold, JSON.stringify(rgbHex_('FFFFFF')) + 'true', 'raider name stays white and bold');
-        var parseRules = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule).indexOf('ISNUMBER($E2)') !== -1; });
+        var groupRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$B2<>""'; })[0];
+        equal(groupRule.ranges[0].startColumnIndex + ':' + JSON.stringify(groupRule.booleanRule.format), '1:' + JSON.stringify(nameRule.booleanRule.format), 'Groupe de raid styled like the raider name');
+        equal(validationForColumn(rosterMeta, 1).condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'Raid 1,Raid 2', 'Groupe de raid dropdown is Raid 1 or Raid 2');
+        equal(validationForColumn(rosterMeta, 1).strict, true, 'Groupe de raid dropdown refuses other values');
+        var parseRules = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule).indexOf('ISNUMBER($F2)') !== -1; });
         equal(parseRules.length, 7, 'seven WCL parse colour bands');
-        var legendary = parseRules.filter(function (rule) { return formulaOf(rule) === '=AND(ISNUMBER($E2),$E2>=100)'; })[0];
+        var legendary = parseRules.filter(function (rule) { return formulaOf(rule) === '=AND(ISNUMBER($F2),$F2>=100)'; })[0];
         equal(JSON.stringify(legendary.booleanRule.format.textFormat.foregroundColor), JSON.stringify(rgbHex_('E5CC80')), 'parse 100 is WCL gold');
-        var healRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$D2="\u271a Heal"'; })[0];
+        var healRule = rosterMeta.conditionalFormatRules.filter(function (rule) { return formulaOf(rule) === '=$E2="\u271a Heal"'; })[0];
         equal(JSON.stringify(healRule.booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('C8E6C9')), 'Heal role colour');
 
         var before = {
@@ -560,6 +566,9 @@
           });
         });
         contains(TracerHarness.getRows('_Listes')[1][6], ';', 'fr _Listes formula uses semicolons');
+        // Fresh workbook: setup created Roster itself.
+        equal(TracerHarness.getRows('Roster')[0][1], 'Groupe de raid', 'fresh Roster has Groupe de raid in B');
+        equal(validationForColumn(TracerHarness.getSheetMeta('Roster'), 1).condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'Raid 1,Raid 2', 'fresh Roster group dropdown');
       });
 
       withHarness(function () {
@@ -596,8 +605,8 @@
         ]);
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former Parse label is accepted');
-        equal(TracerHarness.getRows('Roster')[0][4], 'Parse WCL moyen', 'Parse header renamed to the current label');
-        equal(TracerHarness.getRows('Roster')[1][4], 80, 'Parse value kept');
+        equal(TracerHarness.getRows('Roster')[0][5], 'Parse WCL moyen', 'Parse header renamed to the current label');
+        equal(TracerHarness.getRows('Roster')[1][5], 80, 'Parse value kept');
       });
 
       withHarness(function () {

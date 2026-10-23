@@ -428,6 +428,20 @@
       });
 
       withHarness(function () {
+        // Roster without Groupe de raid (setup not re-run): actions that read Roster columns refuse and write nothing.
+        seedStoryWorkbook_();
+        var rosterRows = TracerHarness.getRows('Roster').map(function (row) {
+          var copy = row.slice();
+          copy.splice(columnOf_(tabByName_('Roster'), 'raidGroup'), 1);
+          return copy;
+        });
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+        exportRaidSnapshot();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses a Roster without Groupe de raid');
+        equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'outdated Roster untouched');
+      });
+
+      withHarness(function () {
         // Delete raid 2: its Présence row and its loot go; later loot moves up in the block; other raids stay.
         seedStoryWorkbook_();
         setUpWorkbook();

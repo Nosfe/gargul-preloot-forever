@@ -122,9 +122,9 @@
         contains(lifetimeMax, 'MAX(1,LET(', 'lifetime max has minimum 1');
         contains(bisLoots, '="BIS"', 'BiS count filters BIS');
         contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
-        contains(ratio, '/($J2+1)', 'ratio divides by BiS loots plus one');
-        contains(impactBase, '$D2="🛡️ Tank"', 'impact base keeps tank blank');
-        contains(impactBase, 'IF(N($E2)=0,1,$E2)', 'impact base uses parse=1 fallback');
+        contains(ratio, '/($K2+1)', 'ratio divides by BiS loots plus one');
+        contains(impactBase, '$E2="🛡️ Tank"', 'impact base keeps tank blank');
+        contains(impactBase, 'IF(N($F2)=0,1,$F2)', 'impact base uses parse=1 fallback');
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
@@ -143,9 +143,11 @@
         equal(impactLoots.indexOf('Config!'), -1, 'Impact loots have no date filter');
         contains(tierMax, '=IF($A2="","",MAX(1,', 'tier max is blank on an empty row');
         contains(lifetimeMax, '=IF($A2="","",MAX(1,', 'lifetime max is blank on an empty row');
-        equal(columnOf_(rosterTab, 'tierPresence'), 5, 'score columns start at F');
+        equal(columnOf_(rosterTab, 'tierPresence'), 6, 'score columns start at G');
         equal(rows.length, 201, 'formulas stop at row 201');
         contains(rows[200][columnOf_(rosterTab, 'bisRatio')], '$A201', 'row 201 formula refers to its own row');
+        var groupRef = '$' + columnLetter_(columnOf_(rosterTab, 'raidGroup')) + '2';
+        equal(rows[1].filter(function (cell) { return String(cell).indexOf(groupRef) !== -1; }).length, 0, 'no R\u00f4le or score formula reads Groupe de raid');
 
         var configMeta = TracerHarness.getSheetMeta('Config');
         var startRule = configMeta.dataValidations.filter(function (entry) {
@@ -201,8 +203,8 @@
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'pre-4.3 Roster is extended');
         var rows = TracerHarness.getRows('Roster');
-        equal(rows[1].slice(0, 3).join('|') + '|' + rows[1][4], 'Ana|Mage|❄️ Givre|80', 'existing Roster data kept (Rôle is now a formula)');
-        equal(rows[0][5], 'Présence palier', 'first calculated column appended at F');
+        equal(rows[1].slice(0, 4).join('|') + '|' + rows[1][5], 'Ana||Mage|❄️ Givre|80', 'existing Roster data kept one column right (Rôle is now a formula)');
+        equal(rows[0][6], 'Présence palier', 'first calculated column appended at G');
       });
 
       equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
@@ -210,18 +212,18 @@
       withHarness(function () {
         // Roster written with the former labels is accepted and relabelled.
         var formerHeaders = labelsOf_(tabByName_('Roster')).slice();
-        formerHeaders[6] = 'Max palier';
-        formerHeaders[7] = 'Présence vie';
-        formerHeaders[8] = 'Max vie';
+        formerHeaders[7] = 'Max palier';
+        formerHeaders[8] = 'Présence vie';
+        formerHeaders[9] = 'Max vie';
         TABS.forEach(function (tab) {
           if (tab.name !== 'Roster') {
             TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
           }
         });
-        TracerHarness.seedSheet('Roster', [formerHeaders, ['Ana', 'Mage', '', '', 80]]);
+        TracerHarness.seedSheet('Roster', [formerHeaders, ['Ana', '', 'Mage', '', '', 80]]);
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former labels accepted');
-        equal(TracerHarness.getRows('Roster')[0][7], 'Présence totale', 'Présence vie relabelled');
+        equal(TracerHarness.getRows('Roster')[0][8], 'Présence totale', 'Présence vie relabelled');
       });
 
       withHarness(function () {
