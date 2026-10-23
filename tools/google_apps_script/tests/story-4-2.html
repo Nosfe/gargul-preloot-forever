@@ -465,6 +465,8 @@
           return entry.range.startColumnIndex === 8 && entry.rule;
         })[0];
         equal(traitement.rule.condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'BIS,IMPACT,CLASS_BOUND,NORMAL', 'Bob block Traitement dropdown');
+        equal(Object.keys(awardsMeta.hiddenColumns || {}).filter(function (key) { return awardsMeta.hiddenColumns[key]; }).sort().join(','),
+          '4,9', 'Raid (ID) hidden in each Awards block');
 
         var tierRows = TracerHarness.getRows('Objets Tank');
         equal(tierRows[2][2] + ',' + tierRows[2][3] + ',' + tierRows[2][4], 'Emplacement,Statut,Gain (%)', 'Objets: Emplacement, then Statut then Gain');

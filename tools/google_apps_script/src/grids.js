@@ -1042,7 +1042,19 @@ function buildAwardsWidthRequests_(sheetId, blockCount) {
     requests.push(buildColumnWidthRequest_(sheetId, start + 1, start + 2, 220));
     requests.push(buildColumnWidthRequest_(sheetId, start + 2, start + 3, 120));
     requests.push(buildColumnWidthRequest_(sheetId, start + AWARDS_TREATMENT_OFFSET, start + AWARDS_TREATMENT_OFFSET + 1, 130));
-    requests.push(buildColumnWidthRequest_(sheetId, start + 4, start + 5, 120));
+    // Raid (ID) is written by End raid and read by Delete raid; the owner never needs to see it.
+    requests.push({
+      updateDimensionProperties: {
+        range: {
+          sheetId: sheetId,
+          dimension: 'COLUMNS',
+          startIndex: start + AWARDS_RAID_ID_OFFSET,
+          endIndex: start + AWARDS_RAID_ID_OFFSET + 1
+        },
+        properties: { pixelSize: 120, hiddenByUser: true },
+        fields: 'pixelSize,hiddenByUser'
+      }
+    });
   }
 
   return requests;

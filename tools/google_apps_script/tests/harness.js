@@ -387,6 +387,12 @@
     }
 
     ensureSheetMeta_(sheet);
+    if (range.dimension === 'COLUMNS' && typeof properties.hiddenByUser === 'boolean') {
+      sheet.meta.hiddenColumns = sheet.meta.hiddenColumns || {};
+      for (var hiddenCol = Number(range.startIndex || 0); hiddenCol < Number(range.endIndex || 0); hiddenCol += 1) {
+        sheet.meta.hiddenColumns[String(hiddenCol)] = properties.hiddenByUser;
+      }
+    }
     if (range.dimension === 'COLUMNS' && typeof properties.pixelSize === 'number') {
       var start = Number(range.startIndex || 0);
       var end = Number(range.endIndex || start);
