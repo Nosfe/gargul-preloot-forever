@@ -6,18 +6,18 @@ function onOpen() {
     .createMenu('Preloot')
     .addSubMenu(
       ui.createMenu('Raid')
-        .addItem('Start (export snapshot)', 'exportRaidSnapshot')
-        .addItem('End', 'endRaid')
-        .addItem('Cancel', 'cancelOpenRaid')
-        .addItem('Delete', 'deleteRaid')
+        .addItem('Démarrer (exporter le snapshot)', 'exportRaidSnapshot')
+        .addItem('Terminer', 'endRaid')
+        .addItem('Annuler', 'cancelOpenRaid')
+        .addItem('Supprimer', 'deleteRaid')
     )
     .addSubMenu(
-      ui.createMenu('Setup')
-        .addItem('Refresh workbook', 'setUpWorkbook')
-        .addItem('WCL credentials', 'setWclCredentials')
-        .addItem('Update WCL parses', 'updateWclParses')
-        .addItem('Show Gargul export format', 'showGargulExportFormat')
-        .addItem('New tier', 'openNewTierDialog')
+      ui.createMenu('Configuration')
+        .addItem('Rafraîchir le classeur', 'setUpWorkbook')
+        .addItem('Identifiants WCL', 'setWclCredentials')
+        .addItem('Mettre à jour les parses WCL', 'updateWclParses')
+        .addItem('Afficher le format d\'export Gargul', 'showGargulExportFormat')
+        .addItem('Nouveau palier', 'openNewTierDialog')
     )
     .addToUi();
 }

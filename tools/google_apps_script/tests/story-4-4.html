@@ -226,7 +226,7 @@
         } catch (error) {
           message = error.message;
         }
-        contains(message, 'Set WCL credentials', 'no credentials: message');
+        contains(message, 'Identifiants WCL', 'no credentials: message');
         equal(TracerHarness.getFetchLog().length, 0, 'no credentials: nothing fetched');
         equal((TracerHarness.getSheetMeta('Roster').protectedRanges || []).length, 1, 'no credentials: raid stays started');
       });
@@ -240,7 +240,7 @@
         } catch (error) {
           message = error.message;
         }
-        contains(message, 'Start raid first', 'submit with no started raid refused');
+        contains(message, 'Raid > Démarrer first', 'submit with no started raid refused');
         equal(TracerHarness.getFetchLog().length, 0, 'submit with no started raid: nothing fetched');
       });
 
@@ -295,7 +295,7 @@
         // No started raid matrix row.
         seedCoreTabs_();
         endRaid();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Start raid first', 'no started raid alert');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Raid > Démarrer first', 'no started raid alert');
       });
 
       withHarness(function () {
@@ -346,7 +346,7 @@
           submitEndRaid('ABC123', '');
         } catch (error) {
           failed = true;
-          contains(error.message, 'Set WCL credentials', 'no credentials error');
+          contains(error.message, 'Identifiants WCL', 'no credentials error');
         }
         equal(failed, true, 'no credentials rejects');
       });
@@ -388,7 +388,7 @@
         writeCells_(presenceId, 0, zedColumn, ['']);
 
         var message = submitEndRaid('ABC123', '');
-        contains(message, 'Run Set up / refresh workbook', 'missing column result message');
+        contains(message, 'Run Configuration > Rafraîchir le classeur', 'missing column result message');
         var row = findRaidRow_('Présence', 5).row;
         equal(row[presenceColumnByName_('Ana')], 1, 'missing column still credits matched columns');
       });
@@ -447,7 +447,7 @@
         });
         TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
         updateWclParses();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'parse update refuses a Roster without Groupe de raid');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'parse update refuses a Roster without Groupe de raid');
         equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'outdated Roster untouched');
         equal(TracerHarness.getFetchLog().length, 0, 'no WCL call for an outdated Roster');
       });
@@ -463,7 +463,7 @@
         });
         TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
         updateWclParses();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'parse update refuses a Roster with lifetime columns');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'parse update refuses a Roster with lifetime columns');
         equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'Roster with lifetime columns untouched');
         equal(TracerHarness.getFetchLog().length, 0, 'no WCL call for a Roster with lifetime columns');
       });

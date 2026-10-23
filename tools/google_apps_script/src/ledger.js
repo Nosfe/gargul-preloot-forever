@@ -166,7 +166,7 @@ function validateAwards_(lines, rosterIndex, blockNames) {
 		}
 
 		if (!Object.prototype.hasOwnProperty.call(blockNameSet, winner)) {
-			rejected.push(buildRejectedFromLine_(line, 'Winner has no Awards block. Run Set up / refresh workbook.'));
+			rejected.push(buildRejectedFromLine_(line, 'Winner has no Awards block. Run Configuration > Rafraîchir le classeur.'));
 			return;
 		}
 

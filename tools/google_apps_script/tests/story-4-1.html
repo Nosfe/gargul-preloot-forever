@@ -64,10 +64,10 @@
       onOpen();
       var menu = TracerHarness.getLastMenu();
       equal(menu.caption, 'Preloot', 'menu title');
-      equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Setup', 'two submenus: Raid and Setup');
-      equal(itemLabels(submenu(menu, 'Raid')), 'Start (export snapshot),End,Cancel,Delete', 'Raid submenu always shows its 4 actions');
-      equal(itemLabels(submenu(menu, 'Setup')), 'Refresh workbook,WCL credentials,Update WCL parses,Show Gargul export format,New tier', 'Setup items');
-      ['Start (export snapshot)', 'End', 'Cancel', 'Delete', 'Refresh workbook', 'WCL credentials', 'Update WCL parses', 'Show Gargul export format', 'New tier'].forEach(function (label) {
+      equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Configuration', 'two submenus: Raid and Configuration');
+      equal(itemLabels(submenu(menu, 'Raid')), 'Démarrer (exporter le snapshot),Terminer,Annuler,Supprimer', 'Raid submenu always shows its 4 actions');
+      equal(itemLabels(submenu(menu, 'Configuration')), 'Rafraîchir le classeur,Identifiants WCL,Mettre à jour les parses WCL,Afficher le format d\'export Gargul,Nouveau palier', 'Configuration items');
+      ['Démarrer (exporter le snapshot)', 'Terminer', 'Annuler', 'Supprimer', 'Rafraîchir le classeur', 'Identifiants WCL', 'Mettre à jour les parses WCL', 'Afficher le format d\'export Gargul', 'Nouveau palier'].forEach(function (label) {
         equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
       });
 

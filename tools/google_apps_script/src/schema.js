@@ -238,8 +238,8 @@ var TABS = [
     columns: [
       { key: 'tierId', label: 'Palier actif (ID)', note: 'Identifiant du palier en cours, ex. forever-t1. Rempli par l\'officier en ligne 2.' },
       { key: 'bisWindowStart', label: 'Début du palier', formerLabels: ['Début fenêtre BiS', 'Date de début du palier en cours'], note: 'Date de début du palier actif. Seuls les raids et loots BiS à partir de cette date comptent pour Présence palier et Ratio BiS (reset BiS à chaque nouveau palier).' },
-      { key: 'openRaidId', label: 'Raid en cours', formerLabels: ['Raid ouvert (ID)'], note: 'Identifiant du raid en cours, rempli par Raid > Start et vidé par Raid > End ou Cancel.' },
-      { key: 'wclRealm', label: 'Serveur WCL', note: 'Région et serveur des personnages sur Warcraft Logs, ex. eu/thunderstrike. Utilisé par Setup > Update WCL parses.' }
+      { key: 'openRaidId', label: 'Raid en cours', formerLabels: ['Raid ouvert (ID)'], note: 'Identifiant du raid en cours, rempli par Raid > Démarrer et vidé par Raid > Terminer ou Annuler.' },
+      { key: 'wclRealm', label: 'Serveur WCL', note: 'Région et serveur des personnages sur Warcraft Logs, ex. eu/thunderstrike. Utilisé par Configuration > Mettre à jour les parses WCL.' }
     ]
   },
   {
@@ -272,7 +272,7 @@ var TABS = [
       { key: 'raidDate', label: 'Date du raid', note: 'Date du raid. Écrit par le script.' },
       { key: 'reportCodes', label: 'Rapports WCL', note: 'Codes de rapports importés pour ce raid, séparés par des espaces.' },
       { key: 'importedAt', label: 'Importé le', note: 'Date et heure du dernier import de rapport pour ce raid.' },
-      { key: 'raidTier', label: 'Palier (ID)', note: 'Palier du raid : écrit par Raid > Start, et par Nouveau palier pour les raids sans palier.' }
+      { key: 'raidTier', label: 'Palier (ID)', note: 'Palier du raid : écrit par Raid > Démarrer, et par Nouveau palier pour les raids sans palier.' }
     ]
   }
 ];

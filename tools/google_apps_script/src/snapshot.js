@@ -418,7 +418,7 @@ function requireCurrentLayout_(rows, tabName) {
     return [column.label, column.key].concat(column.formerLabels || []).indexOf(cell) === -1;
   });
   if (mismatch) {
-    throw new Error('The "' + tabName + '" tab does not match the current layout. Run "Set up / refresh workbook" first; nothing was changed.');
+    throw new Error('The "' + tabName + '" tab does not match the current layout. Run "Configuration > Rafraîchir le classeur" first; nothing was changed.');
   }
   return rows;
 }
@@ -538,7 +538,7 @@ function cancelOpenRaid() {
       var raidsRows = requireCurrentLayout_(raidsSheet.getDataRange().getValues(), 'Raids');
       for (var rowIndex = raidsRows.length - 1; rowIndex >= 1; rowIndex -= 1) {
         var row = raidsRows[rowIndex] || [];
-        // Raid > Start writes only the ID and the tier; anything else means End raid already filled it.
+        // Raid > Démarrer writes only the ID and the tier; anything else means Raid > Terminer already filled it.
         var onlyId = row.every(function (value, column) {
           return column === raidIdColumn || column === raidTierColumn || normalizeCellString_(value) === '';
         });

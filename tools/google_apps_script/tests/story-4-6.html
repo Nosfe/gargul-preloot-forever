@@ -428,9 +428,9 @@
         var oldConfig = [['Palier actif (ID)', 'Fenêtre BiS active (ID)', 'Début fenêtre BiS', 'Raid ouvert (ID)'], ['forever-t1', 'w1', 46327, 4]];
         TracerHarness.seedSheet('Config', oldConfig);
         cancelOpenRaid();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'cancel refuses an outdated Config');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'cancel refuses an outdated Config');
         exportRaidSnapshot();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses an outdated Config');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'export refuses an outdated Config');
         equal(JSON.stringify(TracerHarness.getRows('Config')), JSON.stringify(oldConfig), 'outdated Config untouched (start date kept)');
         equal(TracerHarness.getLastModalDialog(), null, 'no dialog for an outdated layout');
       });
@@ -445,7 +445,7 @@
         });
         TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
         exportRaidSnapshot();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses a Roster without Groupe de raid');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'export refuses a Roster without Groupe de raid');
         equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'outdated Roster untouched');
       });
 
@@ -461,7 +461,7 @@
         TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
         var untouched = JSON.stringify(['Config', 'Raids', 'Roster'].map(function (name) { return TracerHarness.getRows(name); }));
         exportRaidSnapshot();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses a Roster with lifetime columns');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Rafraîchir le classeur', 'export refuses a Roster with lifetime columns');
         equal(TracerHarness.getLastModalDialog(), null, 'no snapshot for an outdated Roster');
         equal(JSON.stringify(['Config', 'Raids', 'Roster'].map(function (name) { return TracerHarness.getRows(name); })), untouched, 'outdated Roster: Config, Raids and Roster unchanged');
       });

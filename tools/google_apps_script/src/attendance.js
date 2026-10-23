@@ -11,7 +11,7 @@ function endRaid() {
     var configRows = requireCurrentLayout_(snapshotSheet_(SpreadsheetApp.getActive(), 'Config').getDataRange().getValues(), 'Config');
     var openRaidId = normalizeCellString_(((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')])).trim();
     if (!openRaidId) {
-      ui.alert('Start raid first.');
+      ui.alert('Raid > Démarrer first.');
       return;
     }
 
@@ -117,7 +117,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
     var openRaidId = normalizeCellString_(((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')])).trim();
 
     if (!openRaidId) {
-      throw new Error('Start raid first.');
+      throw new Error('Raid > Démarrer first.');
     }
 
     var rosterIndex = requireRosterIndex_();
@@ -466,7 +466,7 @@ function buildEndRaidRequests_(context) {
     messageLines.push('Unmatched names: ' + context.credits.unmatchedNames.join(', ') + '.');
   }
   if (missingColumns.length) {
-    messageLines.push('No Présence column for: ' + missingColumns.join(', ') + '. Run Set up / refresh workbook.');
+    messageLines.push('No Présence column for: ' + missingColumns.join(', ') + '. Run Configuration > Rafraîchir le classeur.');
   }
 
   return {
@@ -541,7 +541,7 @@ function requireWclCredentials_() {
   var clientId = normalizeCellString_(properties.getProperty(WCL_CLIENT_ID_KEY)).trim();
   var clientSecret = normalizeCellString_(properties.getProperty(WCL_CLIENT_SECRET_KEY)).trim();
   if (!clientId || !clientSecret) {
-    throw new Error('Set WCL credentials first.');
+    throw new Error('Configuration > Identifiants WCL first.');
   }
   return {
     clientId: clientId,
