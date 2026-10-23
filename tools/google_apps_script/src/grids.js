@@ -1062,7 +1062,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
           startIndex: OBJETS_SLOT_COLUMN,
           endIndex: OBJETS_SLOT_COLUMN + 1
         },
-        inheritFromBefore: false
+        inheritFromBefore: true
       }
     });
   }
@@ -1102,13 +1102,28 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
     }
   });
 
+  // Rows 1-2 above Objet (ID), Objet and Emplacement stay plain; an earlier insert left a class colour on C2.
+  requests.push({
+    repeatCell: {
+      range: {
+        sheetId: sheetId,
+        startRowIndex: 0,
+        endRowIndex: 2,
+        startColumnIndex: 0,
+        endColumnIndex: OBJETS_FIRST_SPEC_COLUMN
+      },
+      cell: { userEnteredFormat: {} },
+      fields: 'userEnteredFormat'
+    }
+  });
+
   requests.push({
     repeatCell: {
       range: {
         sheetId: sheetId,
         startRowIndex: 0,
         endRowIndex: 1,
-        startColumnIndex: 2,
+        startColumnIndex: OBJETS_FIRST_SPEC_COLUMN,
         endColumnIndex: totalColumns
       },
       cell: {
