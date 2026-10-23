@@ -5,8 +5,6 @@
       "inputs": {
         "tierPresence": 2,
         "tierMax": 2,
-        "lifetimePresence": 3,
-        "lifetimeMax": 3,
         "parse": 80,
         "bisLoots": 1,
         "impactLoots": 1,
@@ -23,10 +21,8 @@
     {
       "name": "empty-parse",
       "inputs": {
-        "tierPresence": 3,
-        "tierMax": 4,
-        "lifetimePresence": 4,
-        "lifetimeMax": 5,
+        "tierPresence": 4,
+        "tierMax": 5,
         "parse": null,
         "bisLoots": 0,
         "impactLoots": 1,
@@ -35,7 +31,7 @@
         "gainFraction": 0.3
       },
       "expected": {
-        "bisRatio": 0.75,
+        "bisRatio": 0.8,
         "impactBase": 0.4,
         "impactScore": 0.12
       }
@@ -45,8 +41,6 @@
       "inputs": {
         "tierPresence": 5,
         "tierMax": 6,
-        "lifetimePresence": 12,
-        "lifetimeMax": 15,
         "parse": 95,
         "bisLoots": 2,
         "impactLoots": 3,
@@ -65,8 +59,6 @@
       "inputs": {
         "tierPresence": 7,
         "tierMax": 7,
-        "lifetimePresence": 8,
-        "lifetimeMax": 8,
         "parse": 50,
         "bisLoots": 3,
         "impactLoots": 1,
@@ -85,8 +77,6 @@
       "inputs": {
         "tierPresence": 4,
         "tierMax": 4,
-        "lifetimePresence": 6,
-        "lifetimeMax": 6,
         "parse": 24,
         "bisLoots": 0,
         "impactLoots": 1,
@@ -105,8 +95,6 @@
       "inputs": {
         "tierPresence": 0,
         "tierMax": 1,
-        "lifetimePresence": 0,
-        "lifetimeMax": 1,
         "parse": 80,
         "bisLoots": 0,
         "impactLoots": 0,
@@ -125,8 +113,6 @@
       "inputs": {
         "tierPresence": 1,
         "tierMax": 1,
-        "lifetimePresence": 1,
-        "lifetimeMax": 1,
         "parse": 1,
         "bisLoots": 0,
         "impactLoots": 0,
@@ -145,8 +131,6 @@
       "inputs": {
         "tierPresence": 1,
         "tierMax": 1,
-        "lifetimePresence": 1,
-        "lifetimeMax": 1,
         "parse": 1.0000000005,
         "bisLoots": 0,
         "impactLoots": 0,
@@ -165,8 +149,6 @@
       "inputs": {
         "tierPresence": 6,
         "tierMax": 6,
-        "lifetimePresence": 5,
-        "lifetimeMax": 5,
         "parse": 5,
         "bisLoots": 1,
         "impactLoots": 1,
@@ -185,8 +167,6 @@
       "inputs": {
         "tierPresence": 8,
         "tierMax": 8,
-        "lifetimePresence": 10,
-        "lifetimeMax": 10,
         "parse": 5,
         "bisLoots": 1,
         "impactLoots": 1,

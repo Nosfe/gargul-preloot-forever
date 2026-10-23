@@ -68,7 +68,7 @@
         var expected = entry.expected;
         var isTank = inputs.role === ROLE_DISPLAY.Tank.value;
         var bisRatio = bisRatio_(inputs.tierPresence, inputs.tierMax, inputs.bisLoots);
-        var impactBase = impactBase_(inputs.lifetimePresence, inputs.lifetimeMax, inputs.parse, inputs.impactLoots, isTank);
+        var impactBase = impactBase_(inputs.tierPresence, inputs.tierMax, inputs.parse, inputs.impactLoots, isTank);
         var impactScore = impactScore_(impactBase, inputs.statut, inputs.gainFraction);
 
         equal(bisRatio, expected.bisRatio, entry.name + ' bisRatio');
@@ -107,8 +107,6 @@
 
         var tierPresence = rows[1][columnOf_(rosterTab, 'tierPresence')];
         var tierMax = rows[1][columnOf_(rosterTab, 'tierPresenceMax')];
-        var lifetimePresence = rows[1][columnOf_(rosterTab, 'lifetimePresence')];
-        var lifetimeMax = rows[1][columnOf_(rosterTab, 'lifetimePresenceMax')];
         var bisLoots = rows[1][columnOf_(rosterTab, 'bisLootCount')];
         var impactLoots = rows[1][columnOf_(rosterTab, 'impactLootCount')];
         var ratio = rows[1][columnOf_(rosterTab, 'bisRatio')];
@@ -118,13 +116,13 @@
         contains(tierPresence, '(d>=N(Config!$B$2))', 'tier presence uses start date filter');
         contains(tierPresence, '((v=1)+(v="B"))', 'tier presence counts 1 and B');
         contains(tierMax, 'MAX(1,LET(', 'tier max has minimum 1');
-        contains(lifetimePresence, '((v=1)+(v="B"))', 'lifetime presence counts 1 and B');
-        contains(lifetimeMax, 'MAX(1,LET(', 'lifetime max has minimum 1');
         contains(bisLoots, '="BIS"', 'BiS count filters BIS');
         contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
-        contains(ratio, '/($K2+1)', 'ratio divides by BiS loots plus one');
+        contains(ratio, '/($I2+1)', 'ratio divides by BiS loots plus one');
         contains(impactBase, '$E2="🛡️ Tank"', 'impact base keeps tank blank');
         contains(impactBase, 'IF(N($F2)=0,1,$F2)', 'impact base uses parse=1 fallback');
+        contains(impactBase, '($G2/$H2)', 'impact base uses tier presence, like the BiS ratio');
+        contains(impactBase, '/($J2+1)', 'impact base divides by Impact loots plus one');
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
@@ -134,15 +132,14 @@
         contains(bisLoots, ',0,c+4)', 'BiS count reads the block Raid (ID)');
         contains(bisLoots, "VLOOKUP(r,'Présence'!$A$3:$C$1000,3,FALSE)", 'blank award Date falls back to its raid Date');
         contains(bisLoots, '(((e="")+(e>=N(Config!$B$2)))>0)', 'award with no date counts; dated award filtered by start date');
-        [tierPresence, tierMax, lifetimePresence, lifetimeMax].forEach(function (formula) {
+        equal(impactLoots, bisLoots.replace('(t="BIS")', '(t="IMPACT")'), 'Impact loots use the same tier-start date rule as BiS loots');
+        [tierPresence, tierMax].forEach(function (formula) {
           contains(formula, '((i<>"")+(d<>"")>0)', 'raid row = Raid (ID) or Date');
         });
-        equal(headers[columnOf_(rosterTab, 'tierPresenceMax')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresence')] + '|' + headers[columnOf_(rosterTab, 'lifetimePresenceMax')],
-          'Nombre de raids du palier|Présence totale|Nombre de raids totaux', 'renamed presence columns');
-        equal(lifetimePresence.indexOf('Config!'), -1, 'lifetime presence has no date filter');
-        equal(impactLoots.indexOf('Config!'), -1, 'Impact loots have no date filter');
+        equal(headers[columnOf_(rosterTab, 'tierPresenceMax')], 'Nombre de raids du palier', 'tier max label');
+        equal(['lifetimePresence', 'lifetimePresenceMax'].filter(function (key) { return keysOf_(rosterTab).indexOf(key) !== -1; }).length, 0, 'no lifetime presence columns');
+        equal(headers.indexOf('Présence totale') + headers.indexOf('Nombre de raids totaux'), -2, 'no lifetime presence labels');
         contains(tierMax, '=IF($A2="","",MAX(1,', 'tier max is blank on an empty row');
-        contains(lifetimeMax, '=IF($A2="","",MAX(1,', 'lifetime max is blank on an empty row');
         equal(columnOf_(rosterTab, 'tierPresence'), 6, 'score columns start at G');
         equal(rows.length, 201, 'formulas stop at row 201');
         contains(rows[200][columnOf_(rosterTab, 'bisRatio')], '$A201', 'row 201 formula refers to its own row');
@@ -170,8 +167,6 @@
         var formulaKeys = [
           'tierPresence',
           'tierPresenceMax',
-          'lifetimePresence',
-          'lifetimePresenceMax',
           'bisLootCount',
           'impactLootCount',
           'bisRatio',
@@ -208,22 +203,31 @@
       });
 
       equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
+      equal(impactBase_(2, 4, 80, 1, false), 20, 'tier presence 2/4, parse 80, 1 Impact loot gives 20');
 
-      withHarness(function () {
-        // Roster written with the former labels is accepted and relabelled.
-        var formerHeaders = labelsOf_(tabByName_('Roster')).slice();
-        formerHeaders[7] = 'Max palier';
-        formerHeaders[8] = 'Présence vie';
-        formerHeaders[9] = 'Max vie';
-        TABS.forEach(function (tab) {
-          if (tab.name !== 'Roster') {
-            TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
-          }
-        });
-        TracerHarness.seedSheet('Roster', [formerHeaders, ['Ana', '', 'Mage', '', '', 80]]);
-        setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former labels accepted');
-        equal(TracerHarness.getRows('Roster')[0][8], 'Présence totale', 'Présence vie relabelled');
+      // Roster still holding the lifetime presence columns (current or former labels): both are deleted in one refresh.
+      [['Présence totale', 'Nombre de raids totaux'], ['Présence vie', 'Max vie']].forEach(function (lifetimeLabels) {
+          withHarness(function () {
+            var labels = labelsOf_(tabByName_('Roster'));
+            var bisAt = columnOf_(tabByName_('Roster'), 'bisLootCount');
+            var oldHeaders = labels.slice(0, bisAt).concat(lifetimeLabels, labels.slice(bisAt));
+            oldHeaders[columnOf_(tabByName_('Roster'), 'tierPresenceMax')] = 'Max palier';
+            TABS.forEach(function (tab) {
+              if (tab.name !== 'Roster') {
+                TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
+              }
+            });
+            TracerHarness.seedSheet('Roster', [oldHeaders, ['Ana', 'Raid 1', 'Mage', '', '', 80, '', '', 7, 9]]);
+            setUpWorkbook();
+            contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', lifetimeLabels[0] + ' Roster migrates');
+            var rows = TracerHarness.getRows('Roster');
+            equal(rows[0].slice(0, labels.length).join('|'), labels.join('|'), lifetimeLabels[0] + ': lifetime columns deleted, labels current');
+            equal(rows[1].slice(0, 2).join('|') + '|' + rows[1][5], 'Ana|Raid 1|80', lifetimeLabels[0] + ': owner values kept');
+            equal(String(rows[0][labels.length] || ''), '', lifetimeLabels[0] + ': nothing left after the last column');
+            var before = JSON.stringify(rows);
+            setUpWorkbook();
+            equal(JSON.stringify(TracerHarness.getRows('Roster')), before, lifetimeLabels[0] + ': second refresh deletes nothing');
+          });
       });
 
       withHarness(function () {

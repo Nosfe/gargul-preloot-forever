@@ -118,16 +118,11 @@ function buildSnapshotRaiders_(rosterRows) {
 
     var tierPresence = readSnapshotInteger_(row[columnOf_(tab, 'tierPresence')], raiderKey, 'Présence palier', errors, 0);
     var tierPresenceMax = readSnapshotInteger_(row[columnOf_(tab, 'tierPresenceMax')], raiderKey, 'Nombre de raids du palier', errors, 1);
-    var lifetimePresence = readSnapshotInteger_(row[columnOf_(tab, 'lifetimePresence')], raiderKey, 'Présence totale', errors, 0);
-    var lifetimePresenceMax = readSnapshotInteger_(row[columnOf_(tab, 'lifetimePresenceMax')], raiderKey, 'Nombre de raids totaux', errors, 1);
     var bisLootCount = readSnapshotInteger_(row[columnOf_(tab, 'bisLootCount')], raiderKey, 'Loots BiS', errors, 0);
     var impactLootCount = readSnapshotInteger_(row[columnOf_(tab, 'impactLootCount')], raiderKey, 'Loots Impact', errors, 0);
 
     if (tierPresence !== null && tierPresenceMax !== null && tierPresence > tierPresenceMax) {
       errors.push(raiderKey + ': Présence palier > Nombre de raids du palier.');
-    }
-    if (lifetimePresence !== null && lifetimePresenceMax !== null && lifetimePresence > lifetimePresenceMax) {
-      errors.push(raiderKey + ': Présence totale > Nombre de raids totaux.');
     }
 
     // Like the sheet's N(): empty, text or 0 counts as 1; any other value must be 1-100.
@@ -161,8 +156,8 @@ function buildSnapshotRaiders_(rosterRows) {
 
     if (role === 'TANK') {
       impactBase = null;
-    } else if (parseValid && lifetimePresence !== null && lifetimePresenceMax !== null && impactLootCount !== null) {
-      var recomputedImpactBase = impactBase_(lifetimePresence, lifetimePresenceMax, dpsParse, impactLootCount, false);
+    } else if (parseValid && tierPresence !== null && tierPresenceMax !== null && impactLootCount !== null) {
+      var recomputedImpactBase = impactBase_(tierPresence, tierPresenceMax, dpsParse, impactLootCount, false);
       if (typeof impactBaseCell !== 'number' || !isFinite(impactBaseCell)) {
         errors.push(raiderKey + ': Impact (sans gain objet) non numérique.');
       } else if (!withinSnapshotTolerance_(impactBaseCell, recomputedImpactBase)) {
@@ -178,7 +173,7 @@ function buildSnapshotRaiders_(rosterRows) {
     if (role !== 'TANK' && impactBase === null) {
       continue;
     }
-    if (tierPresence === null || tierPresenceMax === null || lifetimePresence === null || lifetimePresenceMax === null ||
+    if (tierPresence === null || tierPresenceMax === null ||
         bisLootCount === null || impactLootCount === null) {
       continue;
     }
@@ -189,8 +184,6 @@ function buildSnapshotRaiders_(rosterRows) {
       classSpec: classSpec,
       tierPresence: tierPresence,
       tierPresenceMax: tierPresenceMax,
-      lifetimePresence: lifetimePresence,
-      lifetimePresenceMax: lifetimePresenceMax,
       bisLootCount: bisLootCount,
       impactLootCount: impactLootCount,
       dpsParse: dpsParse,

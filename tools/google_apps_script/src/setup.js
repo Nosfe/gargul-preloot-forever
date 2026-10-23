@@ -105,8 +105,6 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   var parseColumn = columnOf_(rosterTab, 'dpsParse');
   var tierPresenceColumn = columnOf_(rosterTab, 'tierPresence');
   var tierPresenceMaxColumn = columnOf_(rosterTab, 'tierPresenceMax');
-  var lifetimePresenceColumn = columnOf_(rosterTab, 'lifetimePresence');
-  var lifetimePresenceMaxColumn = columnOf_(rosterTab, 'lifetimePresenceMax');
   var bisLootCountColumn = columnOf_(rosterTab, 'bisLootCount');
   var impactLootCountColumn = columnOf_(rosterTab, 'impactLootCount');
   var bisRatioColumn = columnOf_(rosterTab, 'bisRatio');
@@ -116,8 +114,6 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   var parseLetter = columnLetter_(parseColumn);
   var tierPresenceLetter = columnLetter_(tierPresenceColumn);
   var tierPresenceMaxLetter = columnLetter_(tierPresenceMaxColumn);
-  var lifetimePresenceLetter = columnLetter_(lifetimePresenceColumn);
-  var lifetimePresenceMaxLetter = columnLetter_(lifetimePresenceMaxColumn);
   var bisLootCountLetter = columnLetter_(bisLootCountColumn);
   var impactLootCountLetter = columnLetter_(impactLootCountColumn);
   var presenceStart = '$' + PRESENCE_FIRST_RAID_ROW + ':$1000';
@@ -138,12 +134,10 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
     var rowValues = [
       { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierPresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildTierPresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef).slice(1) + ')', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_(buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn), separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn).slice(1) + ')', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_(buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef), separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_(buildImpactLootFormula_(nameLetter, rowNumber, awardsStart, awardsTreatmentOffset), separator) } },
+      { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef, 'BIS'), separator) } },
+      { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef, 'IMPACT'), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')/($' + bisLootCountLetter + rowNumber + '+1))', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF(OR($' + nameLetter + rowNumber + '="",$' + roleLetter + rowNumber + '="' + ROLE_DISPLAY.Tank.value + '"),"",($' + lifetimePresenceLetter + rowNumber + '/$' + lifetimePresenceMaxLetter + rowNumber + ')*IF(N($' + parseLetter + rowNumber + ')=0,1,$' + parseLetter + rowNumber + ')/($' + impactLootCountLetter + rowNumber + '+1))', separator) } }
+      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF(OR($' + nameLetter + rowNumber + '="",$' + roleLetter + rowNumber + '="' + ROLE_DISPLAY.Tank.value + '"),"",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')*IF(N($' + parseLetter + rowNumber + ')=0,1,$' + parseLetter + rowNumber + ')/($' + impactLootCountLetter + rowNumber + '+1))', separator) } }
     ];
     rows.push({ values: rowValues });
   }
@@ -251,36 +245,21 @@ function buildTierPresenceMaxFormula_(presenceSheet, presenceStart, presenceDate
   return '=MAX(1,LET(d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(' + raidRowTest_('i', 'd') + '*(d>=N(' + configStartDateRef + ')))))';
 }
 
-// Présence totale: 1/B counts over every raid row.
-function buildLifetimePresenceFormula_(nameLetter, rowNumber, presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn) {
-  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(presenceSheet, '$' + nameLetter + rowNumber) + ',v,INDEX(' + presenceSheet + presenceStart + ',0,c),d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(' + raidRowTest_('i', 'd') + '*((v=1)+(v="B")))),0))';
-}
-
-// Nombre de raids totaux: every raid row, minimum 1.
-function buildLifetimePresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn) {
-  return '=MAX(1,LET(d,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceDateColumn + '),i,INDEX(' + presenceSheet + presenceStart + ',0,' + presenceRaidIdColumn + '),SUMPRODUCT(--' + raidRowTest_('i', 'd') + ')))';
-}
-
 // A Présence row is a raid when it has a Raid (ID) or a Date.
 function raidRowTest_(raidIdName, dateName) {
   return '((' + raidIdName + '<>"")+(' + dateName + '<>"")>0)';
 }
 
-// Loots BiS: BIS treatments in the raider block from the BiS window start. A blank Date falls back to
+// Loots BiS / Loots Impact: awards of one treatment in the raider block from the tier start. A blank Date falls back to
 // the Date of the award's Raid (ID) in Présence; with neither, the award counts.
-function buildBisLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, awardsRaidIdOffset, presenceDateLookup, configStartDateRef) {
+function buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, awardsRaidIdOffset, presenceDateLookup, configStartDateRef, treatment) {
   var awards = GRID_TABS.awards.name + '!' + awardsStart;
   return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(GRID_TABS.awards.name + '!', '$' + nameLetter + rowNumber) +
     ',t,INDEX(' + awards + ',0,c+' + awardsTreatmentOffset + ')' +
     ',d,INDEX(' + awards + ',0,c+' + awardsDateOffset + ')' +
     ',r,INDEX(' + awards + ',0,c+' + awardsRaidIdOffset + ')' +
     ',e,ARRAYFORMULA(IF(d<>"",d,IFERROR(VLOOKUP(r,' + presenceDateLookup.range + ',' + presenceDateLookup.column + ',FALSE),"")))' +
-    ',SUMPRODUCT((t="BIS")*(((e="")+(e>=N(' + configStartDateRef + ')))>0))),0))';
-}
-
-// Loots Impact: IMPACT treatments in the raider block over every row.
-function buildImpactLootFormula_(nameLetter, rowNumber, awardsStart, awardsTreatmentOffset) {
-  return '=IF($' + nameLetter + rowNumber + '="","",IFERROR(LET(c,' + exactHeaderMatch_(GRID_TABS.awards.name + '!', '$' + nameLetter + rowNumber) + ',SUMPRODUCT(--(INDEX(' + GRID_TABS.awards.name + '!' + awardsStart + ',0,c+' + awardsTreatmentOffset + ')="IMPACT"))),0))';
+    ',SUMPRODUCT((t="' + treatment + '")*(((e="")+(e>=N(' + configStartDateRef + ')))>0))),0))';
 }
 
 // Returns the sheet ids deleted by requests already queued in the same batch.
@@ -364,11 +343,13 @@ function legacyConfigWindowColumn_(headers) {
   return indexOfHeader_(headers, ['bisWindowId', 'Fenêtre BiS active (ID)']);
 }
 
-// Indexes of the removed Roster columns (tank priority, raider gain), highest first.
+// Indexes of the removed Roster columns (tank priority, raider gain, lifetime presence and its max), highest first.
 function legacyRosterColumns_(headers) {
   return [
     indexOfHeader_(headers, ['tankPriority', 'Priorité tank']),
-    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)'])
+    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)']),
+    indexOfHeader_(headers, ['lifetimePresence', 'Présence totale', 'Présence vie']),
+    indexOfHeader_(headers, ['lifetimePresenceMax', 'Nombre de raids totaux', 'Max vie'])
   ].filter(function (index) { return index !== -1; }).sort(function (a, b) { return b - a; });
 }
 
@@ -420,10 +401,9 @@ function buildLegacyTabMigrationRequests_(existingHeadersByName) {
   return requests;
 }
 
-// True when Roster still has the removed tank-priority or raider-gain columns.
+// True when Roster still has a removed column (tank priority, raider gain, lifetime presence).
 function isLegacyRosterHeaders_(headers) {
-  return indexOfHeader_(headers, ['tankPriority', 'Priorité tank']) !== -1 ||
-    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)']) !== -1;
+  return legacyRosterColumns_(headers).length > 0;
 }
 
 // True when an existing Roster predates the "Groupe de raid" column (inserted at B, right after the name).

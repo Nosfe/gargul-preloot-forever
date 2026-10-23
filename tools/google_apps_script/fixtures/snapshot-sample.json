@@ -9,13 +9,11 @@
       "classSpec": "Mage Givre",
       "tierPresence": 4,
       "tierPresenceMax": 8,
-      "lifetimePresence": 9,
-      "lifetimePresenceMax": 12,
       "bisLootCount": 1,
       "impactLootCount": 2,
       "dpsParse": 1,
       "bisRatio": 0.25,
-      "impactBase": 0.25
+      "impactBase": 0.16666666666666666
     },
     {
       "raiderKey": "Beryl",
@@ -23,13 +21,11 @@
       "classSpec": "Prêtre Sacré",
       "tierPresence": 6,
       "tierPresenceMax": 8,
-      "lifetimePresence": 10,
-      "lifetimePresenceMax": 12,
       "bisLootCount": 0,
       "impactLootCount": 1,
       "dpsParse": 88,
       "bisRatio": 0.75,
-      "impactBase": 36.66666666666667
+      "impactBase": 33
     },
     {
       "raiderKey": "Cairn",
@@ -37,8 +33,6 @@
       "classSpec": "Druide Combat farouche (ours)",
       "tierPresence": 8,
       "tierPresenceMax": 8,
-      "lifetimePresence": 12,
-      "lifetimePresenceMax": 12,
       "bisLootCount": 3,
       "impactLootCount": 0,
       "dpsParse": 95,

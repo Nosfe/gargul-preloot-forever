@@ -452,6 +452,22 @@
       });
 
       withHarness(function () {
+        // Roster still holding Présence totale (setup not re-run): the parse update refuses before any WCL call.
+        seedParseWorkbook_('EU/Thunderstrike');
+        var at = columnOf_(tabByName_('Roster'), 'bisLootCount');
+        var rosterRows = TracerHarness.getRows('Roster').map(function (row, index) {
+          var copy = row.slice();
+          copy.splice(at, 0, index === 0 ? 'Présence totale' : '', index === 0 ? 'Nombre de raids totaux' : '');
+          return copy;
+        });
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+        updateWclParses();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'parse update refuses a Roster with lifetime columns');
+        equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'Roster with lifetime columns untouched');
+        equal(TracerHarness.getFetchLog().length, 0, 'no WCL call for a Roster with lifetime columns');
+      });
+
+      withHarness(function () {
         seedParseWorkbook_('');
         TracerHarness.setFetchResponses([]);
         updateWclParses();

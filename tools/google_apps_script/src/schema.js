@@ -246,8 +246,6 @@ var TABS = [
       { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'tierPresence', label: 'Présence palier', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'tierPresenceMax', label: 'Nombre de raids du palier', formerLabels: ['Max palier', 'Nombre de raids par palier'], note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'lifetimePresence', label: 'Présence totale', formerLabels: ['Présence vie'], note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'lifetimePresenceMax', label: 'Nombre de raids totaux', formerLabels: ['Max vie'], note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisLootCount', label: 'Loots BiS', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },

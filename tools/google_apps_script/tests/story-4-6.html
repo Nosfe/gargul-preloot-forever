@@ -118,7 +118,7 @@
       var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
 
       var rosterTab = tabByName_('Roster');
-      function rosterRowValues_(name, className, spec, role, parse, tierPresence, tierMax, lifePresence, lifeMax, bisLoot, impactLoot, bisRatio, impactBase) {
+      function rosterRowValues_(name, className, spec, role, parse, tierPresence, tierMax, bisLoot, impactLoot, bisRatio, impactBase) {
         var values = [];
         values[columnOf_(rosterTab, 'raiderKey')] = name;
         values[columnOf_(rosterTab, 'class')] = className;
@@ -127,8 +127,6 @@
         values[columnOf_(rosterTab, 'dpsParse')] = parse;
         values[columnOf_(rosterTab, 'tierPresence')] = tierPresence;
         values[columnOf_(rosterTab, 'tierPresenceMax')] = tierMax;
-        values[columnOf_(rosterTab, 'lifetimePresence')] = lifePresence;
-        values[columnOf_(rosterTab, 'lifetimePresenceMax')] = lifeMax;
         values[columnOf_(rosterTab, 'bisLootCount')] = bisLoot;
         values[columnOf_(rosterTab, 'impactLootCount')] = impactLoot;
         values[columnOf_(rosterTab, 'bisRatio')] = bisRatio;
@@ -149,12 +147,10 @@
         '',
         4,
         8,
-        9,
-        12,
         1,
         2,
         0.25,
-        0.25
+        0.16666666666666666
       ));
       writeCells_(rosterId, 2, 0, rosterRowValues_(
         'Beryl',
@@ -164,12 +160,10 @@
         88,
         6,
         8,
-        10,
-        12,
         0,
         1,
         0.75,
-        36.66666666666667
+        33
       ));
       writeCells_(rosterId, 3, 0, rosterRowValues_(
         'Cairn',
@@ -179,8 +173,6 @@
         95,
         8,
         8,
-        12,
-        12,
         3,
         0,
         0.25,
@@ -325,7 +317,7 @@
         function row_(overrides) {
           var base = {
             raiderKey: 'Zoe', class: 'Mage', spec: specDisplayValue_('Mage', 'Feu'), role: ROLE_DISPLAY['Caster DPS'].value,
-            dpsParse: 50, tierPresence: 2, tierPresenceMax: 4, lifetimePresence: 3, lifetimePresenceMax: 6,
+            dpsParse: 50, tierPresence: 2, tierPresenceMax: 4,
             bisLootCount: 0, impactLootCount: 1, bisRatio: 0.5, impactBase: 12.5
           };
           Object.keys(overrides || {}).forEach(function (key) { base[key] = overrides[key]; });
@@ -338,6 +330,9 @@
         }
 
         equal(raiders_({}).raiders[0].impactBase, 12.5, 'valid DPS row exported');
+        equal(Object.keys(raiders_({}).raiders[0]).filter(function (key) { return key.indexOf('lifetime') !== -1; }).length, 0, 'snapshot raider has no lifetime fields');
+        equal(raiders_({ tierPresence: 4, bisRatio: 1, impactBase: 25 }).raiders[0].impactBase, 25, 'impact base checked against tier presence');
+        contains(raiders_({ tierPresence: 4, bisRatio: 1, impactBase: 12.5 }).errors.join(' '), 'Impact', 'impact base from another presence is rejected');
         ['', 'abc', 0].forEach(function (parse) {
           var result = raiders_({ dpsParse: parse, impactBase: 0.25 });
           equal(result.raiders.length + ':' + result.raiders[0].dpsParse, '1:1', 'parse ' + JSON.stringify(parse) + ' exported as 1');
@@ -439,6 +434,23 @@
         exportRaidSnapshot();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses a Roster without Groupe de raid');
         equal(JSON.stringify(TracerHarness.getRows('Roster')), JSON.stringify(rosterRows), 'outdated Roster untouched');
+      });
+
+      withHarness(function () {
+        // Roster still holding Présence totale (setup not re-run): export refuses and writes nothing.
+        seedStoryWorkbook_();
+        var at = columnOf_(tabByName_('Roster'), 'bisLootCount');
+        var rosterRows = TracerHarness.getRows('Roster').map(function (row, index) {
+          var copy = row.slice();
+          copy.splice(at, 0, index === 0 ? 'Présence totale' : '', index === 0 ? 'Nombre de raids totaux' : '');
+          return copy;
+        });
+        TracerHarness.seedSheet('Roster', rosterRows, { sheetId: SpreadsheetApp.getActive().getSheetByName('Roster').getSheetId() });
+        var untouched = JSON.stringify(['Config', 'Raids', 'Roster'].map(function (name) { return TracerHarness.getRows(name); }));
+        exportRaidSnapshot();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Set up / refresh workbook', 'export refuses a Roster with lifetime columns');
+        equal(TracerHarness.getLastModalDialog(), null, 'no snapshot for an outdated Roster');
+        equal(JSON.stringify(['Config', 'Raids', 'Roster'].map(function (name) { return TracerHarness.getRows(name); })), untouched, 'outdated Roster: Config, Raids and Roster unchanged');
       });
 
       withHarness(function () {

@@ -9,14 +9,14 @@ function bisRatio_(tierPresence, tierMax, bisLoots) {
   return (presence / max) / (loots + 1);
 }
 
-// Impact base: normalized lifetime presence * parse / (Impact loots + 1), null for tanks.
-function impactBase_(lifetimePresence, lifetimeMax, parse, impactLoots, isTank) {
+// Impact base: normalized tier presence * parse / (Impact loots + 1), null for tanks.
+function impactBase_(tierPresence, tierMax, parse, impactLoots, isTank) {
   if (isTank) {
     return null;
   }
 
-  var presence = Number(lifetimePresence || 0);
-  var max = Number(lifetimeMax || 0);
+  var presence = Number(tierPresence || 0);
+  var max = Number(tierMax || 0);
   var loots = Number(impactLoots || 0);
   // Same rule as the sheet's IF(N(parse)=0,1,parse): only a real non-zero number counts.
   var parseNumber = typeof parse === 'number' && parse !== 0 && isFinite(parse) ? parse : 1;
