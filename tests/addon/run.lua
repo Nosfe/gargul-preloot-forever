@@ -427,6 +427,99 @@ do
     equal(GP.Export.fill(nil), nil, "nil export passes through")
 end
 
+-- Snapshot validation and recompute (5.4)
+do
+    local function near(actual, expected, label)
+        if expected == nil then
+            check(actual == nil, label .. " (expected nil, got " .. tostring(actual) .. ")")
+        else
+            check(type(actual) == "number" and math.abs(actual - expected) <= 1e-9 * math.max(1, math.abs(expected)),
+                ("%s (expected %s, got %s)"):format(label, tostring(expected), tostring(actual)))
+        end
+    end
+
+    local cases = GL.JSON:decode(readFile(root .. "/tools/google_apps_script/fixtures/scores.json")).cases
+    check(#cases >= 10, "scores.json cases loaded")
+    for _, case in ipairs(cases) do
+        local inputs = case.inputs
+        local raider = {
+            role = inputs.role:find("Tank") and "TANK" or "DPS",
+            tierPresence = inputs.tierPresence,
+            tierPresenceMax = inputs.tierMax,
+            bisLootCount = inputs.bisLoots,
+            impactLootCount = inputs.impactLoots,
+            dpsParse = inputs.parse or 1,
+        }
+        near(GP.Scores.bisRatio(raider), case.expected.bisRatio, case.name .. " bisRatio")
+        near(GP.Scores.impactBase(raider), case.expected.impactBase, case.name .. " impactBase")
+    end
+
+    check(GP.Import.apply(sampleB64, GL), "valid sample accepted")
+    local kept = GP.Snapshot.get()
+    GP.Awards.record({ checksum = "v1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
+    GP.Awards.setTreatment("v1", "BIS")
+    local alya = GP.Snapshot.raider("Alya")
+    near(GP.Scores.impactBase(alya), alya.impactBase, "sample impactBase recomputes")
+
+    local function once(pattern, replacement)
+        local text, count = sampleJson:gsub(pattern, replacement, 1)
+        assert(count == 1, "mutation pattern not found: " .. pattern)
+        return text
+    end
+
+    local broken = {
+        { once('"raidId": "4"', '"raidId": 4'), "raidId not a string" },
+        { once('"items"', '"objets"'), "items missing" },
+        { once('"role": "DPS"', '"role": "MAGE"'), "unknown role", "Alya" },
+        { once('"classSpec": "Mage Givre"', '"classSpec": ""'), "empty classSpec", "Alya" },
+        { once('"bisLootCount": 1', '"bisLootCount": 1.5'), "non-integer count", "Alya" },
+        { once('"impactLootCount": 2', '"impactLootCount": -1'), "negative count", "Alya" },
+        { once('"tierPresenceMax": 8', '"tierPresenceMax": 0'), "max below 1", "Alya" },
+        { once('"tierPresence": 4', '"tierPresence": 9'), "presence above max", "Alya" },
+        { once('"tierPresence": 4', '"tierPresence": 1e999'), "infinite presence", "Alya" },
+        { once('"dpsParse": 88', '"dpsParse": 120'), "parse above 100", "Beryl" },
+        { once('"dpsParse": 1,', '"dpsParse": "x",'), "parse not a number", "Alya" },
+        { once('"raiderKey": "Beryl"', '"raiderKey": "Alya"'), "duplicate raider key", "double" },
+        { once('"itemID": 888', '"itemID": 777'), "duplicate itemID", "double" },
+        { once('"classSpec": "Paladin Sacré"', '"classSpec": "Guerrier Protection"'), "duplicate spec in item", "double" },
+        { once('"bisRatio": 0.75', '"bisRatio": 0.7'), "bisRatio mismatch", "Beryl" },
+        { once('"impactBase": 33', '"impactBase": 34'), "impactBase mismatch", "Beryl" },
+        { once('"impactBase": 33', '"impactBase": null'), "impactBase missing for a healer", "Beryl" },
+        { once('"impactBase": null', '"impactBase": 1'), "tank with impactBase", "Cairn" },
+        { once('"statut": "BIS"', '"statut": "NONE"'), "unknown statut", "statut" },
+        { once('"gainFraction": 0.12', '"gainFraction": "x"'), "gain not a number", "gain" },
+        { once('"itemID": 777', '"itemID": 0'), "itemID not positive", "itemID" },
+        { once('"bisRatio": 0.25', '"bisRatio": 0.250000002'), "bisRatio outside tolerance", "Alya" },
+        { once('"tierId": "forever%-t1"', '"tierId": ""'), "empty tierId", "tierId" },
+        { once('"dpsParse": 1,', '"dpsParse": 0.5,'), "parse below 1", "Alya" },
+        { once('"bisRatio": 0.75', '"bisRatio": 1e999'), "infinite bisRatio", "Beryl" },
+        { once('"bisRatio": 0.75,', ''), "bisRatio missing", "Beryl" },
+        { once('"gainFraction": 0.12', '"gainFraction": 1e999'), "infinite gain", "gain" },
+        { once('"itemID": 777', '"itemID": 777.5'), "itemID not an integer", "itemID" },
+    }
+    for _, case in ipairs(broken) do
+        local result, message = GP.Snapshot.parse(case[1], GL)
+        check(result == nil and type(message) == "string", "refused: " .. case[2])
+        if case[3] and type(message) == "string" then
+            check(message:find(case[3], 1, true) ~= nil, ("message names %s: %s (%s)"):format(case[3], case[2], tostring(message)))
+        end
+        check(GP.Import.apply(case[1], GL) == false and GP.Snapshot.get() == kept, "previous snapshot kept: " .. case[2])
+        check(GP.Awards.get("v1") and GP.Awards.get("v1").treatment == "BIS", "recorded awards kept: " .. case[2])
+    end
+
+    local twoErrors = once('"role": "DPS"', '"role": "MAGE"'):gsub('"dpsParse": 88', '"dpsParse": 120', 1)
+    local _, many = GP.Snapshot.parse(twoErrors, GL)
+    check(type(many) == "string" and many:find("(+1 autre)", 1, true) ~= nil, "message counts the other problems: " .. tostring(many))
+    local _, three = GP.Snapshot.parse(twoErrors:gsub('"tierId": "forever%-t1"', '"tierId": ""', 1), GL)
+    check(type(three) == "string" and three:find("tierId ou raidId manquant (+2 autres)", 1, true) ~= nil, "envelope problem counted with the others: " .. tostring(three))
+
+    local edgeText = once('"bisRatio": 0.25', '"bisRatio": 0.2500000004')
+    check(GP.Snapshot.parse(edgeText, GL) ~= nil, "value inside the tolerance accepted")
+    check(GP.Import.apply(edgeText, GL), "edge snapshot imported")
+    equal(GP.Snapshot.raider("Alya").bisRatio, 0.2500000004, "supplied value kept in the snapshot")
+    equal(GP.Scores.bisRatio(GP.Snapshot.raider("Alya")), 0.25, "display uses the recomputed value")
+end
+
 if #failures > 0 then
     print(("FAIL: %d of %d assertions"):format(#failures, count))
     for _, label in ipairs(failures) do

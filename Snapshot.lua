@@ -52,33 +52,172 @@ function Snapshot.parse(text, GL)
         return nil, "JSON invalide"
     end
 
-    if data.schemaVersion ~= SCHEMA_VERSION then
-        return nil, ("version de snapshot non prise en charge (%s, attendu %d)"):format(tostring(data.schemaVersion), SCHEMA_VERSION)
-    end
-
-    if not isNonEmptyString(data.tierId) or not isNonEmptyString(data.raidId) then
-        return nil, "tierId ou raidId manquant"
-    end
-
-    if type(data.raiders) ~= "table" then
-        return nil, "liste raiders manquante"
-    end
-
-    local entries = 0
-    for _ in pairs(data.raiders) do
-        entries = entries + 1
-    end
-    if entries ~= #data.raiders then
-        return nil, "liste raiders invalide (entrée vide ou non numérotée)"
-    end
-
-    for index, raider in ipairs(data.raiders) do
-        if type(raider) ~= "table" or not isNonEmptyString(raider.raiderKey) then
-            return nil, ("raider %d sans raiderKey"):format(index)
-        end
+    local validationError = Snapshot.validate(data)
+    if validationError then
+        return nil, validationError
     end
 
     return data
+end
+
+local ROLES = { DPS = true, HEALER = true, TANK = true }
+local STATUTS = { BIS = true, IMPACT = true, CLASS_BOUND = true, NORMAL = true }
+
+local function isFiniteNumber(value)
+    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+local function isInteger(value, minimum)
+    return isFiniteNumber(value) and value == math.floor(value) and value >= minimum
+end
+
+-- A JSON array decodes to a table whose only keys are 1..n.
+local function isArray(value)
+    if type(value) ~= "table" then
+        return false
+    end
+
+    local count = 0
+    for _ in pairs(value) do
+        count = count + 1
+    end
+    return count == #value
+end
+
+-- Same check as the workbook exporter's withinSnapshotTolerance_ (AD-6).
+local function withinTolerance(value, recomputed)
+    return math.abs(value - recomputed) <= 1e-9 * math.max(1, math.abs(recomputed))
+end
+
+local function validateRaider(raider, index, errors, seenKeys)
+    if type(raider) ~= "table" or not isNonEmptyString(raider.raiderKey) then
+        errors[#errors + 1] = ("raider %d sans raiderKey"):format(index)
+        return
+    end
+
+    local key = raider.raiderKey
+    local function fail(message)
+        errors[#errors + 1] = key .. " : " .. message
+    end
+
+    if seenKeys[key] then
+        fail("nom en double")
+        return
+    end
+    seenKeys[key] = true
+
+    if not ROLES[raider.role] then
+        fail("rôle inconnu (" .. tostring(raider.role) .. ")")
+    end
+    if not isNonEmptyString(raider.classSpec) then
+        fail("classSpec manquante")
+    end
+
+    local countsValid = true
+    for _, field in ipairs({ { "tierPresence", 0 }, { "tierPresenceMax", 1 }, { "bisLootCount", 0 }, { "impactLootCount", 0 } }) do
+        if not isInteger(raider[field[1]], field[2]) then
+            fail(("%s doit être un entier >= %d"):format(field[1], field[2]))
+            countsValid = false
+        end
+    end
+    if countsValid and raider.tierPresence > raider.tierPresenceMax then
+        fail("tierPresence > tierPresenceMax")
+        countsValid = false
+    end
+
+    local parseValid = isFiniteNumber(raider.dpsParse) and raider.dpsParse >= 1 and raider.dpsParse <= 100
+    if not parseValid then
+        fail("dpsParse hors plage (1-100)")
+    end
+
+    if countsValid then
+        local bisRatio = GP.Scores.bisRatio(raider)
+        if not isFiniteNumber(raider.bisRatio) or not withinTolerance(raider.bisRatio, bisRatio) then
+            fail("bisRatio ne correspond pas au calcul")
+        end
+    end
+
+    if raider.role == "TANK" then
+        if raider.impactBase ~= nil then
+            fail("impactBase doit être null pour un tank")
+        end
+    elseif countsValid and parseValid and ROLES[raider.role] then
+        local impactBase = GP.Scores.impactBase(raider)
+        if not isFiniteNumber(raider.impactBase) or not withinTolerance(raider.impactBase, impactBase) then
+            fail("impactBase ne correspond pas au calcul")
+        end
+    end
+end
+
+local function validateItem(item, index, errors, seenIDs)
+    if type(item) ~= "table" or not isInteger(item.itemID, 1) then
+        errors[#errors + 1] = ("objet %d : itemID invalide"):format(index)
+        return
+    end
+
+    local where = "objet " .. item.itemID
+    if seenIDs[item.itemID] then
+        errors[#errors + 1] = where .. " : itemID en double"
+        return
+    end
+    seenIDs[item.itemID] = true
+
+    if not isArray(item.specs) then
+        errors[#errors + 1] = where .. " : liste specs invalide"
+        return
+    end
+
+    local seenSpecs = {}
+    for _, spec in ipairs(item.specs) do
+        if type(spec) ~= "table" or not isNonEmptyString(spec.classSpec) then
+            errors[#errors + 1] = where .. " : spé sans classSpec"
+        elseif seenSpecs[spec.classSpec] then
+            errors[#errors + 1] = where .. " : " .. spec.classSpec .. " en double"
+        else
+            seenSpecs[spec.classSpec] = true
+            if not STATUTS[spec.statut] then
+                errors[#errors + 1] = where .. " : statut invalide pour " .. spec.classSpec
+            end
+            if spec.gainFraction ~= nil and not isFiniteNumber(spec.gainFraction) then
+                errors[#errors + 1] = where .. " : gain non numérique pour " .. spec.classSpec
+            end
+        end
+    end
+end
+
+--- Full Interchange v2 check; returns nil when valid, else the first problem in French and how many others.
+function Snapshot.validate(data)
+    if not isArray(data.raiders) then
+        return "liste raiders manquante ou invalide"
+    end
+    if not isArray(data.items) then
+        return "liste items manquante ou invalide"
+    end
+
+    local errors = {}
+    if data.schemaVersion ~= SCHEMA_VERSION then
+        errors[#errors + 1] = ("version de snapshot non prise en charge (%s, attendu %d)"):format(tostring(data.schemaVersion), SCHEMA_VERSION)
+    end
+    if not isNonEmptyString(data.tierId) or not isNonEmptyString(data.raidId) then
+        errors[#errors + 1] = "tierId ou raidId manquant"
+    end
+
+    local seenKeys = {}
+    for index, raider in ipairs(data.raiders) do
+        validateRaider(raider, index, errors, seenKeys)
+    end
+    local seenIDs = {}
+    for index, item in ipairs(data.items) do
+        validateItem(item, index, errors, seenIDs)
+    end
+
+    if #errors == 0 then
+        return nil
+    end
+    if #errors == 1 then
+        return errors[1]
+    end
+    return ("%s (+%d %s)"):format(errors[1], #errors - 1, #errors == 2 and "autre" or "autres")
 end
 
 --- Replace the session snapshot; only called with a successfully parsed snapshot.
