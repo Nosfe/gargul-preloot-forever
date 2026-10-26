@@ -235,7 +235,7 @@ function Snapshot.set(data)
             local bySpec = {}
             for _, spec in ipairs(item.specs) do
                 if type(spec) == "table" and type(spec.classSpec) == "string" then
-                    bySpec[spec.classSpec] = spec.statut
+                    bySpec[spec.classSpec] = spec
                 end
             end
             statutsByItem[itemID] = bySpec
@@ -253,6 +253,12 @@ end
 
 --- The owner's Statut for an item and spec, or nil when the snapshot has none.
 function Snapshot.statut(itemID, classSpec)
+    local spec = Snapshot.itemSpec(itemID, classSpec)
+    return spec and spec.statut or nil
+end
+
+--- The snapshot's {classSpec, statut, gainFraction} for an item and spec, or nil.
+function Snapshot.itemSpec(itemID, classSpec)
     local bySpec = statutsByItem[tonumber(itemID)]
     return bySpec and bySpec[classSpec] or nil
 end

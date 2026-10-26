@@ -97,7 +97,7 @@ for i = 1, 10 do
     rows[2].cols[i] = { value = i == 1 and "Inconnu [3]" or i }
 end
 GP.Columns.appendCells(rows)
-equal(#rows[1].cols, 11, "one cell appended")
+equal(#rows[1].cols, 12, "two cells appended")
 equal(rows[1].cols[11].value, "0.750", "appended cell value")
 equal(rows[1].cols[10].value, 10, "native cell 10 untouched")
 equal(rows[2].cols[11].value, "", "unknown roller appended cell empty")
@@ -169,14 +169,15 @@ do
     GP.Snapshot.set(data)
 
     local columns = stubGL.MasterLooterUI:tableColumns()
-    equal(#columns, 11, "one column appended")
+    equal(#columns, 12, "two columns appended")
     equal(columns[11].name, "Ratio BiS", "appended column name")
+    equal(columns[12].name, "Impact", "Impact column after Ratio BiS")
     equal(columns[10].name, "native10", "native columns keep their order")
 
     stubGL.RollOff:refreshRollsTable()
-    equal(#tableStub.data[1].cols, 11, "refresh appends one cell")
+    equal(#tableStub.data[1].cols, 12, "refresh appends two cells")
     equal(tableStub.data[1].cols[11].value, "0.250", "refresh cell value")
-    equal(windowStub.width, 590, "master looter window widened")
+    equal(windowStub.width, 650, "master looter window widened")
 
     stubGL.Interface.Importer:open()
     stubGL.Interface.Importer:open()
@@ -518,6 +519,89 @@ do
     check(GP.Import.apply(edgeText, GL), "edge snapshot imported")
     equal(GP.Snapshot.raider("Alya").bisRatio, 0.2500000004, "supplied value kept in the snapshot")
     equal(GP.Scores.bisRatio(GP.Snapshot.raider("Alya")), 0.25, "display uses the recomputed value")
+end
+
+-- Impact column (5.5)
+do
+    local function near(actual, expected, label)
+        if expected == nil then
+            check(actual == nil, label .. " (expected nil, got " .. tostring(actual) .. ")")
+        else
+            check(type(actual) == "number" and math.abs(actual - expected) <= 1e-9 * math.max(1, math.abs(expected)),
+                ("%s (expected %s, got %s)"):format(label, tostring(expected), tostring(actual)))
+        end
+    end
+
+    for _, case in ipairs(GL.JSON:decode(readFile(root .. "/tools/google_apps_script/fixtures/scores.json")).cases) do
+        local inputs = case.inputs
+        local raider = {
+            role = inputs.role:find("Tank") and "TANK" or "DPS",
+            tierPresence = inputs.tierPresence,
+            tierPresenceMax = inputs.tierMax,
+            bisLootCount = inputs.bisLoots,
+            impactLootCount = inputs.impactLoots,
+            dpsParse = inputs.parse or 1,
+        }
+        near(GP.Scores.impactScore(raider, { statut = inputs.statut, gainFraction = inputs.gainFraction }), case.expected.impactScore, case.name .. " impactScore")
+    end
+
+    local sample = GL.JSON:decode(sampleJson)
+    sample.items[#sample.items + 1] = { itemID = 555, specs = {
+        { classSpec = "Prêtre Sacré", statut = "IMPACT", gainFraction = 0.2 },
+        { classSpec = "Druide Combat farouche (ours)", statut = "IMPACT", gainFraction = 0.5 },
+        { classSpec = "Mage Givre", statut = "IMPACT" },
+    } }
+    sample.items[#sample.items + 1] = { itemID = 666, specs = { { classSpec = "Mage Givre", statut = "BIS", gainFraction = 0.4 } } }
+    check(GP.Import.apply(GL.JSON:encode(sample), GL), "snapshot with extra items imported")
+
+    equal(GP.Columns.impactCellText("Alya", 888), ("%.3f"):format((4 / 8) * 1 / 3 * 0.5), "IMPACT item: base × gain for the roller's spec")
+    equal(GP.Columns.impactCellText("Alya [2]", 888), GP.Columns.impactCellText("Alya", 888), "re-roll suffix stripped")
+    equal(GP.Columns.impactCellText("Beryl", 555), "6.600", "healer Impact 33 × 0.2")
+    equal(GP.Columns.impactCellText("Cairn", 555), "", "tank: empty even on IMPACT")
+    equal(GP.Columns.impactCellText("Alya", 555), "0.000", "null gain counts as 0")
+    equal(GP.Columns.impactCellText("Alya", 666), "", "BIS statut: empty")
+    equal(GP.Columns.impactCellText("Beryl", 888), "", "no entry for the spec: empty")
+    equal(GP.Columns.impactCellText("Alya", 999), "", "item absent from snapshot: empty")
+    equal(GP.Columns.impactCellText("Inconnu", 888), "", "unknown roller: empty")
+    equal(GP.Columns.impactCellText("Alya", nil), "", "no rolled item: empty")
+
+    local rows = { { cols = {} } }
+    for i = 1, 10 do rows[1].cols[i] = { value = i == 1 and "Beryl" or i } end
+    GP.Columns.appendCells(rows, 555)
+    equal(rows[1].cols[11].value, "0.750", "cell 11 is Ratio BiS")
+    equal(rows[1].cols[12].value, "6.600", "cell 12 is Impact for the rolled item")
+
+    local zero = GL.JSON:decode(sampleJson)
+    zero.raiders[1].tierPresence = 0
+    zero.raiders[1].bisRatio = 0
+    zero.raiders[1].impactBase = 0
+    zero.items[2].specs[1].gainFraction = -0.1
+    check(GP.Import.apply(GL.JSON:encode(zero), GL), "zero-presence snapshot imported")
+    equal(GP.Columns.impactCellText("Alya", 888), "0.000", "zero score with a negative gain shows 0.000, not -0.000")
+
+    local hookTable = { data = {} }
+    function hookTable:SetData(data) self.data = data end
+    function hookTable:SortData() end
+    local hookRollOff = {
+        CurrentRollOff = { itemID = 888 },
+        refreshRollsTable = function()
+            local cols = {}
+            for i = 1, 10 do cols[i] = { value = i == 1 and "Alya" or i } end
+            hookTable:SetData({ { cols = cols } })
+        end,
+    }
+    zero.raiders[1].tierPresence = 4
+    zero.raiders[1].bisRatio = 0.25
+    zero.raiders[1].impactBase = (4 / 8) * 1 / 3
+    zero.items[2].specs[1].gainFraction = 0.5
+    check(GP.Import.apply(GL.JSON:encode(zero), GL), "sample-like snapshot imported for the hook")
+    GP.Columns.install({
+        MasterLooterUI = { tableColumns = function() return {} end },
+        RollOff = hookRollOff,
+        Interface = { get = function(_, _, path) return path == "Table.Players" and hookTable or nil end },
+    })
+    hookRollOff:refreshRollsTable()
+    equal(hookTable.data[1].cols[12].value, ("%.3f"):format((4 / 8) * 1 / 3 * 0.5), "hook passes CurrentRollOff.itemID to the Impact cell")
 end
 
 if #failures > 0 then

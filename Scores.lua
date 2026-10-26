@@ -35,3 +35,17 @@ function Scores.impactBase(raider)
 
     return (presence / presenceMax) * parse / (impactLoots + 1)
 end
+
+--- Full Impact Score = Impact base × gain, only for an IMPACT Statut; a null gain counts as 0 like the workbook.
+function Scores.impactScore(raider, itemSpec)
+    if type(itemSpec) ~= "table" or itemSpec.statut ~= "IMPACT" then
+        return nil
+    end
+
+    local impactBase = Scores.impactBase(raider)
+    if not impactBase then
+        return nil
+    end
+
+    return impactBase * (tonumber(itemSpec.gainFraction) or 0)
+end

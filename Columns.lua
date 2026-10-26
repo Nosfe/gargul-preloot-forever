@@ -5,6 +5,8 @@ GP.Columns = Columns
 
 local BIS_COLUMN_NAME = "Ratio BiS"
 local BIS_COLUMN_WIDTH = 70
+local IMPACT_COLUMN_NAME = "Impact"
+local IMPACT_COLUMN_WIDTH = 60
 local NATIVE_WINDOW_WIDTH = 520
 
 --- Roll-table display name to raider key: Gargul appends " [n]" to repeat rolls.
@@ -27,13 +29,29 @@ function Columns.bisCellText(displayName)
     return ("%.3f"):format(ratio)
 end
 
+--- Text shown in the Impact cell: empty unless the item's Statut is IMPACT for the roller's spec.
+function Columns.impactCellText(displayName, itemID)
+    local raider = GP.Snapshot.raider(Columns.rollerKey(displayName))
+    local score = raider and GP.Scores.impactScore(raider, GP.Snapshot.itemSpec(itemID, raider.classSpec))
+    if not score then
+        return ""
+    end
+
+    local text = ("%.3f"):format(score)
+    return text == "-0.000" and "0.000" or text
+end
+
 --- Append the companion cells to rows built by Gargul (cells 1-10 stay untouched).
-function Columns.appendCells(rows)
+function Columns.appendCells(rows, itemID)
     for _, row in ipairs(rows) do
         local cols = row.cols
         if cols and cols[1] then
             cols[#cols + 1] = {
                 value = Columns.bisCellText(cols[1].value),
+                color = cols[1].color,
+            }
+            cols[#cols + 1] = {
+                value = Columns.impactCellText(cols[1].value, itemID),
                 color = cols[1].color,
             }
         end
@@ -56,7 +74,7 @@ local function widenWindow(GL)
         return
     end
 
-    local wanted = NATIVE_WINDOW_WIDTH + BIS_COLUMN_WIDTH
+    local wanted = NATIVE_WINDOW_WIDTH + BIS_COLUMN_WIDTH + IMPACT_COLUMN_WIDTH
     if Window.frame:GetWidth() < wanted then
         Window:SetWidth(wanted)
     end
@@ -77,6 +95,13 @@ function Columns.install(GL)
                 color = { r = 0.5, g = 0.5, b = 1.0, a = 1.0 },
                 colorargs = nil,
             }
+            columns[#columns + 1] = {
+                name = IMPACT_COLUMN_NAME,
+                width = IMPACT_COLUMN_WIDTH,
+                align = "CENTER",
+                color = { r = 0.5, g = 0.5, b = 1.0, a = 1.0 },
+                colorargs = nil,
+            }
         end
 
         return columns
@@ -93,7 +118,7 @@ function Columns.install(GL)
             return
         end
 
-        Columns.appendCells(RollsTable.data)
+        Columns.appendCells(RollsTable.data, self.CurrentRollOff and self.CurrentRollOff.itemID)
         RollsTable:SetData(RollsTable.data)
         RollsTable:SortData()
         widenWindow(GL)
