@@ -72,8 +72,14 @@ function previewEndRaidLoot(gargulText) {
   var rosterIndex = requireRosterIndex_();
   var awardsRows = snapshotSheet_(spreadsheet, GRID_TABS.awards.name).getDataRange().getValues();
   var blockNames = readAwardsBlockNames_(awardsRows);
+  var configRows = requireCurrentLayout_(snapshotSheet_(spreadsheet, 'Config').getDataRange().getValues(), 'Config');
+  var openRaidId = normalizeCellString_((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')]).trim();
+  if (!openRaidId) {
+    throw new Error('Raid > Démarrer first.');
+  }
   var parsed = parseGargulExport_(gargulText);
-  var validated = validateAwards_(parsed.lines, rosterIndex, blockNames);
+  var inRaid = validateRaidIds_(parsed.lines, openRaidId);
+  var validated = validateAwards_(inRaid.lines, rosterIndex, blockNames);
   var itemStates = ITEM_TABS.map(function (itemTab) {
     return {
       role: itemTab.role,
@@ -96,7 +102,7 @@ function previewEndRaidLoot(gargulText) {
         treatment: Number(award.os) === 1 ? 'NORMAL' : award.treatment
       };
     }),
-    rejected: parsed.rejected.concat(validated.rejected)
+    rejected: parsed.rejected.concat(inRaid.rejected, validated.rejected)
   };
 }
 
@@ -122,8 +128,9 @@ function submitEndRaid(linkText, gargulText, treatments) {
 
     var rosterIndex = requireRosterIndex_();
     var parsedAwards = parseGargulExport_(gargulText);
-    var validatedAwards = validateAwards_(parsedAwards.lines, rosterIndex, readAwardsBlockNames_(awardsRows));
-    var rejections = parsedAwards.rejected.concat(validatedAwards.rejected);
+    var awardsInRaid = validateRaidIds_(parsedAwards.lines, openRaidId);
+    var validatedAwards = validateAwards_(awardsInRaid.lines, rosterIndex, readAwardsBlockNames_(awardsRows));
+    var rejections = parsedAwards.rejected.concat(awardsInRaid.rejected, validatedAwards.rejected);
     var itemStates = ITEM_TABS.map(function (itemTab) {
       return {
         role: itemTab.role,

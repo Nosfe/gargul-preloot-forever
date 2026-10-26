@@ -138,11 +138,34 @@ function parseGargulExport_(text) {
 			os: Number(parsed.os) === 1 ? 1 : 0,
 			date: date,
 			time: time,
+			raidId: normalizeCellString_(parsed.raidId).trim(),
 			treatment: treatment
 		});
 	});
 
 	return { lines: lines, rejected: rejected };
+}
+
+// AD-6: only the open raid's awards are imported; empty or unfilled @GPRAID lines are rejected too.
+function validateRaidIds_(lines, openRaidId) {
+	var kept = [];
+	var rejected = [];
+	var expected = normalizeCellString_(openRaidId).trim();
+
+	(lines || []).forEach(function (line) {
+		if (line.raidId === expected) {
+			kept.push(line);
+			return;
+		}
+
+		var found = line.raidId === '' || line.raidId === '@GPRAID' ? 'not filled' : '"' + line.raidId + '", not the open raid ' + expected;
+		rejected.push(buildRejectedFromLine_(
+			line,
+			'raidId is ' + found + '. Type ' + expected + ' in the line or delete it.'
+		));
+	});
+
+	return { lines: kept, rejected: rejected };
 }
 
 // Moves invalid awards to rejected when winner resolution fails against roster and Awards headers.

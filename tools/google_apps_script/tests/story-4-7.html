@@ -226,6 +226,7 @@
       withHarness(function () {
         // Preview matrix row.
         seedCoreTabs_();
+        setStartedRaid_(5);
         var preview = previewEndRaidLoot(sampleText);
         equal(preview.awards.length, 3, 'preview returns three valid awards');
         equal(preview.rejected.length, 6, 'preview returns merged rejected lines');
@@ -241,7 +242,7 @@
         saveWclCredentials('id', 'secret');
         queueWclSuccess_();
 
-        var missingTreatmentText = '{"checksum":"m1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"","treatment":"@GPTREATMENT"},';
+        var missingTreatmentText = '{"checksum":"m1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"5","treatment":"@GPTREATMENT"},';
         var beforeAwards = JSON.stringify(TracerHarness.getRows('Awards'));
         var fetchesBefore = TracerHarness.getFetchLog().length;
         var failedMessage = '';
@@ -255,7 +256,7 @@
         equal(JSON.stringify(TracerHarness.getRows('Awards')), beforeAwards, 'missing treatment writes nothing');
         equal(TracerHarness.getFetchLog().length, fetchesBefore, 'missing treatment does not call WCL');
 
-        var clearedText = '{"checksum":"c1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"","treatment":"BIS"},';
+        var clearedText = '{"checksum":"c1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"5","treatment":"BIS"},';
         var clearedMessage = '';
         try {
           submitEndRaid('ABC123', clearedText, { c1: '' });
@@ -362,12 +363,60 @@
         var anaStart = findAwardBlockStart_('Ana');
         writeCells_(awardsSheetId, AWARDS_FIRST_ROW - 1, anaStart, ['old-date', 'Old Item', 123, 'NORMAL', 4]);
 
-        var singleAward = '{"checksum":"append-1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"22:00","raidId":"","treatment":"BIS"},';
+        var singleAward = '{"checksum":"append-1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"22:00","raidId":"5","treatment":"BIS"},';
         submitEndRaid('ABC123', singleAward, { 'append-1': 'BIS' });
         var anaAwards = awardRowsForWinner_('Ana');
         equal(anaAwards.length, 2, 'new award appends below existing row');
         equal(String(anaAwards[0].cells[1]), 'Old Item', 'existing row kept');
         equal(String(anaAwards[1].cells[1]), 'Bâton ancien', 'new row appended');
+      });
+
+      withHarness(function () {
+        // Raid ID matrix rows (AD-6): only the open raid's lines are imported.
+        var lines = parseGargulExport_([
+          '{"checksum":"r5","winner":"Ana","itemID":777,"os":0,"raidId":"5","treatment":"BIS"},',
+          '{"checksum":"r4","winner":"Ana","itemID":777,"os":0,"raidId":"4","treatment":"BIS"},',
+          '{"checksum":"rEmpty","winner":"Ana","itemID":777,"os":0,"raidId":"","treatment":"BIS"},',
+          '{"checksum":"rToken","winner":"Ana","itemID":777,"os":0,"raidId":"@GPRAID","treatment":"BIS"},',
+          '{"checksum":"rMissing","winner":"Ana","itemID":777,"os":0,"treatment":"BIS"},'
+        ].join('\n')).lines;
+        var checked = validateRaidIds_(lines, 5);
+        equal(checked.lines.map(function (line) { return line.checksum; }).join(','), 'r5', 'only the open raid line is kept (numeric Config value)');
+        equal(checked.rejected.length, 4, 'other raid, empty, @GPRAID and missing raidId are rejected');
+        var reasons = {};
+        checked.rejected.forEach(function (row) { reasons[row.checksum] = row.reason; });
+        contains(reasons.r4, 'raidId is "4", not the open raid 5', 'other raid reason names both IDs');
+        contains(reasons.rEmpty, 'raidId is not filled', 'empty raidId reason');
+        contains(reasons.rToken, 'raidId is not filled', 'unfilled @GPRAID reason');
+        contains(reasons.rMissing, 'Type 5 in the line or delete it', 'reason tells the owner what to do');
+      });
+
+      withHarness(function () {
+        // A line from another raid is listed in the preview and never written by End raid.
+        seedCoreTabs_();
+        setStartedRaid_(5);
+        var otherRaidLine = '{"checksum":"old-1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-15","time":"21:00","raidId":"4","treatment":"BIS"},';
+        var preview = previewEndRaidLoot(otherRaidLine);
+        equal(preview.awards.length + '|' + preview.rejected.length, '0|1', 'preview lists the other-raid line as rejected');
+        contains(preview.rejected[0].reason, 'not the open raid 5', 'preview gives the raid reason');
+
+        var noRaidError = '';
+        writeCells_(SpreadsheetApp.getActive().getSheetByName('Config').getSheetId(), 1, columnOf_(tabByName_('Config'), 'openRaidId'), ['']);
+        try {
+          previewEndRaidLoot(otherRaidLine);
+        } catch (error) {
+          noRaidError = error.message;
+        }
+        contains(noRaidError, 'Raid > Démarrer first', 'preview refuses when no raid is open');
+        setStartedRaid_(5);
+
+        saveWclCredentials('id', 'secret');
+        queueWclSuccess_();
+        var beforeAwards = JSON.stringify(TracerHarness.getRows('Awards'));
+        var message = submitEndRaid('ABC123', otherRaidLine, { 'old-1': 'BIS' });
+        contains(message, 'Loot awards imported: 0', 'other-raid line is not imported');
+        contains(message, 'old-1', 'other-raid line is reported');
+        equal(JSON.stringify(TracerHarness.getRows('Awards')), beforeAwards, 'other-raid line writes no award');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';

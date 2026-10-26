@@ -305,7 +305,7 @@
         saveWclCredentials('id', 'secret');
         queueWclSuccess_();
 
-        var message = submitEndRaid('ABC123', '{"checksum":"one","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:15","raidId":"","treatment":"BIS"},');
+        var message = submitEndRaid('ABC123', '{"checksum":"one","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:15","raidId":"5","treatment":"BIS"},');
         contains(message, 'Loot awards imported: 1', 'gargul text imports valid awards');
         equal(TracerHarness.getFetchLog().length, 2, 'gargul text still fetches WCL');
       });
