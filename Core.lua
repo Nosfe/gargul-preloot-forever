@@ -6,7 +6,7 @@ end
 
 local function init()
     local GL = _G.Gargul
-    if not GL or not GL.MasterLooterUI or not GL.RollOff or not GL.Interface or not GL.Interface.Importer or not GL.Events then
+    if not GL or not GL.MasterLooterUI or not GL.RollOff or not GL.Interface or not GL.Interface.Importer or not GL.Events or not GL.Exporter then
         say("|cFFFF4040Gargul introuvable : l'addon est désactivé.|r")
         return
     end
@@ -16,6 +16,7 @@ local function init()
     GP.Import.install(GL)
     GP.Awards.install(GL)
     GP.Picker.install()
+    GP.Export.install(GL)
 end
 
 local LoaderFrame = CreateFrame("Frame")

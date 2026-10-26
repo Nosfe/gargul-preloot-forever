@@ -377,6 +377,56 @@ do
     equal(#(list.children[1] and list.children[1].children or {}), 1, "list refreshed after delete")
 end
 
+-- Custom export fill (5.3)
+do
+    assert(loadfile(root .. "/Export.lua"))("Gargul_Preloot", GP)
+    check(GP.Import.apply(sampleB64, GL), "raid 4 snapshot imported for export")
+    GP.Awards.record({ checksum = "e1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
+    GP.Awards.record({ checksum = "e2", itemID = 777, itemLink = "[777]", awardedTo = "Beryl-Forever" }, GL)
+    GP.Awards.setTreatment("e2", "CLASS_BOUND")
+
+    local template = '{"checksum":"@CHECKSUM","winner":"@WINNER","itemID":@ID,"itemName":"@ITEM","rollType":"@ROLLTYPE","os":@OS,"date":"@DATE","time":"@TIME","raidId":"@GPRAID","treatment":"@GPTREATMENT"},'
+    local function gargulLine(checksum, winner, itemID)
+        return (template:gsub("@CHECKSUM", checksum):gsub("@WINNER", winner):gsub("@ID", itemID)
+            :gsub("@ITEM", "Objet"):gsub("@ROLLTYPE", "MS"):gsub("@OS", "0")
+            :gsub("@DATE", "2026-10-26"):gsub("@TIME", "21:00"))
+    end
+    local gargulText = table.concat({ gargulLine("e1", "Alya", 888), gargulLine("e2", "Beryl", 777), gargulLine("x9", "Zed", 111) }, "\n")
+
+    local exporterStub = { transformEntriesToCustomFormat = function(_, _, format) return format == "rrobin" and "777,2026-10-26 21:00,Alya-Forever" or gargulText end }
+    GP.Export.install({ Exporter = exporterStub })
+    local filled = exporterStub:transformEntriesToCustomFormat({}, nil)
+    equal(exporterStub:transformEntriesToCustomFormat({}, "rrobin"), "777,2026-10-26 21:00,Alya-Forever", "other formats pass through")
+
+    local sampleKeys = {}
+    local sampleFirst = readFile(root .. "/tools/google_apps_script/fixtures/custom-export-sample.txt"):match("^[^\n]*"):gsub(",%s*$", "")
+    for key in pairs(GL.JSON:decode(sampleFirst)) do sampleKeys[#sampleKeys + 1] = key end
+    table.sort(sampleKeys)
+
+    local parsed = {}
+    for line in (filled .. "\n"):gmatch("(.-)\n") do
+        check(line:sub(-1) == ",", "filled line keeps its trailing comma")
+        local ok, row = pcall(GL.JSON.decode, GL.JSON, (line:gsub(",%s*$", "")))
+        check(ok and type(row) == "table", "filled line is valid JSON")
+        if ok and type(row) == "table" then
+            local keys = {}
+            for key in pairs(row) do keys[#keys + 1] = key end
+            table.sort(keys)
+            equal(table.concat(keys, ","), table.concat(sampleKeys, ","), "filled line has the sample's fields")
+            parsed[row.checksum] = row
+        end
+    end
+    equal(parsed.e1 and parsed.e1.raidId, "4", "captured award gets the session raidId")
+    equal(parsed.e1 and parsed.e1.treatment, "IMPACT", "captured award gets its prefilled treatment")
+    equal(parsed.e2 and parsed.e2.treatment, "CLASS_BOUND", "captured award gets the owner's treatment")
+    equal(parsed.x9 and parsed.x9.raidId, "", "uncaptured award: empty raidId")
+    equal(parsed.x9 and parsed.x9.treatment, "", "uncaptured award: empty treatment")
+    check(not filled:find("@GP", 1, true), "no token left in the export")
+
+    equal(GP.Export.fill(""), "", "empty export stays empty")
+    equal(GP.Export.fill(nil), nil, "nil export passes through")
+end
+
 if #failures > 0 then
     print(("FAIL: %d of %d assertions"):format(#failures, count))
     for _, label in ipairs(failures) do

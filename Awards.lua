@@ -150,6 +150,11 @@ function Awards.onSnapshotImported(newRaidId)
     raidId = newRaidId
 end
 
+--- The raid the recorded awards belong to (the imported snapshot's raidId).
+function Awards.raidId()
+    return raidId
+end
+
 local function prompt(checksum)
     if checksum and GP.Picker then
         GP.Picker.enqueue(checksum)
