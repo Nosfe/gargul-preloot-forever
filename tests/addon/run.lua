@@ -20,7 +20,7 @@ assert(loadfile(gargulDir .. "/Classes/Base64.lua"), "Gargul v8.0.1 not found; s
 assert(loadfile(gargulDir .. "/Classes/JSON.lua"))("Gargul", GL)
 
 local GP = {}
-for _, file in ipairs({ "Snapshot.lua", "Scores.lua", "Columns.lua", "Import.lua" }) do
+for _, file in ipairs({ "Snapshot.lua", "Scores.lua", "Columns.lua", "Import.lua", "Awards.lua" }) do
     assert(loadfile(root .. "/" .. file))("Gargul_Preloot", GP)
 end
 
@@ -183,6 +183,198 @@ do
     equal(importerWindow.buttons, 1, "importer button added once")
     check(intro.hidden == true, "importer intro line hidden to make room")
     check(softReserves.points and softReserves.points[1] == importerWindow.button, "native buttons moved below the Preloot button")
+end
+
+-- Treatment per award (5.2)
+do
+    function GL:formatPlayerName(name, options)
+        assert(options and options.includeRealm == "never", "winner formatted without realm")
+        return (name:gsub("%-.*$", ""))
+    end
+    GL.Exporter = { disenchantedItemIdentifier = "||de||" }
+
+    local prompted, refreshed = {}, 0
+    GP.Picker = {
+        enqueue = function(checksum) prompted[#prompted + 1] = checksum end,
+        refresh = function() refreshed = refreshed + 1 end,
+    }
+    local handlers = {}
+    GL.Events = { register = function(_, _, event, callback) handlers[event] = callback end }
+    GL.DB = { AwardHistory = {} }
+
+    local function award(checksum, itemID, awardedTo, isOS)
+        local entry = { checksum = checksum, itemID = itemID, itemLink = "[" .. itemID .. "]", awardedTo = awardedTo, OS = isOS }
+        GL.DB.AwardHistory[checksum] = entry
+        return entry
+    end
+
+    GP.Awards.install(GL)
+    GP.Snapshot.clear()
+    GP.Awards.onSnapshotImported(nil)
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c0", 888, "Alya-Forever"))
+    equal(GP.Awards.get("c0"), nil, "no snapshot: award not recorded")
+    equal(#prompted, 0, "no snapshot: no popup")
+
+    check(GP.Import.apply(sampleB64, GL), "snapshot imported for awards")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c1", 888, "Alya-Forever"))
+    local alya = GP.Awards.get("c1")
+    equal(alya and alya.winner, "Alya", "winner without realm")
+    equal(alya and alya.treatment, "IMPACT", "IMPACT prefilled from Mage Givre statut")
+    equal(prompted[#prompted], "c1", "popup requested for the award")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c2", 999, "Alya-Forever"))
+    equal(GP.Awards.get("c2").treatment, "NORMAL", "item absent from snapshot: NORMAL")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c3", 888, "Alya-Forever", true))
+    equal(GP.Awards.get("c3").treatment, "NORMAL", "off-spec award: NORMAL")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c4", 888, "Inconnu-Forever"))
+    equal(GP.Awards.get("c4").treatment, "NORMAL", "unknown winner: NORMAL")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c5", 888, "||de||"))
+    equal(GP.Awards.get("c5"), nil, "disenchant not recorded")
+
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c6", 888, "Beryl-Forever"))
+    equal(GP.Awards.get("c6").treatment, "NORMAL", "spec without statut: NORMAL")
+
+    check(GP.Awards.setTreatment("c6", "BIS"), "owner changes treatment")
+    equal(GP.Awards.get("c6").treatment, "BIS", "owner choice stored")
+    check(not GP.Awards.setTreatment("c6", "NONE"), "unknown treatment refused")
+    equal(GP.Awards.get("c6").treatment, "BIS", "refused value leaves treatment")
+    check(not GP.Awards.setTreatment("zz", "BIS"), "unknown checksum refused")
+
+    local listed = GP.Awards.list()
+    equal(listed[1].checksum, "c6", "list newest first")
+    equal(#listed, 5, "list holds recorded awards only")
+
+    local edited = GL.DB.AwardHistory["c6"]
+    edited.awardedTo = "Alya-Forever"
+    prompted = {}
+    handlers["GL.ITEM_AWARD_EDITED"]("GL.ITEM_AWARD_EDITED", edited)
+    equal(GP.Awards.get("c6").winner, "Alya", "edit updates winner")
+    equal(GP.Awards.get("c6").treatment, "IMPACT", "edit prefills again for the new winner")
+    equal(prompted[1], "c6", "edit reopens the popup")
+
+    prompted = {}
+    handlers["GL.ITEM_AWARD_EDITED"]("GL.ITEM_AWARD_EDITED", { checksum = "zz", awardedTo = "Alya" })
+    equal(#prompted, 0, "edit of unknown checksum ignored")
+    equal(#GP.Awards.list(), 5, "edit of unknown checksum leaves the map")
+
+    handlers["GL.ITEM_UNAWARDED"]("GL.ITEM_UNAWARDED", GL.DB.AwardHistory["c2"])
+    equal(GP.Awards.get("c2"), nil, "delete removes the entry")
+    handlers["GL.ITEM_UNAWARDED"]("GL.ITEM_UNAWARDED", { checksum = "zz" })
+    equal(#GP.Awards.list(), 4, "delete of unknown checksum leaves the map")
+    check(refreshed >= 2, "picker refreshed after deletes")
+
+    GL.DB.AwardHistory = { c1 = GL.DB.AwardHistory["c1"] }
+    handlers["GL.ITEM_UNAWARDED"]("GL.ITEM_UNAWARDED")
+    equal(#GP.Awards.list(), 1, "bulk clear keeps only awards still in Gargul history")
+    check(GP.Awards.get("c1") ~= nil, "surviving award kept")
+
+    check(GP.Import.apply(sampleB64, GL), "same raid re-imported")
+    check(GP.Awards.get("c1") ~= nil, "same raidId keeps treatments")
+
+    -- Review fixes: duplicates, disenchant edits, late item links
+    GP.Awards.setTreatment("c1", "CLASS_BOUND")
+    prompted = {}
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", GL.DB.AwardHistory["c1"])
+    equal(GP.Awards.get("c1").treatment, "CLASS_BOUND", "repeated award keeps the owner's pick")
+    equal(#prompted, 0, "repeated award does not prompt again")
+
+    local de = award("d1", 888, "||de||")
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", de)
+    de.awardedTo = "Alya-Forever"
+    handlers["GL.ITEM_AWARD_EDITED"]("GL.ITEM_AWARD_EDITED", de)
+    equal(GP.Awards.get("d1") and GP.Awards.get("d1").treatment, "IMPACT", "disenchant edited to a raider is recorded")
+    equal(prompted[#prompted], "d1", "disenchant edited to a raider prompts")
+    de.awardedTo = "||de||"
+    handlers["GL.ITEM_AWARD_EDITED"]("GL.ITEM_AWARD_EDITED", de)
+    equal(GP.Awards.get("d1"), nil, "award edited to disenchant is dropped")
+
+    local remote = award("r1", 777, "Beryl-Forever")
+    remote.itemLink = nil
+    handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", remote)
+    equal(GP.Awards.itemLink(GP.Awards.get("r1")), "item 777", "remote award without link shows the item ID")
+    remote.itemLink = "[Lien]"
+    equal(GP.Awards.itemLink(GP.Awards.get("r1")), "[Lien]", "link filled later by Gargul is shown")
+
+    local otherRaid = sampleJson:gsub('"raidId": "4"', '"raidId": "5"')
+    check(GP.Import.apply(otherRaid, GL), "other raid imported")
+    equal(#GP.Awards.list(), 0, "different raidId clears treatments")
+end
+
+-- Picker popups and list against a stubbed AceGUI
+do
+    local created = {}
+    local function newWidget(kind)
+        local widget = { kind = kind, callbacks = {}, children = {} }
+        setmetatable(widget, { __index = function() return function() end end })
+        function widget:SetCallback(name, callback) self.callbacks[name] = callback end
+        function widget:SetText(text) self.text = text end
+        function widget:SetValue(value) self.value = value end
+        function widget:AddChild(child) self.children[#self.children + 1] = child end
+        function widget:ReleaseChildren() self.children = {} end
+        function widget:Hide()
+            self.closed = true
+            if self.callbacks.OnClose then self.callbacks.OnClose(self) end
+        end
+        created[#created + 1] = widget
+        return widget
+    end
+    _G.LibStub = function() return { Create = function(_, kind) return newWidget(kind) end, Release = function() end } end
+    _G.SlashCmdList = {}
+
+    assert(loadfile(root .. "/Picker.lua"))("Gargul_Preloot", GP)
+    GP.Picker.install()
+    check(_G.SLASH_GARGULPRELOOT1 == "/preloot" and _G.SlashCmdList.GARGULPRELOOT == GP.Picker.openList, "/preloot registered")
+
+    GP.Awards.record({ checksum = "p1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
+    GP.Awards.record({ checksum = "p2", itemID = 777, itemLink = "[777]", awardedTo = "Beryl-Forever" }, GL)
+
+    local function lastFrame()
+        for i = #created, 1, -1 do
+            if created[i].kind == "Frame" then return created[i] end
+        end
+    end
+    local function buttons(frame)
+        local result = {}
+        for _, child in ipairs(frame.children) do
+            if child.kind == "Button" then result[child.text] = child end
+        end
+        return result
+    end
+
+    GP.Picker.enqueue("p1")
+    local first = lastFrame()
+    check(buttons(first)["[IMPACT]"] ~= nil, "popup marks the prefilled treatment")
+    GP.Picker.enqueue("p2")
+    equal(lastFrame(), first, "second award queues behind the open popup")
+
+    buttons(first)["BIS"].callbacks.OnClick()
+    equal(GP.Awards.get("p1").treatment, "BIS", "popup button sets the treatment")
+    local second = lastFrame()
+    check(second ~= first and buttons(second)["[NORMAL]"] ~= nil, "queued popup opens after the first closes")
+
+    second:Hide()
+    equal(GP.Awards.get("p2").treatment, "NORMAL", "closing keeps the prefilled treatment")
+
+    GP.Picker.openList()
+    local list = lastFrame()
+    local rows = list.children[1] and list.children[1].children or {}
+    equal(#rows, 2, "list shows one row per session award")
+    local dropdown = rows[1] and rows[1].children[2]
+    equal(dropdown and dropdown.value, "NORMAL", "list row shows the treatment")
+    dropdown.callbacks.OnValueChanged(dropdown, "OnValueChanged", "CLASS_BOUND")
+    equal(GP.Awards.get("p2").treatment, "CLASS_BOUND", "list dropdown changes the treatment")
+
+    GP.Picker.enqueue("p1")
+    local reopened = lastFrame()
+    GP.Awards.remove("p1")
+    GP.Picker.refresh()
+    check(reopened.closed == true, "popup of a deleted award closes")
+    equal(#(list.children[1] and list.children[1].children or {}), 1, "list refreshed after delete")
 end
 
 if #failures > 0 then

@@ -10,4 +10,6 @@ Snapshot.lua
 Scores.lua
 Columns.lua
 Import.lua
+Awards.lua
+Picker.lua
 Core.lua

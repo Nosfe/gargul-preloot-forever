@@ -7,6 +7,7 @@ local SCHEMA_VERSION = 2
 
 local current = nil
 local raidersByKey = {}
+local statutsByItem = {}
 
 local function trim(text)
     return (text:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -87,6 +88,20 @@ function Snapshot.set(data)
     for _, raider in ipairs(data.raiders) do
         raidersByKey[raider.raiderKey] = raider
     end
+
+    statutsByItem = {}
+    for _, item in ipairs(type(data.items) == "table" and data.items or {}) do
+        local itemID = type(item) == "table" and tonumber(item.itemID)
+        if itemID and type(item.specs) == "table" then
+            local bySpec = {}
+            for _, spec in ipairs(item.specs) do
+                if type(spec) == "table" and type(spec.classSpec) == "string" then
+                    bySpec[spec.classSpec] = spec.statut
+                end
+            end
+            statutsByItem[itemID] = bySpec
+        end
+    end
 end
 
 function Snapshot.get()
@@ -97,7 +112,14 @@ function Snapshot.raider(raiderKey)
     return raidersByKey[raiderKey]
 end
 
+--- The owner's Statut for an item and spec, or nil when the snapshot has none.
+function Snapshot.statut(itemID, classSpec)
+    local bySpec = statutsByItem[tonumber(itemID)]
+    return bySpec and bySpec[classSpec] or nil
+end
+
 function Snapshot.clear()
     current = nil
     raidersByKey = {}
+    statutsByItem = {}
 end

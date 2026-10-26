@@ -18,7 +18,11 @@ function Import.apply(text, GL)
         return false
     end
 
+    GP.Awards.onSnapshotImported(data.raidId)
     GP.Snapshot.set(data)
+    if GP.Picker then
+        GP.Picker.refresh()
+    end
     say(("Snapshot importé : palier %s, raid %s, %d raider(s)."):format(data.tierId, data.raidId, #data.raiders))
 
     if GL.RollOff and type(GL.RollOff.refreshRollsTable) == "function" then
