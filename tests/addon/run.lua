@@ -20,7 +20,7 @@ assert(loadfile(gargulDir .. "/Classes/Base64.lua"), "Gargul v8.0.1 not found; s
 assert(loadfile(gargulDir .. "/Classes/JSON.lua"))("Gargul", GL)
 
 local GP = {}
-for _, file in ipairs({ "Snapshot.lua", "Scores.lua", "Columns.lua", "Import.lua", "Awards.lua" }) do
+for _, file in ipairs({ "Compat.lua", "Snapshot.lua", "Scores.lua", "Columns.lua", "Import.lua", "Awards.lua" }) do
     assert(loadfile(root .. "/" .. file))("Gargul_Preloot", GP)
 end
 
@@ -330,7 +330,7 @@ do
 
     assert(loadfile(root .. "/Picker.lua"))("Gargul_Preloot", GP)
     GP.Picker.install()
-    check(_G.SLASH_GARGULPRELOOT1 == "/preloot" and _G.SlashCmdList.GARGULPRELOOT == GP.Picker.openList, "/preloot registered")
+    check(_G.SLASH_GARGULPRELOOT1 == "/preloot" and type(_G.SlashCmdList.GARGULPRELOOT) == "function", "/preloot registered")
 
     GP.Awards.record({ checksum = "p1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
     GP.Awards.record({ checksum = "p2", itemID = 777, itemLink = "[777]", awardedTo = "Beryl-Forever" }, GL)
@@ -800,6 +800,230 @@ do
     equal(cell("Alya", 11), "0.250", "cleared session gives snapshot values")
     GP.Awards.onChange = nil
 end
+
+-- Gargul version tolerance
+local realPrint = print
+local savedGlobals = {}
+for _, name in ipairs({ "CreateFrame", "Gargul", "SendChatMessage", "IsInRaid", "IsInGroup" }) do
+    savedGlobals[name] = _G[name]
+end
+local toleranceOk, toleranceError = pcall(function()
+    local printed = {}
+    print = function(message) printed[#printed + 1] = tostring(message) end
+
+    local loader = {}
+    _G.CreateFrame = function()
+        loader.frame = {
+            RegisterEvent = function() end,
+            UnregisterEvent = function() end,
+            SetScript = function(_, _, script) loader.script = script end,
+        }
+        return loader.frame
+    end
+    _G.Gargul = nil
+    assert(loadfile(root .. "/Core.lua"))("Gargul_Preloot", GP)
+    loader.script(loader.frame, "ADDON_LOADED", "Gargul_Preloot")
+    check(printed[#printed] and printed[#printed]:find("Gargul introuvable", 1, true) ~= nil, "missing Gargul disables the addon with one line")
+
+    local function fullGL()
+        return {
+            JSON = GL.JSON,
+            Base64 = GL.Base64,
+            MasterLooterUI = { tableColumns = function() return {} end },
+            RollOff = { refreshRollsTable = function() end },
+            Interface = { get = function() end, dynamicPanelButton = function() end, Importer = { open = function() end } },
+            Events = { register = function() end },
+            Exporter = { transformEntriesToCustomFormat = function() return "" end },
+        }
+    end
+    local function offText(stub)
+        return table.concat(GP.installFeatures(stub), " ; ")
+    end
+
+    local full = fullGL()
+    local originalColumns = full.MasterLooterUI.tableColumns
+    equal(offText(full), "", "full v8 API: every feature on")
+    check(full.MasterLooterUI.tableColumns ~= originalColumns, "columns hooked on full API")
+
+    local noExport = fullGL()
+    noExport.Exporter = {}
+    local noExportColumns = noExport.MasterLooterUI.tableColumns
+    local text = offText(noExport)
+    check(text:find("remplissage de l'export", 1, true) ~= nil, "missing exporter is reported: " .. text)
+    check(noExport.MasterLooterUI.tableColumns ~= noExportColumns, "other features still installed without the exporter")
+
+    local noEvents = fullGL()
+    noEvents.Events = nil
+    check(offText(noEvents):find("suivi des attributions", 1, true) ~= nil, "missing events turn award tracking off")
+
+    local noRollTable = fullGL()
+    noRollTable.RollOff = {}
+    check(offText(noRollTable):find("colonnes du tirage", 1, true) ~= nil, "missing roll table turns the columns off")
+
+    local noImporter = fullGL()
+    noImporter.Interface.Importer = nil
+    check(offText(noImporter):find("/preloot import", 1, true) ~= nil, "missing Importer points to /preloot import")
+    GP.GL = noImporter
+    GP.Import.dialog = nil
+    _G.SlashCmdList.GARGULPRELOOT(" import ")
+    check(GP.Import.dialog ~= nil, "/preloot import opens the paste dialog")
+    GP.Import.dialog = nil
+
+    local noJson = fullGL()
+    noJson.JSON = nil
+    check(offText(noJson):find("import du snapshot", 1, true) ~= nil, "missing JSON is reported")
+
+    -- Base64 variants
+    equal(GP.Compat.base64Decode({ Base64 = { decode = GL.Base64.decode } }, sampleB64), sampleJson, "Base64 dot-style decode")
+    local colon = { Decode = function(self, b64) assert(type(self) == "table"); return GL.Base64.decode(b64) end }
+    equal(GP.Compat.base64Decode({ Base64 = colon }, sampleB64), sampleJson, "Base64 colon-style Decode")
+    equal(GP.Compat.base64Decode({}, sampleB64), sampleJson, "bundled Base64 decoder")
+    equal(GP.Compat.base64Decode({}, GL.Base64.encode("ab")), "ab", "bundled decoder with == padding")
+    equal(GP.Compat.base64Decode({}, GL.Base64.encode("abcd")), "abcd", "bundled decoder with = padding")
+    equal(GP.Compat.decodeBase64Pure("abc"), nil, "bundled decoder refuses a bad length")
+
+    -- Name, rolled item, chat fallbacks
+    equal(GP.Compat.winnerKey({}, "Alya-Thunderstrike"), "Alya", "winner key without formatPlayerName")
+    equal(GP.Compat.winnerKey({}, "Izù"), "Izù", "accented winner without realm")
+    equal(GP.Compat.rolledItemID({ CurrentRollOff = { itemLink = "|cffa335ee|Hitem:888:0:0:0|h[Objet]|h|r" } }), 888, "rolled item parsed from the link")
+    equal(GP.Compat.rolledItemID({ CurrentRollOff = { itemID = 777, itemLink = "|Hitem:888:|h" } }), 777, "itemID preferred over the link")
+    equal(GP.Compat.rolledItemID({}), nil, "no current roll")
+    check(GP.Compat.announcementsEnabled({}), "missing setting counts as on")
+
+    local wowSent = {}
+    _G.SendChatMessage = function(message, channel) wowSent[#wowSent + 1] = channel .. "|" .. message end
+    _G.IsInRaid = function() return true end
+    GP.Compat.sendChat({}, "Alya : test")
+    equal(wowSent[1], "RAID|Alya : test", "chat falls back to SendChatMessage in a raid")
+    _G.IsInRaid = function() return false end
+    _G.IsInGroup = function() return true end
+    GP.Compat.sendChat({}, "Beryl : test")
+    equal(wowSent[2], "PARTY|Beryl : test", "chat falls back to PARTY in a group")
+
+    -- An error inside the addon's wrapper never breaks Gargul's own refresh
+    local refreshed = 0
+    local broken = fullGL()
+    broken.RollOff.refreshRollsTable = function() refreshed = refreshed + 1; return "gargul result" end
+    broken.Interface.get = function(_, _, path)
+        if path == "Table.Players" then
+            return { data = {}, SetData = function() error("boom") end, SortData = function() end }
+        end
+    end
+    GP.Columns.install(broken)
+    printed = {}
+    local ok, result = pcall(broken.RollOff.refreshRollsTable, broken.RollOff)
+    pcall(broken.RollOff.refreshRollsTable, broken.RollOff)
+    check(ok and result == "gargul result", "wrapper returns Gargul's result despite an addon error")
+    equal(refreshed, 2, "Gargul's refresh ran both times")
+    local errors = 0
+    for _, line in ipairs(printed) do
+        if line:find("Erreur (colonnes du tirage)", 1, true) then errors = errors + 1 end
+    end
+    equal(errors, 1, "the addon error is printed once")
+
+    local exporterBroken = { Exporter = { transformEntriesToCustomFormat = function() return "@GPRAID" end } }
+    local realFill = GP.Export.fill
+    GP.Export.fill = function() error("fill failed") end
+    GP.Export.install(exporterBroken)
+    equal(exporterBroken.Exporter:transformEntriesToCustomFormat({}), "@GPRAID", "export falls back to Gargul's text on an addon error")
+    GP.Export.fill = realFill
+
+    -- Review additions
+    local noColumns = fullGL()
+    noColumns.MasterLooterUI = {}
+    check(offText(noColumns):find("colonnes du tirage", 1, true) ~= nil, "missing tableColumns turns the columns off")
+
+    local noEventsAgain = fullGL()
+    noEventsAgain.Events = nil
+    local eventsColumns = noEventsAgain.MasterLooterUI.tableColumns
+    GP.installFeatures(noEventsAgain)
+    check(noEventsAgain.MasterLooterUI.tableColumns ~= eventsColumns, "other features stay installed without award events")
+
+    printed = {}
+    _G.Gargul = noExport
+    loader.script(loader.frame, "ADDON_LOADED", "Gargul_Preloot")
+    local summaries = 0
+    for _, line in ipairs(printed) do
+        if line:find("fonctions désactivées", 1, true) then summaries = summaries + 1 end
+    end
+    equal(summaries, 1, "init prints exactly one summary line")
+
+    local noJsonImport = GP.Snapshot.parse(sampleB64, { Base64 = GL.Base64 })
+    equal(noJsonImport, nil, "import without GL.JSON is refused, not a Lua error")
+
+    equal(GP.Compat.decodeBase64Pure("QQ==QUJD"), nil, "padding inside the text is refused")
+    equal(GP.Compat.decodeBase64Pure("AB=C"), nil, "x=y padding is refused")
+
+    local linkTable = { data = {} }
+    function linkTable:SetData(data) self.data = data end
+    function linkTable:SortData() end
+    local linkGL = fullGL()
+    linkGL.RollOff = {
+        CurrentRollOff = { itemLink = "|cffa335ee|Hitem:888:0:0:0|h[Objet]|h|r" },
+        refreshRollsTable = function()
+            local cols = {}
+            for i = 1, 10 do cols[i] = { value = i == 1 and "Alya" or i } end
+            linkTable:SetData({ { cols = cols } })
+        end,
+    }
+    linkGL.Interface.get = function(_, _, path) return path == "Table.Players" and linkTable or nil end
+    GP.Columns.install(linkGL)
+    linkGL.RollOff:refreshRollsTable()
+    equal(linkTable.data[1].cols[12].value, "0.083", "Impact uses the item ID parsed from the roll's link")
+
+    wowSent = {}
+    _G.IsInRaid = function() return true end
+    GP.Chat.announce({ winner = "Alya", treatment = "BIS", itemID = 777 }, {})
+    equal(wowSent[1], "RAID|Alya : nouveau ratio BiS 0.250", "confirmed award chats through SendChatMessage without Gargul's helper")
+
+    GP.Awards.record({ checksum = "compat-1", itemID = 777, awardedTo = "Alya-Realm" }, {})
+    equal(GP.Awards.get("compat-1") and GP.Awards.get("compat-1").winner, "Alya", "award winner without formatPlayerName")
+    GP.Awards.remove("compat-1")
+
+    local listOpened = false
+    local realOpenList = GP.Picker.openList
+    GP.Picker.openList = function() listOpened = true end
+    _G.SlashCmdList.GARGULPRELOOT("")
+    GP.Picker.openList = realOpenList
+    check(listOpened, "plain /preloot opens the awards list")
+
+    -- Every API the features need exists in the real Gargul v8.0.1 source
+    local sources = {
+        ["MasterLooterUI.tableColumns"] = { "Classes/MasterLooterUI.lua", "function MasterLooterUI:tableColumns" },
+        ["RollOff.refreshRollsTable"] = { "Classes/RollOff.lua", "function RollOff:refreshRollsTable" },
+        ["Interface.get"] = { "Interface/Interface.lua", "function Interface:get" },
+        ["Interface.dynamicPanelButton"] = { "Interface/Interface.lua", "function Interface:dynamicPanelButton" },
+        ["Interface.Importer.open"] = { "Interface/Importer.lua", "function Importer:open" },
+        ["Events.register"] = { "Classes/Events.lua", "function Events:register" },
+        ["Exporter.transformEntriesToCustomFormat"] = { "Classes/Exporter.lua", "function Exporter:transformEntriesToCustomFormat" },
+        ["JSON.decode"] = { "Classes/JSON.lua", "function JSON:decode" },
+        ["Base64.decode"] = { "Classes/Base64.lua", "function Base64.decode" },
+        ["formatPlayerName"] = { "Utils/PlayerNames.lua", "function GL:formatPlayerName" },
+        ["sendChatMessage"] = { "Utils", "function GL:sendChatMessage" },
+    }
+    for path, source in pairs(sources) do
+        local found = false
+        if source[1] == "Utils" then
+            for _, file in ipairs({ "Utils/Chat.lua", "Utils/Utils.lua", "Utils/Strings.lua", "bootstrap.lua", "Utils/Messaging.lua" }) do
+                local handle = io.open(gargulDir .. "/" .. file, "rb")
+                if handle then
+                    found = found or handle:read("*a"):find(source[2], 1, true) ~= nil
+                    handle:close()
+                end
+            end
+        else
+            local handle = io.open(gargulDir .. "/" .. source[1], "rb")
+            found = handle ~= nil and handle:read("*a"):find(source[2], 1, true) ~= nil
+            if handle then handle:close() end
+        end
+        check(found, "Gargul v8.0.1 defines " .. path)
+    end
+end)
+print = realPrint
+for name, value in pairs(savedGlobals) do
+    _G[name] = value
+end
+check(toleranceOk, "version tolerance block ran: " .. tostring(toleranceError))
 
 if #failures > 0 then
     print(("FAIL: %d of %d assertions"):format(#failures, count))

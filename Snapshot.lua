@@ -28,8 +28,8 @@ local function decodeText(text, GL)
         return nil, "le texte n'est ni du Base64 ni du JSON"
     end
 
-    local ok, decoded = pcall(GL.Base64.decode, b64)
-    if not ok or type(decoded) ~= "string" or decoded == "" then
+    local decoded = GP.Compat.base64Decode(GL, b64)
+    if type(decoded) ~= "string" or decoded == "" then
         return nil, "décodage Base64 impossible"
     end
 
@@ -45,6 +45,10 @@ function Snapshot.parse(text, GL)
     local json, decodeError = decodeText(text, GL)
     if not json then
         return nil, decodeError
+    end
+
+    if not GP.Compat.hasFunction(GL, "JSON.decode") then
+        return nil, "cette version de Gargul n'a pas de décodeur JSON"
     end
 
     local ok, data = pcall(GL.JSON.decode, GL.JSON, json)

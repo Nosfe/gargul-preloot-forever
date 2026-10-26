@@ -25,8 +25,8 @@ function Import.apply(text, GL)
     end
     say(("Snapshot importé : palier %s, raid %s, %d raider(s)."):format(data.tierId, data.raidId, #data.raiders))
 
-    if GL.RollOff and type(GL.RollOff.refreshRollsTable) == "function" then
-        GL.RollOff:refreshRollsTable()
+    if GP.Compat.hasFunction(GL, "RollOff.refreshRollsTable") then
+        GP.Compat.safeCall("rafraîchissement du tirage", GL.RollOff.refreshRollsTable, GL.RollOff)
     end
 
     return true
@@ -81,6 +81,11 @@ local function openDialog(GL)
     Import.dialog = dialog
 end
 
+--- Opens the paste dialog; also reachable with /preloot import when Gargul's Importer cannot be hooked.
+function Import.open()
+    openDialog(GP.GL)
+end
+
 local function findButton(Window, label)
     for _, child in ipairs({ Window:GetChildren() }) do
         if type(child.GetText) == "function" and child:GetText() == label then
@@ -104,30 +109,32 @@ function Import.install(GL)
     local originalOpen = Importer.open
 
     -- Gargul clamps this window to 200 px, so the button takes the intro line's place and the native buttons move down one step.
-    function Importer:open()
-        local Window = originalOpen(self)
-        if not Window or GP._importButtonAdded then
+    function Importer:open(...)
+        local Window = originalOpen(self, ...)
+        if type(Window) ~= "table" or GP._importButtonAdded then
             return Window
         end
 
-        local L = _G.Gargul_L or {}
-        hideRegion(Window, L["What kind of data would you like to import?"] or "What kind of data would you like to import?")
-
-        local button = GL.Interface:dynamicPanelButton(Window, BUTTON_LABEL)
-        button:SetPoint("TOPLEFT", Window, "TOPLEFT", 20, -30)
-        button:SetPoint("TOPRIGHT", Window, "TOPRIGHT", -20, 0)
-        button:SetScript("OnClick", function()
-            openDialog(GL)
-        end)
-
-        local softReserves = findButton(Window, L["Soft-Reserves"] or "Soft-Reserves")
-        if softReserves then
-            softReserves:ClearAllPoints()
-            softReserves:SetPoint("TOPLEFT", button, "TOPLEFT", 0, -BUTTON_SPACING)
-            softReserves:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
-        end
-
+        -- Set first: a later failure must not stack another button on Gargul's reused window.
         GP._importButtonAdded = true
+        GP.Compat.safeCall("bouton de l'Importer", function()
+            local L = _G.Gargul_L or {}
+            hideRegion(Window, L["What kind of data would you like to import?"] or "What kind of data would you like to import?")
+
+            local button = GL.Interface:dynamicPanelButton(Window, BUTTON_LABEL)
+            button:SetPoint("TOPLEFT", Window, "TOPLEFT", 20, -30)
+            button:SetPoint("TOPRIGHT", Window, "TOPRIGHT", -20, 0)
+            button:SetScript("OnClick", function()
+                openDialog(GL)
+            end)
+
+            local softReserves = findButton(Window, L["Soft-Reserves"] or "Soft-Reserves")
+            if softReserves then
+                softReserves:ClearAllPoints()
+                softReserves:SetPoint("TOPLEFT", button, "TOPLEFT", 0, -BUTTON_SPACING)
+                softReserves:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
+            end
+        end)
 
         return Window
     end

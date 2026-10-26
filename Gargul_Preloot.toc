@@ -7,6 +7,7 @@
 ## Notes: Owner-only Gargul companion: shows the workbook's loot priorities in the roll table
 ## Dependencies: Gargul
 
+Compat.lua
 Snapshot.lua
 Scores.lua
 Columns.lua

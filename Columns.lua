@@ -71,7 +71,7 @@ end
 
 local function widenWindow(GL)
     local Window = GL.Interface:get(GL.MasterLooterUI, "Window")
-    if not Window or type(Window.SetWidth) ~= "function" or not Window.frame then
+    if type(Window) ~= "table" or type(Window.SetWidth) ~= "function" or type(Window.frame) ~= "table" or type(Window.frame.GetWidth) ~= "function" then
         return
     end
 
@@ -83,7 +83,11 @@ end
 
 --- Rebuild the roll table so both columns show the live values (no-op before install or without a roll table).
 function Columns.refresh()
-    if installedGL and installedGL.Interface:get(installedGL.MasterLooterUI, "Table.Players") then
+    if not installedGL then
+        return
+    end
+    local ok, rollsTable = pcall(installedGL.Interface.get, installedGL.Interface, installedGL.MasterLooterUI, "Table.Players")
+    if ok and rollsTable then
         installedGL.RollOff:refreshRollsTable()
     end
 end
@@ -94,9 +98,9 @@ function Columns.install(GL)
     local originalTableColumns = MasterLooterUI.tableColumns
 
     -- Gargul reads cells 1, 2, 4 and 10 by index, so companion columns only go after them.
-    function MasterLooterUI:tableColumns()
-        local columns = originalTableColumns(self)
-        if not hasColumn(columns) then
+    function MasterLooterUI:tableColumns(...)
+        local columns = originalTableColumns(self, ...)
+        if type(columns) == "table" and not hasColumn(columns) then
             columns[#columns + 1] = {
                 name = BIS_COLUMN_NAME,
                 width = BIS_COLUMN_WIDTH,
@@ -119,17 +123,21 @@ function Columns.install(GL)
     local RollOff = GL.RollOff
     local originalRefreshRollsTable = RollOff.refreshRollsTable
 
-    function RollOff:refreshRollsTable()
-        originalRefreshRollsTable(self)
+    function RollOff:refreshRollsTable(...)
+        local results = { originalRefreshRollsTable(self, ...) }
 
-        local RollsTable = GL.Interface:get(GL.MasterLooterUI, "Table.Players")
-        if not RollsTable or type(RollsTable.data) ~= "table" then
-            return
-        end
+        GP.Compat.safeCall("colonnes du tirage", function()
+            local RollsTable = GL.Interface:get(GL.MasterLooterUI, "Table.Players")
+            if type(RollsTable) ~= "table" or type(RollsTable.data) ~= "table" then
+                return
+            end
 
-        Columns.appendCells(RollsTable.data, self.CurrentRollOff and self.CurrentRollOff.itemID)
-        RollsTable:SetData(RollsTable.data)
-        RollsTable:SortData()
-        widenWindow(GL)
+            Columns.appendCells(RollsTable.data, GP.Compat.rolledItemID(self))
+            RollsTable:SetData(RollsTable.data)
+            RollsTable:SortData()
+            widenWindow(GL)
+        end)
+
+        return unpack(results)
     end
 end

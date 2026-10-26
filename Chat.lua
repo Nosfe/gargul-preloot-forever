@@ -33,12 +33,12 @@ end
 
 --- Send the line to group chat when Gargul's award announcements are on.
 function Chat.announce(entry, GL)
-    if not GL or not GL.Settings or not GL.Settings:get("AwardingLoot.awardMessagesEnabled") then
+    if not GP.Compat.announcementsEnabled(GL) then
         return
     end
 
     local message = Chat.message(entry)
     if message then
-        GL:sendChatMessage(message, "GROUP")
+        GP.Compat.sendChat(GL, message)
     end
 end

@@ -212,5 +212,11 @@ end
 function Picker.install(GL)
     installedGL = GL
     _G.SLASH_GARGULPRELOOT1 = "/preloot"
-    _G.SlashCmdList["GARGULPRELOOT"] = Picker.openList
+    _G.SlashCmdList["GARGULPRELOOT"] = function(argument)
+        if type(argument) == "string" and argument:lower():match("^%s*import%s*$") then
+            GP.Import.open()
+        else
+            Picker.openList()
+        end
+    end
 end

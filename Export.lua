@@ -33,6 +33,8 @@ function Export.install(GL)
     local originalTransform = Exporter.transformEntriesToCustomFormat
 
     function Exporter:transformEntriesToCustomFormat(...)
-        return Export.fill(originalTransform(self, ...))
+        local text = originalTransform(self, ...)
+        local ok, filled = GP.Compat.safeCall("remplissage de l'export", Export.fill, text)
+        return ok and filled or text
     end
 end

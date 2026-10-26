@@ -23,7 +23,7 @@ local function isTreatment(value)
 end
 
 local function winnerKey(awardedTo, GL)
-    return GL:formatPlayerName(awardedTo, { includeRealm = "never" })
+    return GP.Compat.winnerKey(GL, awardedTo)
 end
 
 local function isDisenchant(awardedTo, GL)
@@ -215,11 +215,17 @@ local function prompt(checksum)
 end
 
 function Awards.install(GL)
-    GL.Events:register("GargulPrelootItemAwarded", "GL.ITEM_AWARDED", function(_, AwardEntry)
+    local function on(event, identifier, handler)
+        GL.Events:register(identifier, event, function(...)
+            GP.Compat.safeCall(event, handler, ...)
+        end)
+    end
+
+    on("GL.ITEM_AWARDED", "GargulPrelootItemAwarded", function(_, AwardEntry)
         prompt(Awards.record(AwardEntry, GL))
     end)
 
-    GL.Events:register("GargulPrelootAwardEdited", "GL.ITEM_AWARD_EDITED", function(_, AwardEntry)
+    on("GL.ITEM_AWARD_EDITED", "GargulPrelootAwardEdited", function(_, AwardEntry)
         prompt(Awards.edit(AwardEntry, GL))
         if GP.Picker then
             GP.Picker.refresh()
@@ -227,7 +233,7 @@ function Awards.install(GL)
     end)
 
     -- Bulk clears in Gargul fire this without a payload.
-    GL.Events:register("GargulPrelootItemUnawarded", "GL.ITEM_UNAWARDED", function(_, AwardEntry)
+    on("GL.ITEM_UNAWARDED", "GargulPrelootItemUnawarded", function(_, AwardEntry)
         if type(AwardEntry) == "table" and AwardEntry.checksum then
             Awards.remove(AwardEntry.checksum)
         else
