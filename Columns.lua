@@ -9,6 +9,8 @@ local IMPACT_COLUMN_NAME = "Impact"
 local IMPACT_COLUMN_WIDTH = 60
 local NATIVE_WINDOW_WIDTH = 520
 
+local installedGL = nil
+
 --- Roll-table display name to raider key: Gargul appends " [n]" to repeat rolls.
 function Columns.rollerKey(displayName)
     if type(displayName) ~= "string" then
@@ -20,25 +22,24 @@ end
 
 --- Text shown in the Ratio BiS cell for a display name.
 function Columns.bisCellText(displayName)
-    local raider = GP.Snapshot.raider(Columns.rollerKey(displayName))
+    local raider = GP.Awards.liveRaider(Columns.rollerKey(displayName))
     local ratio = GP.Scores.bisRatio(raider)
     if not ratio then
         return ""
     end
 
-    return ("%.3f"):format(ratio)
+    return GP.Scores.format(ratio)
 end
 
 --- Text shown in the Impact cell: empty unless the item's Statut is IMPACT for the roller's spec.
 function Columns.impactCellText(displayName, itemID)
-    local raider = GP.Snapshot.raider(Columns.rollerKey(displayName))
+    local raider = GP.Awards.liveRaider(Columns.rollerKey(displayName))
     local score = raider and GP.Scores.impactScore(raider, GP.Snapshot.itemSpec(itemID, raider.classSpec))
     if not score then
         return ""
     end
 
-    local text = ("%.3f"):format(score)
-    return text == "-0.000" and "0.000" or text
+    return GP.Scores.format(score)
 end
 
 --- Append the companion cells to rows built by Gargul (cells 1-10 stay untouched).
@@ -80,7 +81,15 @@ local function widenWindow(GL)
     end
 end
 
+--- Rebuild the roll table so both columns show the live values (no-op before install or without a roll table).
+function Columns.refresh()
+    if installedGL and installedGL.Interface:get(installedGL.MasterLooterUI, "Table.Players") then
+        installedGL.RollOff:refreshRollsTable()
+    end
+end
+
 function Columns.install(GL)
+    installedGL = GL
     local MasterLooterUI = GL.MasterLooterUI
     local originalTableColumns = MasterLooterUI.tableColumns
 

@@ -317,6 +317,7 @@ do
         function widget:SetValue(value) self.value = value end
         function widget:AddChild(child) self.children[#self.children + 1] = child end
         function widget:ReleaseChildren() self.children = {} end
+        widget.frame = { GetChildren = function() end }
         function widget:Hide()
             self.closed = true
             if self.callbacks.OnClose then self.callbacks.OnClose(self) end
@@ -523,6 +524,7 @@ end
 
 -- Impact column (5.5)
 do
+    GP.Awards.clear()
     local function near(actual, expected, label)
         if expected == nil then
             check(actual == nil, label .. " (expected nil, got " .. tostring(actual) .. ")")
@@ -602,6 +604,201 @@ do
     })
     hookRollOff:refreshRollsTable()
     equal(hookTable.data[1].cols[12].value, ("%.3f"):format((4 / 8) * 1 / 3 * 0.5), "hook passes CurrentRollOff.itemID to the Impact cell")
+end
+
+-- Live recompute and chat line (5.6)
+do
+    assert(loadfile(root .. "/Chat.lua"))("Gargul_Preloot", GP)
+
+    local created = {}
+    _G.CLOSE = "Close"
+    local function newWidget(kind)
+        local widget = { kind = kind, callbacks = {}, children = {} }
+        setmetatable(widget, { __index = function() return function() end end })
+        function widget:SetCallback(name, callback) self.callbacks[name] = callback end
+        function widget:SetText(text) self.text = text end
+        function widget:AddChild(child) self.children[#self.children + 1] = child end
+        function widget:Hide()
+            self.closed = true
+            if not rawget(self, "invisible") and self.callbacks.OnClose then self.callbacks.OnClose(self) end
+        end
+        local closeButton = { scripts = {} }
+        function closeButton:GetText() return "Close" end
+        function closeButton:GetScript(name) return self.scripts[name] end
+        function closeButton:SetScript(name, script) self.scripts[name] = script end
+        closeButton.scripts.OnClick = function() widget:Hide() end
+        widget.closeButton = closeButton
+        widget.frame = { GetChildren = function() return closeButton end }
+        created[#created + 1] = widget
+        return widget
+    end
+    _G.LibStub = function() return { Create = function(_, kind) return newWidget(kind) end, Release = function() end } end
+    local function lastPopup()
+        for i = #created, 1, -1 do
+            if created[i].kind == "Frame" then return created[i] end
+        end
+    end
+    local function click(label)
+        for _, child in ipairs(lastPopup().children) do
+            if child.kind == "Button" and (child.text == label or child.text == "[" .. label .. "]") then
+                child.callbacks.OnClick()
+                return
+            end
+        end
+        error("button not found: " .. label)
+    end
+
+    local sent, enabled = {}, true
+    GL.Settings = { get = function(_, key) return key == "AwardingLoot.awardMessagesEnabled" and enabled end }
+    function GL:sendChatMessage(message, channel) sent[#sent + 1] = { message = message, channel = channel } end
+
+    local rollTable = { data = {} }
+    function rollTable:SetData(data) self.data = data end
+    function rollTable:SortData() end
+    local liveRollOff = {
+        CurrentRollOff = { itemID = 888 },
+        refreshRollsTable = function()
+            local rows = {}
+            for _, name in ipairs({ "Alya", "Beryl" }) do
+                local cols = {}
+                for i = 1, 10 do cols[i] = { value = i == 1 and name or i } end
+                rows[#rows + 1] = { cols = cols }
+            end
+            rollTable:SetData(rows)
+        end,
+    }
+    GP.Columns.install({
+        MasterLooterUI = { tableColumns = function() return {} end },
+        RollOff = liveRollOff,
+        Interface = { get = function(_, _, path) return path == "Table.Players" and rollTable or nil end },
+    })
+    local refreshes = 0
+    GP.Awards.onChange = function()
+        refreshes = refreshes + 1
+        GP.Columns.refresh()
+    end
+    GP.Picker.install(GL)
+
+    GP.Awards.clear()
+    local withExtra = GL.JSON:decode(sampleJson)
+    withExtra.items[#withExtra.items + 1] = { itemID = 555, specs = {
+        { classSpec = "Druide Combat farouche (ours)", statut = "IMPACT", gainFraction = 0.5 },
+    } }
+    check(GP.Import.apply(GL.JSON:encode(withExtra), GL), "sample imported for live recompute")
+    GP.Awards.clear()
+    local function cell(name, column)
+        for _, row in ipairs(rollTable.data) do
+            if row.cols[1].value == name then return row.cols[column].value end
+        end
+    end
+    local function award(checksum, itemID, winner)
+        refreshes = 0
+        GP.Awards.record({ checksum = checksum, itemID = itemID, itemLink = "[" .. itemID .. "]", awardedTo = winner .. "-Forever" }, GL)
+        GP.Picker.enqueue(checksum)
+    end
+
+    -- 1. BIS confirmed by button: Alya 4/8, BiS loots 1 -> 2
+    award("a1", 777, "Alya")
+    check(refreshes >= 1, "award refreshes the roll table")
+    click("BIS")
+    equal(cell("Alya", 11), "0.167", "live Ratio BiS after a BIS award (0.5/3)")
+    equal(cell("Alya", 12), "0.083", "BIS leaves Impact unchanged (0.5/3 × 0.5)")
+    equal(#sent, 1, "BIS confirm sends one chat line")
+    equal(sent[1] and sent[1].message, "Alya : nouveau ratio BiS 0.167", "BIS chat line")
+    equal(sent[1] and sent[1].channel, "GROUP", "chat goes to the group")
+    refreshes = 0
+    GP.Awards.setTreatment("a1", "BIS")
+    equal(refreshes, 0, "same treatment again does not refresh")
+
+    -- 2. IMPACT prefilled, confirmed by the Close button: Impact loots 2 -> 3, base 0.5/4, gain 0.5
+    award("a2", 888, "Alya")
+    lastPopup().closeButton.scripts.OnClick(lastPopup().closeButton)
+    equal(cell("Alya", 12), "0.063", "live Impact 0.0625 shown as 0.063")
+    equal(cell("Alya", 11), "0.167", "IMPACT leaves Ratio BiS unchanged")
+    equal(cell("Beryl", 12), "", "Beryl has no Impact for 888")
+    equal(sent[2] and sent[2].message, "Alya : nouveau score Impact 0.063 pour [888]", "IMPACT chat line")
+    check(created[#created].closeButton.scripts.OnClick ~= nil, "close button script restored on release")
+
+    -- 2b. A UI hide fires OnHide without the Close button: not a confirmation
+    award("u1", 777, "Beryl")
+    lastPopup():Hide()
+    equal(#sent, 2, "hiding the popup without Close sends nothing")
+    GP.Awards.remove("u1")
+
+    -- 3. NORMAL and CLASS_BOUND: no counts, no chat
+    award("a3", 888, "Beryl")
+    lastPopup():Hide()
+    award("a4", 777, "Beryl")
+    click("CLASS_BOUND")
+    equal(#sent, 2, "NORMAL and CLASS_BOUND send nothing")
+    equal(cell("Beryl", 11), "0.750", "Beryl unchanged by NORMAL and CLASS_BOUND")
+
+    -- 4. Treatment changed later in the list: counts drop back, no chat
+    refreshes = 0
+    GP.Awards.setTreatment("a1", "NORMAL")
+    check(refreshes == 1, "treatment change refreshes the roll table")
+    equal(cell("Alya", 11), "0.250", "Ratio BiS back to 0.5/2 after BIS -> NORMAL")
+    equal(#sent, 2, "list change sends nothing")
+
+    -- 5. Delete: Impact loots back to 2
+    GP.Awards.remove("a2")
+    equal(cell("Alya", 12), ("%.3f"):format(0.5 / 3 * 0.5), "Impact back after delete")
+
+    -- 6. Announcements disabled
+    enabled = false
+    award("a5", 777, "Alya")
+    click("BIS")
+    equal(#sent, 2, "no chat when Gargul announcements are off")
+    enabled = true
+
+    -- 7. Programmatic closes send nothing
+    award("a6", 777, "Alya")
+    click("BIS")
+    local before = #sent
+    award("a7", 777, "Alya")
+    local reopened = GP.Awards.edit({ checksum = "a7", awardedTo = "Beryl-Forever" }, GL)
+    equal(reopened, "a7", "winner change returns the checksum to prompt again")
+    GP.Picker.enqueue(reopened)
+    equal(#sent, before, "edit reopening the popup sends nothing")
+    equal(GP.Awards.get("a7").winner, "Beryl", "edit moved the award")
+    GP.Awards.setTreatment("a7", "BIS")
+    equal(GP.Awards.edit({ checksum = "a7", awardedTo = "Beryl-Forever" }, GL), nil, "edit keeping the winner does not prompt")
+    equal(GP.Awards.get("a7").treatment, "BIS", "edit keeping the winner keeps the owner's pick")
+    GP.Awards.remove("a7")
+    GP.Picker.refresh()
+    equal(#sent, before, "deleted award's popup closes silently")
+
+    -- 7b. Silent close on a hidden frame (no OnHide) still frees the popup slot
+    award("h1", 777, "Alya")
+    local hidden = lastPopup()
+    hidden.invisible = true
+    GP.Awards.remove("h1")
+    GP.Picker.refresh()
+    award("h2", 777, "Alya")
+    check(lastPopup() ~= hidden, "next award opens a new popup after a silent close on a hidden frame")
+    click("NORMAL")
+    equal(#sent, before, "NORMAL after the hidden-frame close sends nothing")
+
+    -- 8. IMPACT not computable: tank with an IMPACT Statut on item 555
+    award("a8", 555, "Cairn")
+    click("IMPACT")
+    equal(#sent, before, "tank IMPACT sends nothing")
+
+    -- 9. Bulk clear in Gargul: awards missing from its history drop out
+    award("b1", 777, "Alya")
+    click("BIS")
+    equal(cell("Alya", 11), "0.100", "a5, a6 and b1 BIS counted before the bulk clear (0.5/5)")
+    refreshes = 0
+    GP.Awards.reconcile({})
+    check(refreshes == 1, "bulk clear refreshes the roll table")
+    equal(cell("Alya", 11), "0.250", "bulk clear drops the counted award")
+
+    -- 10. New raid clears the session
+    award("n1", 777, "Alya")
+    click("BIS")
+    GP.Awards.onSnapshotImported("other")
+    equal(cell("Alya", 11), "0.250", "cleared session gives snapshot values")
+    GP.Awards.onChange = nil
 end
 
 if #failures > 0 then

@@ -15,8 +15,9 @@ local function init()
     GP.Columns.install(GL)
     GP.Import.install(GL)
     GP.Awards.install(GL)
-    GP.Picker.install()
+    GP.Picker.install(GL)
     GP.Export.install(GL)
+    GP.Awards.onChange = GP.Columns.refresh
 end
 
 local LoaderFrame = CreateFrame("Frame")

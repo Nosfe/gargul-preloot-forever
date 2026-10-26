@@ -11,6 +11,7 @@ Scores.lua
 Columns.lua
 Import.lua
 Awards.lua
+Chat.lua
 Picker.lua
 Export.lua
 Core.lua

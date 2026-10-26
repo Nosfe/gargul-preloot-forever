@@ -30,6 +30,36 @@ local function isDisenchant(awardedTo, GL)
     return awardedTo == (GL.Exporter and GL.Exporter.disenchantedItemIdentifier or DISENCHANT_WINNER)
 end
 
+local function changed()
+    if Awards.onChange then
+        Awards.onChange()
+    end
+end
+
+--- Snapshot raider with this session's BIS and IMPACT awards added to its loot counts; nil when unknown.
+function Awards.liveRaider(raiderKey)
+    local raider = GP.Snapshot.raider(raiderKey)
+    if not raider then
+        return nil
+    end
+
+    local live = {}
+    for field, value in pairs(raider) do
+        live[field] = value
+    end
+    for _, entry in pairs(entries) do
+        if entry.winner == raiderKey then
+            if entry.treatment == "BIS" then
+                live.bisLootCount = live.bisLootCount + 1
+            elseif entry.treatment == "IMPACT" then
+                live.impactLootCount = live.impactLootCount + 1
+            end
+        end
+    end
+
+    return live
+end
+
 --- Prefill: the winner's spec Statut for the item, NORMAL when unknown or off-spec.
 function Awards.defaultTreatment(itemID, raiderKey, isOS)
     if isOS then
@@ -69,6 +99,7 @@ function Awards.record(AwardEntry, GL)
         sequence = sequence,
     }
 
+    changed()
     return AwardEntry.checksum
 end
 
@@ -90,8 +121,15 @@ function Awards.edit(AwardEntry, GL)
         return disenchanted[AwardEntry.checksum] and Awards.record(AwardEntry, GL) or nil
     end
 
-    entry.winner = winnerKey(AwardEntry.awardedTo, GL)
-    entry.treatment = Awards.defaultTreatment(entry.itemID, entry.winner, entry.isOS)
+    local winner = winnerKey(AwardEntry.awardedTo, GL)
+    -- Gargul also fires this for edits that keep the winner; the owner's pick then stays.
+    if winner == entry.winner then
+        return nil
+    end
+
+    entry.winner = winner
+    entry.treatment = Awards.defaultTreatment(entry.itemID, winner, entry.isOS)
+    changed()
     return entry.checksum
 end
 
@@ -101,20 +139,31 @@ function Awards.setTreatment(checksum, treatment)
         return false
     end
 
-    entry.treatment = treatment
+    if entry.treatment ~= treatment then
+        entry.treatment = treatment
+        changed()
+    end
     return true
 end
 
 function Awards.remove(checksum)
-    entries[checksum] = nil
+    if entries[checksum] then
+        entries[checksum] = nil
+        changed()
+    end
 end
 
 --- Drop entries whose checksum no longer exists in Gargul's award history.
 function Awards.reconcile(history)
+    local removed = false
     for checksum in pairs(entries) do
         if type(history) ~= "table" or not history[checksum] then
             entries[checksum] = nil
+            removed = true
         end
+    end
+    if removed then
+        changed()
     end
 end
 
@@ -138,8 +187,12 @@ function Awards.list()
 end
 
 function Awards.clear()
+    local hadEntries = next(entries) ~= nil
     entries = {}
     disenchanted = {}
+    if hadEntries then
+        changed()
+    end
 end
 
 --- Called before a snapshot replaces the current one: a different raid starts a new session.

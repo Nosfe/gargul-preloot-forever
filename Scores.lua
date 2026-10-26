@@ -3,6 +3,13 @@ local _, GP = ...
 local Scores = {}
 GP.Scores = Scores
 
+--- Display text with 3 decimals, halves rounded away from zero on every platform, and no "-0.000".
+function Scores.format(value)
+    local rounded = value >= 0 and math.floor(value * 1000 + 0.5) / 1000 or -math.floor(-value * 1000 + 0.5) / 1000
+    local text = ("%.3f"):format(rounded)
+    return text == "-0.000" and "0.000" or text
+end
+
 --- BiS Ratio = (Tier Presence / Tier Presence Max) / (BiS loots + 1); nil when an operand is missing.
 function Scores.bisRatio(raider)
     if type(raider) ~= "table" then

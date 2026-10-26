@@ -7,6 +7,8 @@ local queue = {}
 local popup = nil
 local popupChecksum = nil
 local listWindow = nil
+local confirmClose = false
+local installedGL = nil
 
 local function AceGUI()
     return LibStub("AceGUI-3.0")
@@ -18,6 +20,42 @@ end
 
 local showNext
 
+local closeButton = nil
+local closeButtonScript = nil
+
+-- AceGUI's Frame fires OnClose from OnHide, which a UI hide also triggers; only its Close button and our buttons confirm.
+local function hookCloseButton(widget)
+    for _, child in ipairs({ widget.frame:GetChildren() }) do
+        if type(child.GetText) == "function" and child:GetText() == _G.CLOSE then
+            closeButton = child
+            closeButtonScript = child:GetScript("OnClick")
+            child:SetScript("OnClick", function(...)
+                confirmClose = true
+                closeButtonScript(...)
+            end)
+            return
+        end
+    end
+end
+
+local function finishPopup(widget)
+    local confirmed = confirmClose
+    confirmClose = false
+    local checksum = popupChecksum
+    popup = nil
+    popupChecksum = nil
+    -- The frame goes back to AceGUI's shared pool, so its Close button gets its own script back.
+    if closeButton then
+        closeButton:SetScript("OnClick", closeButtonScript)
+        closeButton, closeButtonScript = nil, nil
+    end
+    AceGUI():Release(widget)
+    if confirmed and GP.Chat then
+        GP.Chat.announce(GP.Awards.get(checksum), installedGL)
+    end
+    showNext()
+end
+
 local function openPopup(entry)
     local gui = AceGUI()
     popup = gui:Create("Frame")
@@ -28,12 +66,8 @@ local function openPopup(entry)
     popup:SetWidth(460)
     popup:SetHeight(150)
     popup:EnableResize(false)
-    popup:SetCallback("OnClose", function(widget)
-        popup = nil
-        popupChecksum = nil
-        gui:Release(widget)
-        showNext()
-    end)
+    hookCloseButton(popup)
+    popup:SetCallback("OnClose", finishPopup)
 
     local label = gui:Create("Label")
     label:SetFullWidth(true)
@@ -49,6 +83,7 @@ local function openPopup(entry)
             if listWindow then
                 Picker.refresh()
             end
+            confirmClose = true
             popup:Hide()
         end)
         popup:AddChild(button)
@@ -65,10 +100,20 @@ showNext = function()
     end
 end
 
+local function closeSilently()
+    local widget = popup
+    confirmClose = false
+    widget:Hide()
+    -- Hide on a frame already invisible (UI hidden) fires no OnHide, so finish here.
+    if popup == widget then
+        finishPopup(widget)
+    end
+end
+
 --- Ask the owner for an award's treatment; awards queue while a popup is open.
 function Picker.enqueue(checksum)
     if popupChecksum == checksum then
-        popup:Hide()
+        closeSilently()
     end
 
     for _, queued in ipairs(queue) do
@@ -156,7 +201,7 @@ end
 --- Re-draw open windows after awards change; a popup for a deleted award closes.
 function Picker.refresh()
     if popupChecksum and not GP.Awards.get(popupChecksum) then
-        popup:Hide()
+        closeSilently()
     end
 
     if listWindow then
@@ -164,7 +209,8 @@ function Picker.refresh()
     end
 end
 
-function Picker.install()
+function Picker.install(GL)
+    installedGL = GL
     _G.SLASH_GARGULPRELOOT1 = "/preloot"
     _G.SlashCmdList["GARGULPRELOOT"] = Picker.openList
 end
