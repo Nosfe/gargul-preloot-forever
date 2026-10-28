@@ -2,6 +2,7 @@
 local scriptDir = (arg and arg[0] or "run.lua"):match("^(.*)[\\/][^\\/]*$") or "."
 local root = scriptDir .. "/../.."
 local gargulDir = os.getenv("GARGUL_DIR") or (root .. "/../Gargul")
+local addonDir = root .. "/Gargul_Preloot"
 
 local function readFile(path)
     local handle = assert(io.open(path, "rb"), "cannot open " .. path)
@@ -21,7 +22,7 @@ assert(loadfile(gargulDir .. "/Classes/JSON.lua"))("Gargul", GL)
 
 local GP = {}
 for _, file in ipairs({ "Compat.lua", "Snapshot.lua", "Scores.lua", "Columns.lua", "Import.lua", "Awards.lua" }) do
-    assert(loadfile(root .. "/" .. file))("Gargul_Preloot", GP)
+    assert(loadfile(addonDir .. "/" .. file))("Gargul_Preloot", GP)
 end
 
 local count, failures = 0, {}
@@ -328,7 +329,7 @@ do
     _G.LibStub = function() return { Create = function(_, kind) return newWidget(kind) end, Release = function() end } end
     _G.SlashCmdList = {}
 
-    assert(loadfile(root .. "/Picker.lua"))("Gargul_Preloot", GP)
+    assert(loadfile(addonDir .. "/Picker.lua"))("Gargul_Preloot", GP)
     GP.Picker.install()
     check(_G.SLASH_GARGULPRELOOT1 == "/preloot" and type(_G.SlashCmdList.GARGULPRELOOT) == "function", "/preloot registered")
 
@@ -381,7 +382,7 @@ end
 
 -- Custom export fill (5.3)
 do
-    assert(loadfile(root .. "/Export.lua"))("Gargul_Preloot", GP)
+    assert(loadfile(addonDir .. "/Export.lua"))("Gargul_Preloot", GP)
     check(GP.Import.apply(sampleB64, GL), "raid 4 snapshot imported for export")
     GP.Awards.record({ checksum = "e1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
     GP.Awards.record({ checksum = "e2", itemID = 777, itemLink = "[777]", awardedTo = "Beryl-Forever" }, GL)
@@ -608,7 +609,7 @@ end
 
 -- Live recompute and chat line (5.6)
 do
-    assert(loadfile(root .. "/Chat.lua"))("Gargul_Preloot", GP)
+    assert(loadfile(addonDir .. "/Chat.lua"))("Gargul_Preloot", GP)
 
     local created = {}
     _G.CLOSE = "Close"
@@ -821,7 +822,7 @@ local toleranceOk, toleranceError = pcall(function()
         return loader.frame
     end
     _G.Gargul = nil
-    assert(loadfile(root .. "/Core.lua"))("Gargul_Preloot", GP)
+    assert(loadfile(addonDir .. "/Core.lua"))("Gargul_Preloot", GP)
     loader.script(loader.frame, "ADDON_LOADED", "Gargul_Preloot")
     check(printed[#printed] and printed[#printed]:find("Gargul introuvable", 1, true) ~= nil, "missing Gargul disables the addon with one line")
 

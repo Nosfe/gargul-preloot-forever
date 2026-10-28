@@ -26,9 +26,8 @@ The workbook and its Apps Script live in [tools/google_apps_script](tools/google
 
 ## Installation
 
-1. Create `Interface/AddOns/Gargul_Preloot/` in the WoW folder.
-2. Copy `Gargul_Preloot.toc` and every `.lua` file at the repo root into it: `Compat`, `Snapshot`, `Scores`, `Columns`, `Import`, `Awards`, `Chat`, `Picker`, `Export`, `Core`. The `tools/` and `tests/` folders are not needed in game.
-3. Enable **Gargul** and **Gargul Preloot**, then log in or `/reload`.
+1. Copy the `Gargul_Preloot` folder (the one inside this repo, holding `Gargul_Preloot.toc`) into `Interface/AddOns/` in the WoW folder, so you get `Interface/AddOns/Gargul_Preloot/Gargul_Preloot.toc`. Nothing else from the repo is needed in game.
+2. Enable **Gargul** and **Gargul Preloot**, then log in or `/reload`.
 
 ## Gargul export settings
 
@@ -88,6 +87,8 @@ To try the addon in game without workbook data, paste `tests/addon/payloads/test
 
 ## Files
 
+The addon is the `Gargul_Preloot/` folder:
+
 | File | Role |
 | --- | --- |
 | `Gargul_Preloot.toc` | Addon metadata and load order |
@@ -101,6 +102,11 @@ To try the addon in game without workbook data, paste `tests/addon/payloads/test
 | `Chat.lua` | The French chat line |
 | `Export.lua` | `@GPRAID` / `@GPTREATMENT` fill in Gargul's Custom export |
 | `Core.lua` | Startup and per-feature installation |
+
+Outside it, not used in game:
+
+| Folder | Role |
+| --- | --- |
 | `tests/addon/` | Offline tests and the test snapshot |
 | `tools/google_apps_script/` | The workbook's Apps Script |
 

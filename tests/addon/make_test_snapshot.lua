@@ -13,7 +13,7 @@ assert(loadfile(gargulDir .. "/Classes/Base64.lua"), "Gargul v8.0.1 not found; s
 assert(loadfile(gargulDir .. "/Classes/JSON.lua"))("Gargul", GL)
 local GP = {}
 for _, file in ipairs({ "Compat.lua", "Snapshot.lua", "Scores.lua" }) do
-    assert(loadfile(root .. "/" .. file))("Gargul_Preloot", GP)
+    assert(loadfile(root .. "/Gargul_Preloot/" .. file))("Gargul_Preloot", GP)
 end
 
 local NAMES = {
