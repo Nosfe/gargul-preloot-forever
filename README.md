@@ -1,118 +1,107 @@
 # Gargul Preloot
 
-Gargul Preloot is a World of Warcraft add-on that extends Gargul's Master Looter player table with an imported attendance-to-loot ratio.
+Owner-only companion addon for [Gargul](https://github.com/papa-smurf/Gargul). It shows each roller's loot priority from the guild's Preloot workbook (Google Sheets) right in Gargul's roll table. It also records how each award should count, so the workbook can import the raid's loot afterwards.
 
-It adds a `Ratio_Preloot` column, updates a player's loot count after eligible awards, and persists those updates across logout, login, and `/reload`.
+The addon never chooses or awards loot: the loot master decides every award, even against the displayed values. Only the loot master installs it; raiders keep their usual Gargul.
+
+The workbook and its Apps Script live in [tools/google_apps_script](tools/google_apps_script/README.md).
+
+## What it does
+
+- **Snapshot import:** paste the snapshot exported by the workbook (Base64 or raw JSON). It holds each raider's spec, tier presence, loot counts and parse, plus the Objets table (Statut and Gain per item and spec). The whole snapshot is checked and both scores are recomputed. Anything inconsistent is refused, and the previous snapshot is kept.
+- **Two columns after Gargul's own:**
+  - **Ratio BiS**: (tier presence / raids in the tier) / (BiS loots + 1).
+  - **Impact**: (tier presence / raids in the tier) × parse / (Impact loots + 1) × the rolled item's gain for the roller's spec. It is shown only when that spec's Statut for the item is IMPACT, and never for tanks.
+- **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and NORMAL. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked NORMAL.
+  - Click a button, or **Fermer** (Close) to keep the marked one.
+  - `/preloot` lists every award of the raid, so a treatment can be changed later.
+- **Live values:** BIS and IMPACT awards count immediately, so both columns are up to date for the next roll. NORMAL and CLASS_BOUND count for nothing.
+- **Chat line:** when a treatment is confirmed in the window, a French line goes to group chat with the winner's new value. For example: `Alya : nouveau ratio BiS 0.167` or `Alya : nouveau score Impact 0.063 pour [item]`. Nothing is sent for NORMAL or CLASS_BOUND, nor when Gargul's award announcements are turned off.
+- **Export fill:** Gargul's Custom export gets each line's `raidId` and `treatment` filled in, matched by the award's checksum, so the workbook's **Raid > Terminer** can import it.
 
 ## Requirements
 
-- Gargul must be installed and enabled.
-- `Gargul_Preloot` must be copied to the same `Interface/AddOns` directory and enabled.
-
-Gargul is declared as a required dependency, so this extension initializes after Gargul is available.
+- Gargul. It was built and tested against Gargul **v8.0.1**. Other versions are detected at load: any part that cannot hook into them is switched off on its own (see below).
+- WoW Forever (`Interface-Camelot: 16001`) or TBC Anniversary (`Interface-BCC: 20506`).
 
 ## Installation
 
-1. Copy the `Gargul_Preloot` directory into your World of Warcraft `Interface/AddOns` directory.
-2. Enable **Gargul** and **Gargul Preloot** in the add-on list.
-3. Log in or run `/reload`.
+1. Create `Interface/AddOns/Gargul_Preloot/` in the WoW folder.
+2. Copy `Gargul_Preloot.toc` and every `.lua` file at the repo root into it: `Compat`, `Snapshot`, `Scores`, `Columns`, `Import`, `Awards`, `Chat`, `Picker`, `Export`, `Core`. The `tools/` and `tests/` folders are not needed in game.
+3. Enable **Gargul** and **Gargul Preloot**, then log in or `/reload`.
 
-## Importing preloot data
+## Gargul export settings
 
-1. Open Gargul's Importer window.
-2. Select **Preloot (Base64)**.
-3. Paste a Base64-encoded JSON object into the dialog.
-4. Select **Import**.
+In Gargul's loot exporter:
 
-The decoded JSON must map each player name to an array containing attendance first and loot count second:
+1. Choose the **Custom** format.
+2. Untick **Include offspec items** and **Include disenchanted items**.
+3. Paste the format line from the workbook menu **Preloot > Configuration > Afficher le format d'export Gargul**.
 
-```json
-{
-  "PlayerA": [19, 4],
-  "PlayerB": [29, 7],
-  "PlayerC": [34, 17.33]
-}
+The addon replaces that line's `@GPRAID` and `@GPTREATMENT` tokens; Gargul fills the rest.
+
+## Raid night
+
+1. In the workbook: **Preloot > Raid > Démarrer (exporter le snapshot)**, then copy the snapshot.
+2. In game: open Gargul's Importer, click **Preloot (snapshot)**, paste, then **Importer**. Chat confirms the tier, the raid and the number of raiders. `/preloot import` opens the same paste window.
+3. Roll and award as usual in Gargul, and confirm each award's treatment in the window.
+4. After the raid, export from Gargul. In the workbook, use **Preloot > Raid > Terminer** with the Warcraft Logs report link and the export.
+
+The addon keeps nothing between sessions: import the snapshot again before every raid. A `/reload` during a raid clears both the snapshot and the treatments recorded so far:
+
+- the columns stay empty and new awards are not recorded until the snapshot is imported again (run **Démarrer** again: it exports the same raid ID);
+- awards made before the reload are no longer counted in the columns for the rest of the raid;
+- their exported lines have an empty `raidId`, which the workbook refuses: type the raid ID in those lines, or delete lines from another raid. An empty treatment is not a problem: pick it in the Terminer preview.
+
+## Slash commands
+
+| Command | Effect |
+| --- | --- |
+| `/preloot` | List of this raid's awards, with a treatment dropdown each |
+| `/preloot import` | Snapshot paste window (useful when the Importer button is unavailable) |
+
+## Other Gargul versions
+
+On load, one chat line lists any part switched off because the installed Gargul lacks what it needs. For example: `Version de Gargul différente, fonctions désactivées : remplissage de l'export (Exporter.transformEntriesToCustomFormat absent)`. The other parts keep working.
+
+Where it is safe, the addon falls back to its own code:
+
+- its own Base64 decoder;
+- realm stripping on player names;
+- the rolled item read from its link;
+- WoW's chat when Gargul's chat helper is missing.
+
+An error inside the addon is printed once and never stops Gargul's own roll table or export.
+
+## Tests
+
+Offline tests run on [LuaJIT](https://luajit.org/), which implements Lua 5.1 like WoW. They load Gargul's own Base64 and JSON code from a Gargul v8.0.1 checkout:
+
+```powershell
+git clone --depth 1 --branch v8.0.1 https://github.com/papa-smurf/Gargul.git ..\Gargul
+luajit tests/addon/run.lua
 ```
 
-Both values may be integers or decimals. Player names are matched case-insensitively and realm suffixes are removed when Gargul provides that normalization.
+Set `GARGUL_DIR` when the checkout is not at `../Gargul`. The suite prints `PASS: <n> assertions`.
 
-A successful import completely replaces the previously persisted preloot snapshot, including loot-count changes made from earlier awards. Empty or invalid input does not replace the stored data.
-
-See `sample_json` for a larger decoded example.
-
-## Ratio calculation
-
-The displayed ratio is calculated from the imported attendance and loot count:
-
-| Condition | Displayed ratio |
-| --- | ---: |
-| Attendance is 3 or lower | `0.000` |
-| Attendance is above 3 and loot count is 0 | `999.000` |
-| Otherwise | `attendance / loot count` |
-
-Ratios are displayed to three decimal places in the Master Looter player table. Players without usable imported data currently receive the add-on's generated fallback value.
-
-## Automatic updates after awards
-
-The imported loot count is incremented when all of these conditions are met:
-
-- The recipient exists in the imported preloot data.
-- The item is epic quality.
-- The award is not marked as off-spec (`OS`).
-
-After an eligible award, the add-on:
-
-1. Calculates the recipient's new ratio using the incremented loot count.
-2. Appends the new ratio to Gargul's award announcement.
-3. Updates the ratio shown in the player table.
-4. Keeps the updated loot count in `GargulPrelootDB` for the next login or `/reload`.
-
-## Persistence and startup log
-
-Imported attendance, loot counts, and original player names are stored in WoW's `GargulPrelootDB` SavedVariable.
-
-Each successful import also stores its timestamp. On login or `/reload`, the add-on restores the saved data and prints a compact ratio summary followed by the last import date shortly after the player enters the world:
-
-```text
-[GP] Persisted preloot ratios loaded for 25 player(s). Highest: PlayerA (12.500), Lowest: PlayerB (1.250)
-[GP] Last preloot import: 2026-09-03 18:45:12
-```
-
-The date and time use the game client's local time. If no valid ratios or import timestamp are stored, it prints:
-
-```text
-[GP] No persisted preloot ratios loaded. Import ratios from Gargul's Importer > Preloot (Base64).
-[GP] Last preloot import: not recorded. Import ratios to start tracking it.
-```
-
-As with all WoW SavedVariables, changes are written by the game during normal logout and `/reload` processing.
-
-## Debugging
-
-Check whether the extension initialized:
-
-```lua
-/script print(GargulPreloot and "OK" or "FAIL")
-```
-
-Inspect the current ratio for a player:
-
-```lua
-/script print(GargulPreloot:getCustomDataForPlayer("PlayerA"))
-```
-
-Inspect the persisted imported entry for a player:
-
-```lua
-/dump GargulPrelootDB.importedPreloot["playera"]
-```
-
-Player keys in the saved table are normalized to lowercase.
+To try the addon in game without workbook data, paste `tests/addon/payloads/test-snapshot.b64.txt`. It holds 28 raiders and 46 Classic and TBC items, with raid ID `test-1`. To rebuild it after editing the names or items, run `luajit tests/addon/make_test_snapshot.lua`. The workbook refuses exports from that test raid ID.
 
 ## Files
 
-- `Core.lua` contains the Gargul hooks, import handling, ratio calculation, award updates, and persistence logic.
-- `Gargul_Preloot.toc` contains add-on metadata and declares `GargulPrelootDB` as a SavedVariable.
-- `sample_json` demonstrates the decoded attendance/loot import structure.
+| File | Role |
+| --- | --- |
+| `Gargul_Preloot.toc` | Addon metadata and load order |
+| `Compat.lua` | Gargul feature detection and fallbacks |
+| `Snapshot.lua` | Snapshot decoding and Interchange v2 validation |
+| `Scores.lua` | BiS Ratio, Impact base and Impact Score, display rounding |
+| `Columns.lua` | Ratio BiS and Impact columns in the roll table |
+| `Import.lua` | Importer button and paste window |
+| `Awards.lua` | Treatment per award for the session, and live loot counts |
+| `Picker.lua` | Treatment window and `/preloot` list |
+| `Chat.lua` | The French chat line |
+| `Export.lua` | `@GPRAID` / `@GPTREATMENT` fill in Gargul's Custom export |
+| `Core.lua` | Startup and per-feature installation |
+| `tests/addon/` | Offline tests and the test snapshot |
+| `tools/google_apps_script/` | The workbook's Apps Script |
 
-**Version:** 1.1.0
+**Version:** 2.0.0
