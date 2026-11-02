@@ -18,6 +18,7 @@ function onOpen() {
         .addItem('Mettre à jour les parses WCL', 'updateWclParses')
         .addItem('Afficher le format d\'export Gargul', 'showGargulExportFormat')
         .addItem('Nouveau palier', 'openNewTierDialog')
+        .addItem('Réinitialiser tout le classeur', 'openResetWorkbookDialog')
     )
     .addToUi();
 }

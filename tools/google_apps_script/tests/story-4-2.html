@@ -10,6 +10,7 @@
 <script src="../src/grids.js"></script>
 <script src="../src/roster.js"></script>
 <script src="../src/scores.js"></script>
+<script src="../src/reset.js"></script>
 <script>
   (function () {
     // Seeds every flat contract tab with its key header row, except the names in `skip`.
@@ -397,6 +398,44 @@
 
       withHarness(function () {
         rosterLookupTests();
+      });
+
+      // Full reset: wrong password changes nothing; the right one leaves only the empty layout.
+      withHarness(function () {
+        seedCoreFlatTabs(['Roster']);
+        TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', 'Raid 1', 'Mage', 'Givre', '', 80]]);
+        TracerHarness.seedSheet('Notes', [['libre'], ['texte']]);
+        setUpWorkbook();
+        var sheetNames = function () {
+          return SpreadsheetApp.getActive().getSheets().map(function (sheet) { return sheet.getName(); }).sort().join(',');
+        };
+        var rosterBefore = JSON.stringify(TracerHarness.getRows('Roster'));
+
+        openResetWorkbookDialog();
+        var dialog = TracerHarness.getLastModalDialog();
+        equal(dialog.title, 'Réinitialiser le classeur', 'reset opens a dialog');
+        contains(dialog.html, 'type="password"', 'reset dialog hides the password');
+        contains(dialog.html, 'window.confirm(', 'reset asks for a confirmation');
+
+        var wrongError = '';
+        try {
+          submitResetWorkbook('Duracell');
+        } catch (error) {
+          wrongError = error.message;
+        }
+        contains(wrongError, 'mot de passe incorrect', 'wrong password refused');
+        equal(JSON.stringify(TracerHarness.getRows('Roster')), rosterBefore, 'wrong password: Roster untouched');
+        truthy(SpreadsheetApp.getActive().getSheetByName('Notes'), 'wrong password: other tabs untouched');
+
+        var expectedNames = sheetNames().split(',').filter(function (name) { return name !== 'Notes'; }).join(',');
+        contains(submitResetWorkbook('duracell'), 'Classeur réinitialisé', 'right password resets');
+        equal(sheetNames(), expectedNames, 'only the layout tabs remain, no temporary tab');
+        equal(TracerHarness.getRows('Roster').slice(1).map(function (row) { return row[0] + '' + row[2] + row[3]; }).join(''), '', 'Roster emptied');
+        equal(TracerHarness.getRows('Roster')[0][0], 'Raider (nom exact en jeu)', 'Roster headers rebuilt');
+        equal(TracerHarness.getRows('Présence')[0].slice(3).join(''), '', 'no raider column left in Présence');
+
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'refresh works after a reset');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';

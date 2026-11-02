@@ -1134,6 +1134,59 @@
     return buildHttpResponse_(state.fetchResponses.shift());
   }
 
+  // Synchronous SHA-256 over a byte array; returns unsigned bytes.
+  function sha256_(bytes) {
+    var k = [];
+    var h = [];
+    var primes = 0;
+    for (var candidate = 2; primes < 64; candidate += 1) {
+      var isPrime = true;
+      for (var d = 2; d * d <= candidate; d += 1) {
+        if (candidate % d === 0) { isPrime = false; break; }
+      }
+      if (!isPrime) { continue; }
+      if (primes < 8) { h[primes] = (Math.pow(candidate, 1 / 2) * 4294967296) | 0; }
+      k[primes] = (Math.pow(candidate, 1 / 3) * 4294967296) | 0;
+      primes += 1;
+    }
+
+    var bitLength = bytes.length * 8;
+    var padded = Array.prototype.slice.call(bytes);
+    padded.push(0x80);
+    while (padded.length % 64 !== 56) { padded.push(0); }
+    for (var shift = 56; shift >= 0; shift -= 8) {
+      padded.push(shift >= 32 ? Math.floor(bitLength / Math.pow(2, shift)) & 0xff : (bitLength >>> shift) & 0xff);
+    }
+
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+    for (var offset = 0; offset < padded.length; offset += 64) {
+      var w = [];
+      for (var i = 0; i < 64; i += 1) {
+        if (i < 16) {
+          var j = offset + i * 4;
+          w[i] = (padded[j] << 24) | (padded[j + 1] << 16) | (padded[j + 2] << 8) | padded[j + 3];
+        } else {
+          var s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+          var s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+          w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+        }
+      }
+      var a = h[0], b = h[1], c = h[2], e = h[4], f = h[5], g = h[6], dd = h[3], hh = h[7];
+      for (var r = 0; r < 64; r += 1) {
+        var t1 = (hh + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + k[r] + w[r]) | 0;
+        var t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        hh = g; g = f; f = e; e = (dd + t1) | 0; dd = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h = [(h[0] + a) | 0, (h[1] + b) | 0, (h[2] + c) | 0, (h[3] + dd) | 0, (h[4] + e) | 0, (h[5] + f) | 0, (h[6] + g) | 0, (h[7] + hh) | 0];
+    }
+
+    var out = [];
+    h.forEach(function (word) {
+      out.push((word >>> 24) & 0xff, (word >>> 16) & 0xff, (word >>> 8) & 0xff, word & 0xff);
+    });
+    return out;
+  }
+
   function install() {
     previous.SpreadsheetApp = global.SpreadsheetApp;
     previous.LockService = global.LockService;
@@ -1274,6 +1327,16 @@
     global.Utilities = {
       Charset: {
         UTF_8: 'UTF_8'
+      },
+      DigestAlgorithm: {
+        SHA_256: 'SHA_256'
+      },
+      // Signed bytes, like Apps Script.
+      computeDigest: function (algorithm, value, charset) {
+        if (algorithm !== 'SHA_256' || (charset && charset !== 'UTF_8')) {
+          throw new Error('Unsupported computeDigest in fake: ' + algorithm);
+        }
+        return sha256_(new TextEncoder().encode(String(value))).map(function (b) { return b > 127 ? b - 256 : b; });
       },
       formatDate: function (date, timeZone, pattern) {
         if (pattern !== 'yyyy-MM-dd HH:mm:ss' && pattern !== 'yyyy-MM-dd') {

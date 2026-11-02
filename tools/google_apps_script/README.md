@@ -38,6 +38,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Mettre à jour les parses WCL | Fills the Roster parses from Warcraft Logs. Needs Config's *Serveur WCL* and the WCL credentials; refused while a raid is open. |
 | Afficher le format d'export Gargul | The line to paste as Gargul's Custom export format. |
 | Nouveau palier | Starts the next tier (new ID and start date). The current Objets tabs are copied into an `Objets (<old tier>)` archive tab, protected with a warning, and then **emptied** for the new tier. Both scores reset. Refused while a raid is open. |
+| Réinitialiser tout le classeur | Deletes every tab (data, archives, Config) and rebuilds the empty layout. Asks for the owner's password; only its salted SHA-256 is in the code. WCL credentials are kept. |
 
 ## Tabs
 
