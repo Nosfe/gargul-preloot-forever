@@ -130,19 +130,14 @@ function buildListsTabRequests_(listsState, argSeparator) {
   return requests;
 }
 
-// Rows of the Classe|Spé → Rôle table (emoji and bare spec both listed), read by the Rôle formula.
+// Rows of the Classe|Spé → Rôle table, read by the Rôle formula.
 function buildRoleTableRows_() {
-  var rows = [];
-  SPEC_COLUMNS.forEach(function (entry) {
-    var role = ROLE_DISPLAY[entry.role].value;
-    [specDisplayValue_(entry.className, entry.spec), entry.spec].forEach(function (specText) {
-      rows.push({ values: [
-        { userEnteredValue: { stringValue: entry.className + '|' + specText } },
-        { userEnteredValue: { stringValue: role } }
-      ] });
-    });
+  return SPEC_COLUMNS.map(function (entry) {
+    return { values: [
+      { userEnteredValue: { stringValue: entry.className + '|' + entry.spec } },
+      { userEnteredValue: { stringValue: ROLE_DISPLAY[entry.role].value } }
+    ] };
   });
-  return rows;
 }
 
 // Rows 2..201 of _Listes: class/spec table in A:E and, in G, a lookup that spills the Roster row's specs into G:J.
@@ -159,7 +154,7 @@ function buildListsRows_(argSeparator) {
     var values = [{ userEnteredValue: { stringValue: entry ? entry.name : '' } }];
     for (var specIndex = 0; specIndex < LISTS_LAYOUT.specCount; specIndex += 1) {
       var spec = entry && entry.specs[specIndex];
-      values.push({ userEnteredValue: { stringValue: spec ? specDisplayValue_(entry.name, spec) : '' } });
+      values.push({ userEnteredValue: { stringValue: spec || '' } });
     }
     while (values.length < LISTS_LAYOUT.rosterLookupColumn) {
       values.push({ userEnteredValue: { stringValue: '' } });

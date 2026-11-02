@@ -88,7 +88,7 @@
         contains(bisLoots, '="BIS"', 'BiS count filters BIS');
         contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
         contains(ratio, '/($I2+1)', 'ratio divides by BiS loots plus one');
-        contains(impactBase, '$E2="🛡️ Tank"', 'impact base keeps tank blank');
+        contains(impactBase, '$E2="Tank"', 'impact base keeps tank blank');
         contains(impactBase, 'IF(N($F2)=0,1,$F2)', 'impact base uses parse=1 fallback');
         contains(impactBase, '($G2/$H2)', 'impact base uses tier presence, like the BiS ratio');
         contains(impactBase, '/($J2+1)', 'impact base divides by Impact loots plus one');
@@ -162,12 +162,12 @@
         });
         TracerHarness.seedSheet('Roster', [
           ['Raider (nom exact en jeu)', 'Groupe de raid', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen'],
-          ['Ana', 'Raid 1', 'Mage', '❄️ Givre', '✚ Heal', 80]
+          ['Ana', 'Raid 1', 'Mage', '❄️ Givre', 'Heal', 80]
         ]);
         setUpWorkbook();
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'owner-only Roster is extended');
         var rows = TracerHarness.getRows('Roster');
-        equal(rows[1].slice(0, 4).join('|') + '|' + rows[1][5], 'Ana|Raid 1|Mage|❄️ Givre|80', 'existing Roster data kept (Rôle is a formula)');
+        equal(rows[1].slice(0, 4).join('|') + '|' + rows[1][5], 'Ana|Raid 1|Mage|Givre|80', 'existing Roster data kept, spec icon removed (Rôle is a formula)');
         equal(rows[0][6], 'Présence palier', 'first calculated column appended at G');
       });
 

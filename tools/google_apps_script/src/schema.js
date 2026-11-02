@@ -3,11 +3,11 @@ var ROLE_OPTIONS = ['Tank', 'Heal', 'Melee DPS', 'Ranged DPS', 'Caster DPS'];
 
 // Display values and colours for the Roster role column.
 var ROLE_DISPLAY = {
-  'Tank': { value: '🛡️ Tank', colorHex: 'C9D6E3', textHex: '1F1F1F' },
-  'Heal': { value: '✚ Heal', colorHex: 'C8E6C9', textHex: '1F1F1F' },
-  'Melee DPS': { value: '⚔️ Melee DPS', colorHex: 'F4C7C3', textHex: '1F1F1F' },
-  'Ranged DPS': { value: '🏹 Ranged DPS', colorHex: 'E0CDB5', textHex: '1F1F1F' },
-  'Caster DPS': { value: '🔮 Caster DPS', colorHex: 'D9C8F0', textHex: '1F1F1F' }
+  'Tank': { value: 'Tank', colorHex: 'C9D6E3', textHex: '1F1F1F' },
+  'Heal': { value: 'Heal', colorHex: 'C8E6C9', textHex: '1F1F1F' },
+  'Melee DPS': { value: 'Melee DPS', colorHex: 'F4C7C3', textHex: '1F1F1F' },
+  'Ranged DPS': { value: 'Ranged DPS', colorHex: 'E0CDB5', textHex: '1F1F1F' },
+  'Caster DPS': { value: 'Caster DPS', colorHex: 'D9C8F0', textHex: '1F1F1F' }
 };
 
 // One source for the class dropdown, the class colours and the spec check (French client names).
@@ -16,63 +16,54 @@ var CLASS_SPECS = [
   {
     name: 'Guerrier',
     specs: ['Armes', 'Fureur', 'Protection'],
-    specIcons: { 'Armes': '⚔️', 'Fureur': '💢', 'Protection': '🛡️' },
     colorHex: 'C69B6D',
     textHex: '1F1F1F'
   },
   {
     name: 'Paladin',
     specs: ['Sacré', 'Protection', 'Vindicte'],
-    specIcons: { 'Sacré': '✨', 'Protection': '🛡️', 'Vindicte': '⚖️' },
     colorHex: 'F48CBA',
     textHex: '1F1F1F'
   },
   {
     name: 'Chasseur',
     specs: ['Maîtrise des bêtes', 'Précision', 'Survie'],
-    specIcons: { 'Maîtrise des bêtes': '🐾', 'Précision': '🎯', 'Survie': '🌲' },
     colorHex: 'AAD372',
     textHex: '1F1F1F'
   },
   {
     name: 'Voleur',
     specs: ['Assassinat', 'Combat', 'Finesse'],
-    specIcons: { 'Assassinat': '🗡️', 'Combat': '⚔️', 'Finesse': '🌫️' },
     colorHex: 'FFF468',
     textHex: '1F1F1F'
   },
   {
     name: 'Prêtre',
     specs: ['Discipline', 'Sacré', 'Ombre'],
-    specIcons: { 'Discipline': '📿', 'Sacré': '✨', 'Ombre': '🌑' },
     colorHex: 'FFFFFF',
     textHex: '1F1F1F'
   },
   {
     name: 'Chaman',
     specs: ['Élémentaire', 'Amélioration', 'Restauration'],
-    specIcons: { 'Élémentaire': '⚡', 'Amélioration': '🌪️', 'Restauration': '💧' },
     colorHex: '0070DD',
     textHex: 'FFFFFF'
   },
   {
     name: 'Mage',
     specs: ['Arcanes', 'Feu', 'Givre'],
-    specIcons: { 'Arcanes': '🔮', 'Feu': '🔥', 'Givre': '❄️' },
     colorHex: '3FC7EB',
     textHex: '1F1F1F'
   },
   {
     name: 'Démoniste',
     specs: ['Affliction', 'Démonologie', 'Destruction'],
-    specIcons: { 'Affliction': '☠️', 'Démonologie': '😈', 'Destruction': '💥' },
     colorHex: '8788EE',
     textHex: '1F1F1F'
   },
   {
     name: 'Druide',
     specs: ['Équilibre', 'Combat farouche (ours)', 'Combat farouche (félin)', 'Restauration'],
-    specIcons: { 'Équilibre': '🌙', 'Combat farouche (ours)': '🐻', 'Combat farouche (félin)': '🐈', 'Restauration': '🌿' },
     colorHex: 'FF7C0A',
     textHex: '1F1F1F'
   }

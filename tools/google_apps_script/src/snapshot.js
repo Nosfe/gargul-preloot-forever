@@ -374,7 +374,7 @@ function classSpecLabel_(className, specCell, role) {
 
   var spec = null;
   classEntry.specs.forEach(function (candidate) {
-    if (specCell === candidate || specCell === specDisplayValue_(className, candidate)) {
+    if (specDisplayValue_(className, specCell) === candidate) {
       spec = candidate;
     }
   });
@@ -392,17 +392,17 @@ function classSpecLabel_(className, specCell, role) {
   return matches[0].label;
 }
 
-// Maps displayed/legacy role values to Interchange role codes.
+// Maps Roster role values to Interchange role codes.
 function snapshotRole_(roleCell) {
-  if (roleCell === ROLE_DISPLAY.Tank.value || roleCell === 'Tank') {
+  if (roleCell === ROLE_DISPLAY.Tank.value) {
     return 'TANK';
   }
-  if (roleCell === ROLE_DISPLAY.Heal.value || roleCell === 'Heal') {
+  if (roleCell === ROLE_DISPLAY.Heal.value) {
     return 'HEALER';
   }
-  if (roleCell === ROLE_DISPLAY['Melee DPS'].value || roleCell === 'Melee DPS' ||
-      roleCell === ROLE_DISPLAY['Ranged DPS'].value || roleCell === 'Ranged DPS' ||
-      roleCell === ROLE_DISPLAY['Caster DPS'].value || roleCell === 'Caster DPS') {
+  if (roleCell === ROLE_DISPLAY['Melee DPS'].value ||
+      roleCell === ROLE_DISPLAY['Ranged DPS'].value ||
+      roleCell === ROLE_DISPLAY['Caster DPS'].value) {
     return 'DPS';
   }
   return null;

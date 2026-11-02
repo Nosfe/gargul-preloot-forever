@@ -301,7 +301,8 @@
         contains(raiders_({ impactBase: 12.6 }).errors.join(' '), 'Impact', 'impact base mismatch rejected');
         contains(raiders_({ role: '' }).errors.join(' '), 'rôle', 'missing role rejected');
         contains(raiders_({ spec: 'Ombre' }).errors.join(' '), 'spé inconnue', 'unknown spec rejected');
-        equal(raiders_({}).raiders[0].classSpec, 'Mage Feu', 'bare or emoji spec resolves');
+        equal(raiders_({}).raiders[0].classSpec, 'Mage Feu', 'plain spec resolves');
+        equal(raiders_({ spec: '🔥 Feu' }).raiders[0].classSpec, 'Mage Feu', 'spec still carrying an icon resolves');
         equal(classSpecLabel_('Druide', 'Combat farouche (félin)', 'DPS'), 'Druide Combat farouche (félin)', 'feral cat is félin');
         var bearAsDps = '';
         try { classSpecLabel_('Druide', 'Combat farouche (ours)', 'DPS'); } catch (error) { bearAsDps = error.message; }

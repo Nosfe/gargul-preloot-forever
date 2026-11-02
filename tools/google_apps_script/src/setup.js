@@ -838,7 +838,7 @@ function buildRoleColorRules_(sheetId, roleColumn, argSeparator) {
   return requests;
 }
 
-// Rewrites plain spec values to emoji display values without touching other cells (Rôle is a formula).
+// Rewrites spec cells still carrying an icon to the plain spec name (Rôle is a formula).
 function buildRoleAndSpecRewriteRequests_(existingHeadersByName) {
   return buildRoleAndSpecRewriteForTab_(existingHeadersByName.Roster, tabByName_('Roster'));
 }
@@ -852,15 +852,12 @@ function buildRoleAndSpecRewriteForTab_(state, tab) {
   var requests = [];
   var classIndex = columnOf_(tab, 'class');
   var specIndex = columnOf_(tab, 'spec');
-  var roleIndex = columnOf_(tab, 'role');
 
   for (var rowIndex = 1; rowIndex < state.rows.length; rowIndex += 1) {
     var row = state.rows[rowIndex] || [];
     var className = normalizeCellString_(row[classIndex]);
     var specValue = normalizeCellString_(row[specIndex]);
-    var roleValue = normalizeCellString_(row[roleIndex]);
 
-    var roleDisplay = roleDisplayValue_(roleValue);
     var specDisplay = specDisplayValue_(className, specValue);
     if (specDisplay && specDisplay !== specValue) {
       requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, specIndex, specDisplay));
@@ -889,27 +886,7 @@ function normalizeCellString_(value) {
   return String(value);
 }
 
-// Returns the emoji role value for plain inputs, or null when unchanged/unknown.
-function roleDisplayValue_(value) {
-  if (!value) {
-    return null;
-  }
-
-  if (Object.prototype.hasOwnProperty.call(ROLE_DISPLAY, value)) {
-    return ROLE_DISPLAY[value].value;
-  }
-
-  for (var i = 0; i < ROLE_OPTIONS.length; i += 1) {
-    var role = ROLE_OPTIONS[i];
-    if (ROLE_DISPLAY[role].value === value) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-// Returns emoji + spec when class/spec are known plain values, else null.
+// Plain spec name for a known spec of the class, typed with or without a leading icon; else null.
 function specDisplayValue_(className, specValue) {
   if (!className || !specValue) {
     return null;
@@ -920,10 +897,15 @@ function specDisplayValue_(className, specValue) {
     if (entry.name !== className) {
       continue;
     }
-    if (!entry.specIcons || !Object.prototype.hasOwnProperty.call(entry.specIcons, specValue)) {
-      return null;
+    for (var j = 0; j < entry.specs.length; j += 1) {
+      var spec = entry.specs[j];
+      var prefix = specValue.slice(0, specValue.length - spec.length);
+      if (specValue === spec ||
+          (specValue.slice(-spec.length - 1) === ' ' + spec && !/[0-9A-Za-z\u00C0-\u017F]/.test(prefix))) {
+        return spec;
+      }
     }
-    return entry.specIcons[specValue] + ' ' + specValue;
+    return null;
   }
 
   return null;
