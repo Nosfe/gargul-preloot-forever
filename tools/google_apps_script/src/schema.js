@@ -138,7 +138,7 @@ var RANKING_TAB_NAME = 'Classement Impact';
 var RANKING_ROW_COUNT = 500;
 var RANKING_SIZE = 5;
 // Ranking fill by rank: gold, silver, bronze, then none.
-var RANKING_BACKGROUNDS = ['FFF1C2', 'E8EAED', 'F6DFCB', null, null];
+var RANKING_BACKGROUNDS = ['FFE38A', 'D3D7DD', 'EDBE93', null, null];
 var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
   'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
   'Distance', 'Relique'];
@@ -207,6 +207,8 @@ var LISTS_LAYOUT = {
   roleKeyColumn: 16,
   roleValueColumn: 17,
   impactGainColumn: 19,
+  // Raider|Objet (ID) of every award in Awards, read by Classement Impact to leave out items already received.
+  ownedItemColumn: 23,
   rowCount: 5000,
   columnCount: 26
 };

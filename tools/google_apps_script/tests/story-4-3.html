@@ -100,7 +100,12 @@
         contains(first, "XLOOKUP(i&\"|\"&'Roster'!$C$2:$C$201&\"|\"&'Roster'!$D$2:$D$201", 'gain looked up by item and Classe|Spé');
         contains(first, "'Roster'!$E$2:$E$201=\"Tank\"", 'tanks have no Impact');
         contains(first, "('Roster'!$G$2:$G$201/'Roster'!$H$2:$H$201)*IF(ISNUMBER(p)*(p<>0),p,1)", 'presence ratio × parse');
-        contains(first, "s,IF((g=\"\")+(b=\"\"),\"\",b*g/('Roster'!$J$2:$J$201+1))", '× gain in DPS / (Loots Impact + 1), like scores.js');
+        contains(first, "s,IF((g=\"\")+(b=\"\")+o,\"\",b*g/('Roster'!$J$2:$J$201+1))", '× gain in DPS / (Loots Impact + 1), like scores.js');
+        contains(first, "o,ISNUMBER(XMATCH(n&\"|\"&i,'_Listes'!$X$2:$X$" + LISTS_LAYOUT.rowCount + '))', 'a raider who already received the item is left out');
+        var owned = TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.ownedItemColumn];
+        contains(owned, "id,'Awards'!$C$3:$ZZ$1000,nm,'Awards'!$A$1:$ZX$1", 'owned items: Objet (ID) cells with the block name two columns left');
+        contains(owned, 'MOD(COLUMN(id)-3,5)=0', 'owned items read only the Objet (ID) column of each block');
+        contains(owned, 'TOCOL(IF(', 'owned items listed as Raider|Objet (ID)');
         contains(first, 'SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE)', 'raiders sorted by score, highest first');
         contains(first, 'INDEX(r,1,1)&" ("&FIXED(INDEX(r,1,2),3,TRUE)&")"', '1er shows "Name (score)" with 3 decimals');
         contains(fifth, 'INDEX(r,5,1)', '5e reads rank 5');
@@ -115,9 +120,10 @@
         contains(mageRule(2).booleanRule.condition.values[0].userEnteredValue, '=XLOOKUP(IFERROR(LEFT(C2,FIND(" (",C2)-1),""),INDIRECT("\'Roster\'!$A$2:$A$201"),INDIRECT("\'Roster\'!$C$2:$C$201"),"")="Mage"', 'name before " (" looked up in Roster for its class');
         var goldFormat = mageRule(2).booleanRule.format;
         equal(JSON.stringify(goldFormat.textFormat.foregroundColor) + '|' + goldFormat.textFormat.bold, JSON.stringify(rgbHex_(classHeaderTextHex_('Mage'))) + '|true', 'bold, in the class colour');
-        equal(JSON.stringify(goldFormat.backgroundColor), JSON.stringify(rgbHex_('FFF1C2')), '1er on a gold fill');
-        equal(JSON.stringify(mageRule(3).booleanRule.format.backgroundColor) + JSON.stringify(mageRule(4).booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('E8EAED')) + JSON.stringify(rgbHex_('F6DFCB')), '2e silver, 3e bronze');
+        equal(JSON.stringify(goldFormat.backgroundColor), JSON.stringify(rgbHex_('FFE38A')), '1er on a gold fill');
+        equal(JSON.stringify(mageRule(3).booleanRule.format.backgroundColor) + JSON.stringify(mageRule(4).booleanRule.format.backgroundColor), JSON.stringify(rgbHex_('D3D7DD')) + JSON.stringify(rgbHex_('EDBE93')), '2e silver, 3e bronze');
         equal(String(mageRule(5).booleanRule.format.backgroundColor) + String(mageRule(6).booleanRule.format.backgroundColor), 'undefinedundefined', '4e and 5e without fill');
+        equal(String(mageRule(4).booleanRule.format.textFormat.bold) + String(mageRule(5).booleanRule.format.textFormat.bold) + String(mageRule(6).booleanRule.format.textFormat.bold), 'truefalsefalse', 'bold for the top 3 only');
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
@@ -184,7 +190,8 @@
           var value = rows[1][columnOf_(rosterTab, key)];
           equal(String(value).indexOf(','), -1, key + ' uses no commas in fr_FR');
         });
-        TracerHarness.getRows(RANKING_TAB_NAME)[1].slice(0, 7).concat([TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn]]).forEach(function (formula, index) {
+        var lists = TracerHarness.getRows('_Listes')[1];
+        TracerHarness.getRows(RANKING_TAB_NAME)[1].slice(0, 7).concat([lists[LISTS_LAYOUT.impactGainColumn], lists[LISTS_LAYOUT.ownedItemColumn]]).forEach(function (formula, index) {
           equal(String(formula).indexOf(','), -1, 'ranking formula ' + index + ' uses no commas in fr_FR');
         });
       });

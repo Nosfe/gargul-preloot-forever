@@ -23,8 +23,27 @@ function buildGridRequests_(argSeparator) {
   });
   // After the Objets tabs: on a new workbook the formula must find them.
   requests.push(buildImpactGainTableRequest_(states.lists.exists ? states.lists.sheetId : LISTS_TAB.sheetId, separator));
+  requests.push(buildOwnedItemTableRequest_(states.lists.exists ? states.lists.sheetId : LISTS_TAB.sheetId, separator));
 
   return requests;
+}
+
+// _Listes X2: "Raider|Objet (ID)" for every award; the raider name sits in row 1 at the start of its block.
+function buildOwnedItemTableRequest_(listsSheetId, argSeparator) {
+  var lastColumn = 701;
+  var awards = "'" + GRID_TABS.awards.name + "'!";
+  var ids = awards + '$' + columnLetter_(2) + '$' + AWARDS_FIRST_ROW + ':$' + columnLetter_(lastColumn) + '$1000';
+  var names = awards + '$A$1:$' + columnLetter_(lastColumn - 2) + '$1';
+  return {
+    updateCells: {
+      start: { sheetId: listsSheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.ownedItemColumn },
+      rows: [{ values: [{ userEnteredValue: { formulaValue: applyArgSeparator_(
+        '=IFERROR(ARRAYFORMULA(LET(id,' + ids + ',nm,' + names + ',TOCOL(IF((MOD(COLUMN(id)-3,' + AWARDS_BLOCK_WIDTH + ')=0)*(id<>""),nm&"|"&id,NA()),3))),"")',
+        argSeparator || ','
+      ) } }] }],
+      fields: 'userEnteredValue'
+    }
+  };
 }
 
 // _Listes T2: one row per Objets row and non-tank spec with Statut IMPACT: Objet|Classe|Spé, gain in DPS (empty = 0), Objet (ID), Objet.

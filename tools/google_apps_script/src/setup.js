@@ -185,6 +185,8 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
     return "'" + LISTS_TAB.name + "'!$" + letter + '$2:$' + letter + '$' + LISTS_LAYOUT.rowCount;
   };
   var items = '$A$2:$A$' + (RANKING_ROW_COUNT + 1);
+  var ownedLetter = columnLetter_(LISTS_LAYOUT.ownedItemColumn);
+  var owned = "'" + LISTS_TAB.name + "'!$" + ownedLetter + '$2:$' + ownedLetter + '$' + LISTS_LAYOUT.rowCount;
   var formulas = [
     '=IFERROR(SORT(UNIQUE(FILTER(' + listsRange(2) + ',' + listsRange(2) + '<>""))),"")',
     '=MAP(' + items + ',LAMBDA(i,IF(i="","",IFERROR(INDEX(FILTER(' + listsRange(3) + ',' + listsRange(2) + '=i,' + listsRange(3) + '<>""),1),""))))'
@@ -195,7 +197,8 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
       'g,IFERROR(XLOOKUP(i&"|"&' + rosterRange('class') + '&"|"&' + rosterRange('spec') + ',' + listsRange(0) + ',' + listsRange(1) + '),""),' +
       'p,' + rosterRange('dpsParse') + ',' +
       'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)),""),' +
-      's,IF((g="")+(b=""),"",b*g/(' + rosterRange('impactLootCount') + '+1)),' +
+      'o,ISNUMBER(XMATCH(n&"|"&i,' + owned + ')),' +
+      's,IF((g="")+(b="")+o,"",b*g/(' + rosterRange('impactLootCount') + '+1)),' +
       'r,IFERROR(SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE),""),' +
       'IFERROR(INDEX(r,' + rank + ',1)&" ("&FIXED(INDEX(r,' + rank + ',2),3,TRUE)&")",""))))))');
   }
@@ -209,13 +212,13 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
       fields: 'userEnteredValue'
     }
   }];
-  // Bold even before the class rules match (name not in Roster yet).
+  // Top 3 bold even before the class rules match (name not in Roster yet); 4e and 5e plain.
   for (var index = 1; index <= RANKING_SIZE; index += 1) {
     var column = columnOf_(tab, 'rank' + index);
     requests.push({
       repeatCell: {
         range: { sheetId: sheetId, startRowIndex: 1, endRowIndex: RANKING_ROW_COUNT + 1, startColumnIndex: column, endColumnIndex: column + 1 },
-        cell: { userEnteredFormat: { textFormat: { bold: true } } },
+        cell: { userEnteredFormat: { textFormat: { bold: index <= 3 } } },
         fields: 'userEnteredFormat.textFormat'
       }
     });
@@ -223,7 +226,7 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
   return requests;
 }
 
-// "Name (score)" in the raider's class colour (like the Présence headers), on a gold/silver/bronze fill for the top 3.
+// "Name (score)" in the raider's class colour (like the Présence headers), bold on a gold/silver/bronze fill for the top 3.
 // One rule per class and rank: a cell takes a single conditional format, and rules cannot read Roster without INDIRECT.
 function buildRankingClassColorRules_(sheetId, argSeparator) {
   var tab = tabByName_(RANKING_TAB_NAME);
@@ -238,7 +241,7 @@ function buildRankingClassColorRules_(sheetId, argSeparator) {
     var cell = columnLetter_(column) + '2';
     var name = 'IFERROR(LEFT(' + cell + ',FIND(" (",' + cell + ')-1),"")';
     CLASS_SPECS.forEach(function (entry) {
-      var format = { textFormat: { foregroundColor: rgbHex_(classHeaderTextHex_(entry.name)), bold: true } };
+      var format = { textFormat: { foregroundColor: rgbHex_(classHeaderTextHex_(entry.name)), bold: rank <= 3 } };
       if (RANKING_BACKGROUNDS[rank - 1]) {
         format.backgroundColor = rgbHex_(RANKING_BACKGROUNDS[rank - 1]);
       }
