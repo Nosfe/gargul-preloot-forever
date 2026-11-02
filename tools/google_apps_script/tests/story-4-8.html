@@ -3,6 +3,7 @@
 <title>Story 4.8 tests</title>
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
+<script src="helpers.js"></script>
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
@@ -14,46 +15,6 @@
 <script src="../src/menu.js"></script>
 <script>
   (function () {
-    var assertions = 0;
-
-    function equal(actual, expected, label) {
-      assertions += 1;
-      if (actual !== expected) {
-        throw new Error(label + ': expected ' + expected + ', got ' + actual);
-      }
-    }
-
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
-    function withHarness(fn) {
-      TracerHarness.install();
-      try {
-        fn();
-      } finally {
-        TracerHarness.uninstall();
-      }
-    }
-
-    function writeCells_(sheetId, rowIndex, columnIndex, values) {
-      Sheets.Spreadsheets.batchUpdate({ requests: [{
-        updateCells: {
-          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
-          rows: [{ values: values.map(function (value) {
-            if (typeof value === 'number') {
-              return { userEnteredValue: { numberValue: value } };
-            }
-            return { userEnteredValue: { stringValue: String(value) } };
-          }) }],
-          fields: 'userEnteredValue'
-        }
-      }] }, SpreadsheetApp.getActive().getId());
-    }
-
     function sheetIdOf_(name) {
       return SpreadsheetApp.getActive().getSheetByName(name).getSheetId();
     }
@@ -212,7 +173,7 @@
         equal(item.functionName, 'openNewTierDialog', 'Configuration > Nouveau palier opens the dialog');
       });
 
-      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;
       try {

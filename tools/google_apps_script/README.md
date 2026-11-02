@@ -33,7 +33,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 
 | Item | Effect |
 | --- | --- |
-| Rafraîchir le classeur | Creates or refreshes every tab, formula and format; migrates older layouts. Stops without writing when owner data would be lost. |
+| Rafraîchir le classeur | Creates or refreshes every tab, formula and format. Stops without writing when a tab does not match the current layout. |
 | Identifiants WCL | Stores the Warcraft Logs API client ID and secret in your own user properties, never in the workbook. |
 | Mettre à jour les parses WCL | Fills the Roster parses from Warcraft Logs. Needs Config's *Serveur WCL* and the WCL credentials; refused while a raid is open. |
 | Afficher le format d'export Gargul | The line to paste as Gargul's Custom export format. |
@@ -55,7 +55,7 @@ Rows from earlier tiers stay visible in grey. Each tier change also adds an `Obj
 
 ## Tests
 
-The `tests/story-4-*.html` pages run the script against a fake Sheets API (`tests/harness.js`). Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
+The `tests/story-4-*.html` pages run the script against a fake Sheets API (`tests/harness.js`), with shared assertions and fixtures in `tests/helpers.js`. Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
 
 Run one with headless Edge (or Chrome):
 

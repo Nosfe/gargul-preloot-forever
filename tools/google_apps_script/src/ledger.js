@@ -27,7 +27,7 @@ function showGargulExportFormat() {
 		'</div>'
 	).setWidth(760).setHeight(260);
 
-	SpreadsheetApp.getUi().showModalDialog(html, 'Gargul custom export format');
+	SpreadsheetApp.getUi().showModalDialog(html, 'Format d\'export Gargul');
 }
 
 // Parses Gargul custom-export text line by line into valid entries and rejected rows.
@@ -74,7 +74,7 @@ function parseGargulExport_(text) {
 				date: '',
 				time: '',
 				winner: '',
-				reason: 'Invalid JSON.'
+				reason: 'JSON invalide.'
 			});
 			return;
 		}
@@ -92,7 +92,7 @@ function parseGargulExport_(text) {
 				date: date,
 				time: time,
 				winner: winner,
-				reason: 'Checksum is required.'
+				reason: 'Checksum obligatoire.'
 			});
 			return;
 		}
@@ -105,7 +105,7 @@ function parseGargulExport_(text) {
 				date: date,
 				time: time,
 				winner: winner,
-				reason: 'Duplicate checksum.'
+				reason: 'Checksum en double.'
 			});
 			return;
 		}
@@ -118,7 +118,7 @@ function parseGargulExport_(text) {
 				date: date,
 				time: time,
 				winner: winner,
-				reason: 'itemID must be an integer.'
+				reason: 'itemID doit être un entier.'
 			});
 			return;
 		}
@@ -158,10 +158,10 @@ function validateRaidIds_(lines, openRaidId) {
 			return;
 		}
 
-		var found = line.raidId === '' || line.raidId === '@GPRAID' ? 'not filled' : '"' + line.raidId + '", not the open raid ' + expected;
+		var found = line.raidId === '' || line.raidId === '@GPRAID' ? 'non rempli' : '"' + line.raidId + '" au lieu du raid en cours ' + expected;
 		rejected.push(buildRejectedFromLine_(
 			line,
-			'raidId is ' + found + '. Type ' + expected + ' in the line or delete it.'
+			'raidId ' + found + '. Tapez ' + expected + ' dans la ligne ou supprimez-la.'
 		));
 	});
 
@@ -184,12 +184,12 @@ function validateAwards_(lines, rosterIndex, blockNames) {
 	(lines || []).forEach(function (line) {
 		var winner = normalizeCellString_(line.winner);
 		if (!findRaiderKey_(rosterIndex, winner)) {
-			rejected.push(buildRejectedFromLine_(line, 'Winner is not an exact Roster key.'));
+			rejected.push(buildRejectedFromLine_(line, 'Gagnant absent du Roster (nom exact).'));
 			return;
 		}
 
 		if (!Object.prototype.hasOwnProperty.call(blockNameSet, winner)) {
-			rejected.push(buildRejectedFromLine_(line, 'Winner has no Awards block. Run Configuration > Rafraîchir le classeur.'));
+			rejected.push(buildRejectedFromLine_(line, 'Gagnant sans bloc Awards. Lancez Configuration > Rafraîchir le classeur.'));
 			return;
 		}
 

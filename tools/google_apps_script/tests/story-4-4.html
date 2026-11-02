@@ -3,6 +3,7 @@
 <title>Story 4.4 tests</title>
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
+<script src="helpers.js"></script>
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
@@ -16,115 +17,6 @@
 <script src="../src/menu.js"></script>
 <script>
   (function () {
-    var assertions = 0;
-
-    function equal(actual, expected, label) {
-      assertions += 1;
-      if (actual !== expected) {
-        throw new Error(label + ': expected ' + expected + ', got ' + actual);
-      }
-    }
-
-    function truthy(value, label) {
-      assertions += 1;
-      if (!value) {
-        throw new Error(label + ': expected truthy value');
-      }
-    }
-
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
-    function withHarness(fn) {
-      TracerHarness.install();
-      try {
-        fn();
-      } finally {
-        TracerHarness.uninstall();
-      }
-    }
-
-    function loadJsonSync_(path) {
-      var request = new XMLHttpRequest();
-      request.open('GET', path, false);
-      request.send(null);
-      if (request.status !== 0 && request.status !== 200) {
-        throw new Error('Unable to load ' + path + ': status ' + request.status);
-      }
-      return JSON.parse(request.responseText);
-    }
-
-    function textCell_(value) {
-      return { userEnteredValue: { stringValue: String(value) } };
-    }
-
-    function numberCell_(value) {
-      return { userEnteredValue: { numberValue: Number(value) } };
-    }
-
-    function writeCells_(sheetId, rowIndex, columnIndex, values) {
-      Sheets.Spreadsheets.batchUpdate({ requests: [{
-        updateCells: {
-          start: { sheetId: sheetId, rowIndex: rowIndex, columnIndex: columnIndex },
-          rows: [{ values: values.map(function (value) {
-            return typeof value === 'number' ? numberCell_(value) : textCell_(value);
-          }) }],
-          fields: 'userEnteredValue'
-        }
-      }] }, SpreadsheetApp.getActive().getId());
-    }
-
-    function seedCoreTabs_() {
-      TABS.forEach(function (tab) {
-        if (tab.name === 'Roster') {
-          return;
-        }
-        TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
-      });
-      TracerHarness.seedSheet('Roster', [
-        keysOf_(tabByName_('Roster')),
-        ['Ana', 'Raid 1', 'Mage', '', '', ''],
-        ['Bob', 'Raid 1', 'Mage', '', '', ''],
-        ['Cid', 'Raid 2', 'Mage', '', '', '']
-      ]);
-      setUpWorkbook();
-    }
-
-    function setStartedRaid_(raidId) {
-      var spreadsheet = SpreadsheetApp.getActive();
-      var configId = spreadsheet.getSheetByName('Config').getSheetId();
-      var raidsId = spreadsheet.getSheetByName('Raids').getSheetId();
-      var openRaidColumn = columnOf_(tabByName_('Config'), 'openRaidId');
-
-      writeCells_(configId, 1, 0, ['forever-t1', '2026-10-01', raidId]);
-      writeCells_(raidsId, 1, 0, [raidId]);
-
-      var rosterId = spreadsheet.getSheetByName('Roster').getSheetId();
-      Sheets.Spreadsheets.batchUpdate({ requests: [{
-        addProtectedRange: {
-          protectedRange: {
-            range: { sheetId: rosterId },
-            warningOnly: true,
-            description: RAID_OPEN_PROTECTION_PREFIX + ' ' + raidId + ' : entrées de score figées'
-          }
-        }
-      }] }, spreadsheet.getId());
-
-      return openRaidColumn;
-    }
-
-    function queueWclSuccess_() {
-      var fixture = loadJsonSync_('../fixtures/wcl-report-sample.json');
-      TracerHarness.setFetchResponses([
-        { statusCode: 200, body: { access_token: 'token' } },
-        { statusCode: 200, body: fixture }
-      ]);
-    }
-
     function presenceColumnByName_(name) {
       var header = TracerHarness.getRows('Présence')[0] || [];
       for (var index = PRESENCE_FIRST_RAIDER_COLUMN; index < header.length; index += 1) {
@@ -154,7 +46,7 @@
         queueWclSuccess_();
 
         var message = submitEndRaid('https://www.warcraftlogs.com/reports/ABC123', '');
-        contains(message, 'Unmatched names: Unknown', 'happy path lists unmatched names');
+        contains(message, 'Noms non reconnus : Unknown', 'happy path lists unmatched names');
         contains(message, 'Zed', 'a report character not in Roster is listed as unmatched');
 
         var configRows = TracerHarness.getRows('Config');
@@ -203,11 +95,11 @@
       }
 
       withHarness(function () {
-        expectRefusedAndUnchanged_('ABC123 DEF456', '', [], 'Only one WCL link', 'two bare codes');
+        expectRefusedAndUnchanged_('ABC123 DEF456', '', [], 'Un seul lien WCL', 'two bare codes');
         equal(TracerHarness.getFetchLog().length, 0, 'two bare codes: no fetch');
       });
       withHarness(function () {
-        expectRefusedAndUnchanged_('https://www.warcraftlogs.com/reports/ABC123 DEF456', '', [], 'Only one WCL link', 'URL plus bare code');
+        expectRefusedAndUnchanged_('https://www.warcraftlogs.com/reports/ABC123 DEF456', '', [], 'Un seul lien WCL', 'URL plus bare code');
       });
       withHarness(function () {
         expectRefusedAndUnchanged_('ABC123', '', [{ statusCode: 200, body: { access_token: 't' } }, { statusCode: 502, contentText: '<html>Bad gateway</html>' }], 'HTTP 502', 'report HTTP error with HTML body');
@@ -240,7 +132,7 @@
         } catch (error) {
           message = error.message;
         }
-        contains(message, 'Raid > Démarrer first', 'submit with no started raid refused');
+        contains(message, 'Lancez d\'abord Raid > Démarrer', 'submit with no started raid refused');
         equal(TracerHarness.getFetchLog().length, 0, 'submit with no started raid: nothing fetched');
       });
 
@@ -261,7 +153,7 @@
           submitEndRaid('https://www.warcraftlogs.com/reports/ONE and https://www.warcraftlogs.com/reports/TWO', '');
         } catch (error) {
           failed = true;
-          contains(error.message, 'Only one WCL link', 'two links error');
+          contains(error.message, 'Un seul lien WCL', 'two links error');
         }
         equal(failed, true, 'two links rejects');
         equal(JSON.stringify({
@@ -295,7 +187,7 @@
         // No started raid matrix row.
         seedCoreTabs_();
         endRaid();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Raid > Démarrer first', 'no started raid alert');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Lancez d\'abord Raid > Démarrer', 'no started raid alert');
       });
 
       withHarness(function () {
@@ -306,7 +198,7 @@
         queueWclSuccess_();
 
         var message = submitEndRaid('ABC123', '{"checksum":"one","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:15","raidId":"5","treatment":"BIS"},');
-        contains(message, 'Loot awards imported: 1', 'gargul text imports valid awards');
+        contains(message, 'Loots importés : 1', 'gargul text imports valid awards');
         equal(TracerHarness.getFetchLog().length, 2, 'gargul text still fetches WCL');
       });
 
@@ -321,7 +213,7 @@
           submitEndRaid('', '');
         } catch (error) {
           failed = true;
-          contains(error.message, 'WCL link required', 'no link error');
+          contains(error.message, 'Lien WCL obligatoire', 'no link error');
         }
         equal(failed, true, 'no link rejects');
 
@@ -331,7 +223,7 @@
         } catch (error) {
           badLinkError = error.message;
         }
-        contains(badLinkError, 'not recognized', 'link with no report code rejected');
+        contains(badLinkError, 'non reconnu', 'link with no report code rejected');
         equal(TracerHarness.getFetchLog().length, 0, 'bad link does not fetch');
         equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '5', 'bad link keeps the raid started');
       });
@@ -388,7 +280,7 @@
         writeCells_(presenceId, 0, zedColumn, ['']);
 
         var message = submitEndRaid('ABC123', '');
-        contains(message, 'Run Configuration > Rafraîchir le classeur', 'missing column result message');
+        contains(message, 'Lancez Configuration > Rafraîchir le classeur', 'missing column result message');
         var row = findRaidRow_('Présence', 5).row;
         equal(row[presenceColumnByName_('Ana')], 1, 'missing column still credits matched columns');
       });
@@ -485,7 +377,7 @@
         equal(TracerHarness.getFetchLog().length, 0, 'started raid: nothing fetched');
       });
 
-      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;
       try {

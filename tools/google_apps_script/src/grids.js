@@ -1,4 +1,4 @@
-// Builds migration, helper-tab, and grid-tab requests in one batch-safe pass.
+// Builds helper-tab and grid-tab requests in one batch-safe pass.
 function buildGridRequests_(argSeparator) {
   var separator = argSeparator || ',';
   var spreadsheet = SpreadsheetApp.getActive();
@@ -11,9 +11,6 @@ function buildGridRequests_(argSeparator) {
   }));
   var requests = [];
 
-  assertGridMigrationIsSafe_(states);
-
-  requests = requests.concat(buildGridMigrationDeleteRequests_(states));
   requests = requests.concat(buildListsTabRequests_(states.lists, separator));
   requests = requests.concat(buildPresenceGridRequests_(states.presence, rosterNames, separator,
     { state: states.presenceArchive, activeNames: activeNames }, metadataBySheetId, classByName));
@@ -28,23 +25,14 @@ function buildGridRequests_(argSeparator) {
   return requests;
 }
 
-// Reads all sheets that affect 4.2 grid migration and refresh behavior.
+// Reads the sheets the grid refresh needs.
 function gridSheetStates_(spreadsheet) {
   return {
-    raids: readSheetState_(spreadsheet, 'Raids'),
-    raidReports: readSheetState_(spreadsheet, 'RaidReports'),
-    patternItems: readSheetState_(spreadsheet, 'PatternItems'),
-    diagnostics: readSheetState_(spreadsheet, 'Diagnostics'),
-    attendance: readSheetState_(spreadsheet, 'Attendance'),
-    bench: readSheetState_(spreadsheet, 'Bench'),
     awards: readSheetState_(spreadsheet, GRID_TABS.awards.name),
-    tierItems: readSheetState_(spreadsheet, GRID_TABS.tierItems.name),
     itemTabs: ITEM_TABS.map(function (itemTab) { return readSheetState_(spreadsheet, itemTab.name); }),
     presence: readSheetState_(spreadsheet, GRID_TABS.presence.name),
     presenceArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.presence.name),
     awardsArchive: readSheetState_(spreadsheet, ARCHIVE_TABS.awards.name),
-    butin: readSheetState_(spreadsheet, 'Butin'),
-    removedTabs: REMOVED_TAB_NAMES.map(function (name) { return readSheetState_(spreadsheet, name); }),
     lists: readSheetState_(spreadsheet, LISTS_TAB.name)
   };
 }
@@ -82,173 +70,6 @@ function trimmedHeaderRow_(rows) {
   return headers;
 }
 
-// Aborts when migration would delete owner data from legacy tabs.
-function assertGridMigrationIsSafe_(states) {
-  if (isLegacyRaidsSheet_(states.raids) && hasAnyDataRows_(states.raids.rows || [])) {
-    throw new Error('Cannot run setup: tab "Raids" has data rows.');
-  }
-  if (states.raidReports.exists && hasAnyDataRows_(states.raidReports.rows || [])) {
-    throw new Error('Cannot run setup: tab "RaidReports" has data rows.');
-  }
-  if (states.patternItems.exists && hasAnyDataRows_(states.patternItems.rows || [])) {
-    throw new Error('Cannot run setup: tab "PatternItems" has data rows.');
-  }
-
-  if (states.attendance.exists && hasAnyDataRows_(states.attendance.rows || [])) {
-    throw new Error('Cannot run setup: tab "Attendance" has data rows.');
-  }
-  if (states.bench.exists && hasAnyDataRows_(states.bench.rows || [])) {
-    throw new Error('Cannot run setup: tab "Bench" has data rows.');
-  }
-  if (isLegacyAwardsSheet_(states.awards) && hasAnyDataRows_(states.awards.rows || [])) {
-    throw new Error('Cannot run setup: tab "Awards" has data rows.');
-  }
-  if (isLegacyTierItemsSheet_(states.tierItems) && legacyTierItemsHasItemRows_(states.tierItems)) {
-    throw new Error('Cannot run setup: tab "TierItems" has item rows.');
-  }
-  // Former single spec grid: items start at row 4.
-  if (states.tierItems.exists && !isLegacyTierItemsSheet_(states.tierItems) &&
-      hasAnyDataRows_((states.tierItems.rows || []).slice(2))) {
-    throw new Error('Cannot run setup: tab "TierItems" has item rows; move them to the Objets tabs first.');
-  }
-
-  states.itemTabs.forEach(function (itemTabState) {
-    // hasAnyDataRows_ skips its first row, so slice from row 3 to check rows 4+.
-    if (itemTabHasLegacyOrder_(itemTabState) && hasAnyDataRows_((itemTabState.rows || []).slice(2))) {
-      throw new Error('Cannot run setup: tab "' + itemTabState.name + '" has item rows.');
-    }
-  });
-}
-
-// Detects the old Raids layout that still has Palier/Fenêtre BiS/Statut columns.
-function isLegacyRaidsSheet_(state) {
-  if (!state.exists) {
-    return false;
-  }
-
-  var headers = state.headers || [];
-  return headers.indexOf('Palier') !== -1 || headers.indexOf('tierId') !== -1 ||
-    headers.indexOf('Fenêtre BiS') !== -1 || headers.indexOf('bisWindowId') !== -1 ||
-    headers.indexOf('Statut') !== -1 || headers.indexOf('status') !== -1;
-}
-
-// Detects Objets tabs still using row-3 Gain then Statut order.
-function itemTabHasLegacyOrder_(state) {
-  if (!state.exists) {
-    return false;
-  }
-
-  var rows = state.rows || [];
-  if (rows.length < 3) {
-    return false;
-  }
-
-  var labels = rows[2] || [];
-  var firstSpecColumn = labels[OBJETS_SLOT_COLUMN] === 'Emplacement' ? OBJETS_FIRST_SPEC_COLUMN : 2;
-  for (var column = firstSpecColumn; column + 1 < labels.length; column += 2) {
-    if (labels[column] === 'Gain (%)' && labels[column + 1] === 'Statut') {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// Detects the old flat Awards layout from its row-1 contract header.
-function isLegacyAwardsSheet_(state) {
-  if (!state.exists) {
-    return false;
-  }
-  var first = (state.headers[0] || '').toLowerCase();
-  return first === 'checksum' || first === 'checksum gargul';
-}
-
-// Detects the old flat TierItems layout from its row-1 contract header.
-function isLegacyTierItemsSheet_(state) {
-  if (!state.exists) {
-    return false;
-  }
-  var first = state.headers[0] || '';
-  var hasItemHeader = state.headers.indexOf('itemID') !== -1 || state.headers.indexOf('Objet (ID)') !== -1;
-  return (first === 'tierId' || first === 'Palier') && hasItemHeader;
-}
-
-// Returns true when any legacy TierItems row contains Objet (ID).
-function legacyTierItemsHasItemRows_(state) {
-  var headers = state.headers || [];
-  var itemIndex = headers.indexOf('itemID');
-  if (itemIndex === -1) {
-    itemIndex = headers.indexOf('Objet (ID)');
-  }
-  if (itemIndex === -1) {
-    return false;
-  }
-
-  var rows = state.rows || [];
-  for (var rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
-    var row = rows[rowIndex] || [];
-    var value = row[itemIndex];
-    if (value !== '' && value !== null && value !== undefined) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// Builds delete requests for obsolete tabs and legacy views.
-function buildGridMigrationDeleteRequests_(states) {
-  var requests = [];
-
-  if (isLegacyRaidsSheet_(states.raids)) {
-    requests.push(buildDeleteSheetRequest_(states.raids.sheetId));
-  }
-  if (states.raidReports.exists) {
-    requests.push(buildDeleteSheetRequest_(states.raidReports.sheetId));
-  }
-  if (states.patternItems.exists) {
-    requests.push(buildDeleteSheetRequest_(states.patternItems.sheetId));
-  }
-  if (states.diagnostics.exists) {
-    requests.push(buildDeleteSheetRequest_(states.diagnostics.sheetId));
-  }
-
-  if (states.presence.exists && states.presence.sheetId === 1101) {
-    requests.push(buildDeleteSheetRequest_(states.presence.sheetId));
-  }
-  if (states.butin.exists) {
-    requests.push(buildDeleteSheetRequest_(states.butin.sheetId));
-  }
-  if (states.attendance.exists) {
-    requests.push(buildDeleteSheetRequest_(states.attendance.sheetId));
-  }
-  if (states.bench.exists) {
-    requests.push(buildDeleteSheetRequest_(states.bench.sheetId));
-  }
-  if (isLegacyAwardsSheet_(states.awards)) {
-    requests.push(buildDeleteSheetRequest_(states.awards.sheetId));
-  }
-  // TierItems is replaced by the per-role Objets tabs, whichever layout it has.
-  if (states.tierItems.exists) {
-    requests.push(buildDeleteSheetRequest_(states.tierItems.sheetId));
-  }
-  states.removedTabs.forEach(function (state) {
-    if (state.exists) {
-      requests.push(buildDeleteSheetRequest_(state.sheetId));
-    }
-  });
-
-  return requests;
-}
-
-// Returns one deleteSheet request.
-function buildDeleteSheetRequest_(sheetId) {
-  return {
-    deleteSheet: {
-      sheetId: sheetId
-    }
-  };
-}
 
 // Creates or refreshes the hidden _Listes helper sheet.
 function buildListsTabRequests_(listsState, argSeparator) {
@@ -358,7 +179,7 @@ function buildListsRows_(argSeparator) {
 function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive, metadataBySheetId, classByName) {
   var separator = argSeparator || ',';
   var requests = [];
-  var existingGrid = presenceState.exists && presenceState.sheetId !== 1101;
+  var existingGrid = presenceState.exists;
   var sheetId = existingGrid ? presenceState.sheetId : GRID_TABS.presence.sheetId;
 
   if (!existingGrid) {
@@ -765,23 +586,10 @@ function buildColumnWidthRequest_(sheetId, startIndex, endIndex, pixelSize) {
   };
 }
 
-// Former Traitement value NONE is now NORMAL; rewrites award rows only, never the header rows.
-function buildLegacyNoneTreatmentRequest_(sheetId) {
-  return {
-    findReplace: {
-      find: 'NONE',
-      replacement: 'NORMAL',
-      matchCase: true,
-      matchEntireCell: true,
-      range: { sheetId: sheetId, startRowIndex: AWARDS_FIRST_ROW - 1 }
-    }
-  };
-}
-
 // Creates or refreshes the Awards blocks while preserving existing entries.
 function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataBySheetId, argSeparator, classByName) {
   var requests = [];
-  var existingGrid = awardsState.exists && !isLegacyAwardsSheet_(awardsState);
+  var existingGrid = awardsState.exists;
   var sheetId = existingGrid ? awardsState.sheetId : GRID_TABS.awards.sheetId;
 
   if (!existingGrid) {
@@ -797,11 +605,7 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
 
   var existingNames = existingGrid ? readAwardsBlockNames_(awardsState.rows || []) : [];
   if (existingGrid) {
-    requests.push(buildLegacyNoneTreatmentRequest_(sheetId));
     requests = requests.concat(buildGridRuleResetRequests_(sheetId, archive && archive.state, metadataBySheetId));
-  }
-  if (archive && archive.state && archive.state.exists) {
-    requests.push(buildLegacyNoneTreatmentRequest_(archive.state.sheetId));
   }
   if (existingGrid && archive) {
     var awardsMove = buildArchiveMoveRequests_(
@@ -1068,8 +872,6 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
   var existingGrid = tierState.exists;
   var sheetId = existingGrid ? tierState.sheetId : itemTab.sheetId;
   var totalColumns = OBJETS_FIRST_SPEC_COLUMN + (specs.length * 2);
-  // Tabs built before the Emplacement column get it inserted so owner data shifts with its spec.
-  var needsSlotColumn = existingGrid && ((tierState.rows || [])[2] || [])[OBJETS_SLOT_COLUMN] !== 'Emplacement';
 
   if (!existingGrid) {
     requests.push({
@@ -1082,27 +884,12 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
     });
   }
 
-  if (needsSlotColumn) {
-    requests.push({
-      insertDimension: {
-        range: {
-          sheetId: sheetId,
-          dimension: 'COLUMNS',
-          startIndex: OBJETS_SLOT_COLUMN,
-          endIndex: OBJETS_SLOT_COLUMN + 1
-        },
-        inheritFromBefore: true
-      }
-    });
-  }
-
   requests.push({
     updateSheetProperties: {
       properties: {
         sheetId: sheetId,
         gridProperties: {
-          columnCount: gridColumnCount_(tierState, existingGrid,
-            Math.max(totalColumns, needsSlotColumn ? Number(tierState.maxColumns || 0) + 1 : 0)),
+          columnCount: gridColumnCount_(tierState, existingGrid, totalColumns),
           frozenRowCount: 3,
           frozenColumnCount: OBJETS_FIRST_SPEC_COLUMN
         }
@@ -1131,7 +918,7 @@ function buildTierItemsGridRequests_(tierState, metadataBySheetId, argSeparator,
     }
   });
 
-  // Rows 1-2 above Objet (ID), Objet and Emplacement stay plain; an earlier insert left a class colour on C2.
+  // Rows 1-2 above Objet (ID), Objet and Emplacement stay plain.
   requests.push({
     repeatCell: {
       range: {
@@ -1565,9 +1352,7 @@ function readClassByName_(spreadsheet) {
   var tab = tabByName_('Roster');
   var nameColumn = columnOf_(tab, 'raiderKey');
   var rows = sheet.getDataRange().getValues();
-  // Read before this batch's column migrations run, so find Classe in the live header, not the contract.
-  var liveClassColumn = indexOfHeader_((rows[0] || []).map(function (cell) { return String(cell).trim(); }), ['class', 'Classe']);
-  var classColumn = liveClassColumn !== -1 ? liveClassColumn : columnOf_(tab, 'class');
+  var classColumn = columnOf_(tab, 'class');
   rows.slice(1).forEach(function (row) {
     var name = (row || [])[nameColumn];
     if (name !== '' && name !== null && name !== undefined && !classByName[String(name)]) {

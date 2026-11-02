@@ -3,6 +3,7 @@
 <title>Story 4.1 tests</title>
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
+<script src="helpers.js"></script>
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
@@ -18,22 +19,6 @@
 <script src="../src/menu.js"></script>
 <script>
   (function () {
-    var assertions = 0;
-
-    function equal(actual, expected, label) {
-      assertions += 1;
-      if (actual !== expected) {
-        throw new Error(label + ': expected ' + expected + ', got ' + actual);
-      }
-    }
-
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
     function menuItem(menu, label) {
       for (var i = 0; i < menu.items.length; i += 1) {
         var entry = menu.items[i];
@@ -73,7 +58,7 @@
 
       showGargulExportFormat();
       var formatDialog = TracerHarness.getLastModalDialog();
-      equal(formatDialog.title, 'Gargul custom export format', 'format dialog title');
+      equal(formatDialog.title, 'Format d\'export Gargul', 'format dialog title');
       contains(formatDialog.html, '&quot;itemName&quot;:&quot;@ITEM&quot;', 'format dialog shows the template');
       equal(JSON.parse('[' + GARGUL_EXPORT_TEMPLATE.replace(/@ID|@OS/g, '1').replace(/,$/, '') + ']').length, 1, 'template is one JSON object once numeric tokens are filled');
 
@@ -138,13 +123,13 @@
       } catch (error) {
         busyError = error.message;
       }
-      contains(busyError, 'Another action is already running', 'busy lock throws lock message');
+      contains(busyError, 'Une autre action est déjà en cours', 'busy lock throws lock message');
       equal(TracerHarness.getRows('BatchProbe').length, rowsBeforeBusy, 'busy lock prevents write');
       TracerHarness.setLockBusy(false);
       equal(TracerHarness.isLockHeld(), false, 'lock remains free after busy-lock attempt');
 
       document.getElementById('result').textContent =
-        'PASS: ' + assertions + ' assertions';
+        'PASS: ' + testAssertions + ' assertions';
       TracerHarness.uninstall();
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;

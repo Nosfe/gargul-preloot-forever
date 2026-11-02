@@ -3,6 +3,7 @@
 <title>Story 4.3 tests</title>
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
+<script src="helpers.js"></script>
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
@@ -11,38 +12,6 @@
 <script src="../src/scores.js"></script>
 <script>
   (function () {
-    var assertions = 0;
-
-    function equal(actual, expected, label) {
-      assertions += 1;
-      if (actual !== expected) {
-        throw new Error(label + ': expected ' + expected + ', got ' + actual);
-      }
-    }
-
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
-    function truthy(value, label) {
-      assertions += 1;
-      if (!value) {
-        throw new Error(label + ': expected truthy value');
-      }
-    }
-
-    function withHarness(fn) {
-      TracerHarness.install();
-      try {
-        fn();
-      } finally {
-        TracerHarness.uninstall();
-      }
-    }
-
     function loadFixturesSync_() {
       var request = new XMLHttpRequest();
       request.open('GET', '../fixtures/scores.json', false);
@@ -185,50 +154,25 @@
       rosterFormulaTests_();
 
       withHarness(function () {
-        // Live Roster before 4.3: only the five owner columns, with a raider row.
+        // Roster holding only the owner columns: refresh appends the calculated ones.
         TABS.forEach(function (tab) {
           if (tab.name !== 'Roster') {
             TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
           }
         });
         TracerHarness.seedSheet('Roster', [
-          ['Raider (nom exact en jeu)', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen'],
-          ['Ana', 'Mage', '❄️ Givre', '✚ Heal', 80]
+          ['Raider (nom exact en jeu)', 'Groupe de raid', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen'],
+          ['Ana', 'Raid 1', 'Mage', '❄️ Givre', '✚ Heal', 80]
         ]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'pre-4.3 Roster is extended');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'owner-only Roster is extended');
         var rows = TracerHarness.getRows('Roster');
-        equal(rows[1].slice(0, 4).join('|') + '|' + rows[1][5], 'Ana||Mage|❄️ Givre|80', 'existing Roster data kept one column right (Rôle is now a formula)');
+        equal(rows[1].slice(0, 4).join('|') + '|' + rows[1][5], 'Ana|Raid 1|Mage|❄️ Givre|80', 'existing Roster data kept (Rôle is a formula)');
         equal(rows[0][6], 'Présence palier', 'first calculated column appended at G');
       });
 
       equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
       equal(impactBase_(2, 4, 80, 1, false), 20, 'tier presence 2/4, parse 80, 1 Impact loot gives 20');
-
-      // Roster still holding the lifetime presence columns (current or former labels): both are deleted in one refresh.
-      [['Présence totale', 'Nombre de raids totaux'], ['Présence vie', 'Max vie']].forEach(function (lifetimeLabels) {
-          withHarness(function () {
-            var labels = labelsOf_(tabByName_('Roster'));
-            var bisAt = columnOf_(tabByName_('Roster'), 'bisLootCount');
-            var oldHeaders = labels.slice(0, bisAt).concat(lifetimeLabels, labels.slice(bisAt));
-            oldHeaders[columnOf_(tabByName_('Roster'), 'tierPresenceMax')] = 'Max palier';
-            TABS.forEach(function (tab) {
-              if (tab.name !== 'Roster') {
-                TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
-              }
-            });
-            TracerHarness.seedSheet('Roster', [oldHeaders, ['Ana', 'Raid 1', 'Mage', '', '', 80, '', '', 7, 9]]);
-            setUpWorkbook();
-            contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', lifetimeLabels[0] + ' Roster migrates');
-            var rows = TracerHarness.getRows('Roster');
-            equal(rows[0].slice(0, labels.length).join('|'), labels.join('|'), lifetimeLabels[0] + ': lifetime columns deleted, labels current');
-            equal(rows[1].slice(0, 2).join('|') + '|' + rows[1][5], 'Ana|Raid 1|80', lifetimeLabels[0] + ': owner values kept');
-            equal(String(rows[0][labels.length] || ''), '', lifetimeLabels[0] + ': nothing left after the last column');
-            var before = JSON.stringify(rows);
-            setUpWorkbook();
-            equal(JSON.stringify(TracerHarness.getRows('Roster')), before, lifetimeLabels[0] + ': second refresh deletes nothing');
-          });
-      });
 
       withHarness(function () {
         TABS.forEach(function (tab) {
@@ -249,14 +193,14 @@
           { appendCells: { sheetId: awardsId, rows: [{ values: [
             text('A-d'), text('A-o'), text('1'), text('BIS'), text('R1'),
             text('B-d'), text('B-o'), text('2'), text('IMPACT'), text('R1'),
-            text('C-d'), text('C-o'), text('3'), text('NONE'), text('R1')
+            text('C-d'), text('C-o'), text('3'), text('NORMAL'), text('R1')
           ] }], fields: 'userEnteredValue' } }
         ] }, spreadsheet.getId());
 
         // Bob leaves the Roster; Ana, Cid and Zed stay.
         TracerHarness.seedSheet('Roster', [keysOf_(tabByName_('Roster')), ['Ana', '', 'Mage'], ['Cid', '', 'Mage'], ['Zed', '', 'Mage']]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'archive run succeeds');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'archive run succeeds');
         equal(TracerHarness.getSheetMeta('Awards').conditionalFormatRules.length, 3 * 5, 'Awards rules rebuilt for the 3 remaining blocks (4 tints + old-tier grey)');
         equal(TracerHarness.getSheetMeta('Awards (archive)').conditionalFormatRules.length, 0, 'archived block carries no stale rules');
 
@@ -269,7 +213,7 @@
 
         var awards = TracerHarness.getRows('Awards');
         equal(awards[0][0] + '|' + awards[0][5], 'Ana|Cid', 'Bob block left Awards');
-        equal(awards[2].slice(5, 10).join('|'), 'C-d|C-o|3|NORMAL|R1', 'Cid block keeps its entry, former NONE rewritten as NORMAL');
+        equal(awards[2].slice(5, 10).join('|'), 'C-d|C-o|3|NORMAL|R1', 'Cid block keeps its entry');
         var awardsArchive = TracerHarness.getRows('Awards (archive)');
         equal(awardsArchive[0][0] + '|' + awardsArchive[2].slice(0, 5).join('|'), 'Bob|B-d|B-o|2|IMPACT|R1', 'Bob block archived with its entry');
 
@@ -302,7 +246,7 @@
         equal(TracerHarness.getRows('Présence')[0].slice(3, 8).join('|'), 'Aaron|Ana|Bob|Cid|Zed', 'empty Roster archives nothing');
       });
 
-      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;
       try {

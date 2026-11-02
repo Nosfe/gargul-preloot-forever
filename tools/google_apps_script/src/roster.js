@@ -19,13 +19,13 @@ function buildRosterIndex_(rosterRows) {
     }
 
     if (isTrimMismatch_(rawKey)) {
-      errors.push('Roster row ' + (rowIndex + 1) + ': invalid key with leading/trailing whitespace: "' + rawKey + '".');
+      errors.push('Roster ligne ' + (rowIndex + 1) + ' : nom avec espace au début ou à la fin : "' + rawKey + '".');
       continue;
     }
 
     if (Object.prototype.hasOwnProperty.call(raiders, rawKey)) {
       errors.push(
-        'Roster duplicate key "' + rawKey + '" at rows ' + raiders[rawKey].row + ' and ' + (rowIndex + 1) + '.'
+        'Roster : nom en double "' + rawKey + '" aux lignes ' + raiders[rawKey].row + ' et ' + (rowIndex + 1) + '.'
       );
       continue;
     }
@@ -44,7 +44,7 @@ function readRosterIndex_() {
   var rosterSheet = SpreadsheetApp.getActive().getSheetByName('Roster');
   var index = buildRosterIndex_(rosterSheet ? rosterSheet.getDataRange().getValues() : []);
   if (!rosterSheet) {
-    index.errors.unshift('Missing tab: Roster.');
+    index.errors.unshift('Onglet manquant : Roster.');
   }
   return index;
 }
@@ -53,7 +53,7 @@ function readRosterIndex_() {
 function requireRosterIndex_() {
   var index = readRosterIndex_();
   if (index.errors.length) {
-    throw new Error('Roster index errors:\n- ' + index.errors.join('\n- '));
+    throw new Error('Erreurs dans Roster :\n- ' + index.errors.join('\n- '));
   }
   return index;
 }

@@ -3,6 +3,7 @@
 <title>Story 4.2 tests</title>
 <pre id="result">Tests did not run.</pre>
 <script src="harness.js"></script>
+<script src="helpers.js"></script>
 <script src="../src/batch.js"></script>
 <script src="../src/schema.js"></script>
 <script src="../src/setup.js"></script>
@@ -11,38 +12,6 @@
 <script src="../src/scores.js"></script>
 <script>
   (function () {
-    var assertions = 0;
-
-    function equal(actual, expected, label) {
-      assertions += 1;
-      if (actual !== expected) {
-        throw new Error(label + ': expected ' + expected + ', got ' + actual);
-      }
-    }
-
-    function truthy(value, label) {
-      assertions += 1;
-      if (!value) {
-        throw new Error(label + ': expected truthy value');
-      }
-    }
-
-    function contains(text, expectedSubstring, label) {
-      assertions += 1;
-      if (String(text).indexOf(expectedSubstring) === -1) {
-        throw new Error(label + ': expected "' + text + '" to contain "' + expectedSubstring + '"');
-      }
-    }
-
-    function withHarness(fn) {
-      TracerHarness.install();
-      try {
-        fn();
-      } finally {
-        TracerHarness.uninstall();
-      }
-    }
-
     // Seeds every flat contract tab with its key header row, except the names in `skip`.
     function seedCoreFlatTabs(skip) {
       TABS.forEach(function (tab) {
@@ -51,23 +20,6 @@
         }
         TracerHarness.seedSheet(tab.name, [keysOf_(tab)]);
       });
-    }
-
-    // Seeds the live workbook as it was before this change (old Roster, the removed alt tab with a row, Raids and technical tabs).
-    function seedLegacyLiveWorkbook() {
-      TracerHarness.seedSheet('Config', [['tierId', 'bisWindowId']]);
-      TracerHarness.seedSheet('Roster', [
-        ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'dpsParse', 'gainFraction'],
-        ['Ana', 'Mage', 'Givre', 'Heal', 'MT1', '80', '0.03']
-      ]);
-      TracerHarness.seedSheet('Rerolls', [
-        ['rerollName', 'mainKey'],
-        ['AnaAlt', 'Ana']
-      ]);
-      TracerHarness.seedSheet('Raids', [['raidId', 'tierId', 'bisWindowId', 'instance', 'raidDate', 'status']]);
-      TracerHarness.seedSheet('RaidReports', [['reportCode', 'raidId', 'importedAt']]);
-      TracerHarness.seedSheet('PatternItems', [['itemID', 'itemName']]);
-      TracerHarness.seedSheet('Diagnostics', [['ts', 'kind'], ['x', 'y']]);
     }
 
     function validationForColumn(meta, columnIndex) {
@@ -90,76 +42,37 @@
       equal(findRaiderKey_(index, 'AnaAlt'), null, 'a name not in Roster resolves to nothing');
 
       var duplicateIndex = buildRosterIndex_([['raiderKey'], ['Ana'], ['Ana']]);
-      contains(duplicateIndex.errors[0], 'duplicate key "Ana"', 'duplicate key includes key name');
+      contains(duplicateIndex.errors[0], 'nom en double "Ana"', 'duplicate key includes key name');
 
       var whitespaceIndex = buildRosterIndex_([['raiderKey'], ['Ana ']]);
-      contains(whitespaceIndex.errors[0], 'leading/trailing whitespace', 'whitespace error mentions reason');
+      contains(whitespaceIndex.errors[0], 'espace au début ou à la fin', 'whitespace error mentions reason');
     }
 
     try {
       withHarness(function () {
-        seedLegacyLiveWorkbook();
-
-        equal(readClassByName_(SpreadsheetApp.getActive()).Ana, 'Mage', 'class read from the live header before the Groupe de raid insert');
-        setUpWorkbook();
-
-        equal(TracerHarness.getSheetMeta('RaidReports'), null, 'RaidReports deleted');
-        equal(TracerHarness.getSheetMeta('PatternItems'), null, 'PatternItems deleted');
-        equal(TracerHarness.getSheetMeta('Diagnostics'), null, 'Diagnostics deleted');
-
-        var raids = TracerHarness.getRows('Raids')[0];
-        equal(raids.slice(0, 5).join(','), 'Raid (ID),Instance,Date du raid,Rapports WCL,Import\u00e9 le', 'Raids merged headers');
-
-        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted even with a data row');
-
-        var roster = TracerHarness.getRows('Roster');
-        equal(roster[0].slice(0, 6).join(','), 'Raider (nom exact en jeu),Groupe de raid,Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen', 'Roster headers migrated, Groupe de raid inserted in B');
-        equal(roster[1].slice(0, 4).join(',') + ',' + roster[1][5], 'Ana,,Mage,\u2744\ufe0f Givre,80', 'Roster spec rewritten with emoji, parse kept');
-        contains(roster[1][4], "MATCH($C2&\"|\"&$D2,'_Listes'!$Q$2:$Q$200,0)", 'Roster R\u00f4le is the Classe|Sp\u00e9 lookup formula');
-        contains(TracerHarness.getRows('_Listes')[1][6], 'XLOOKUP(Roster!C2', '_Listes spec lookup reads the shifted Classe column');
-      });
-
-      withHarness(function () {
-        // The former single feral spec becomes ours or félin from the row's existing role.
-        seedCoreFlatTabs(['Roster']);
+        seedCoreFlatTabs(['Roster', 'Raids']);
         TracerHarness.seedSheet('Roster', [
           keysOf_(tabByName_('Roster')),
-          ['Bear', '', 'Druide', '\ud83d\udc3b Combat farouche', ROLE_DISPLAY.Tank.value, ''],
-          ['Cat', '', 'Druide', 'Combat farouche', 'Melee DPS', '']
+          ['Ana', '', 'Mage', 'Givre', '', '80']
         ]);
         setUpWorkbook();
-        var rows = TracerHarness.getRows('Roster');
-        equal(rows[1][3] + '|' + rows[2][3], '\ud83d\udc3b Combat farouche (ours)|\ud83d\udc08 Combat farouche (f\u00e9lin)', 'legacy feral spec split by role');
-      });
 
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('RaidReports', [['reportCode', 'raidId', 'importedAt'], ['abc123', 'r1', '2026-10-20']]);
+        var raids = TracerHarness.getRows('Raids')[0];
+        equal(raids.slice(0, 5).join(','), 'Raid (ID),Instance,Date du raid,Rapports WCL,Import\u00e9 le', 'Raids headers');
 
-        setUpWorkbook();
-
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'abort alert exists');
-        contains(alert, 'RaidReports', 'abort alert names RaidReports');
-      });
-
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('PatternItems', [['itemID', 'itemName'], ['19019', 'Thunderfury pattern']]);
-
-        setUpWorkbook();
-
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'abort alert exists');
-        contains(alert, 'PatternItems', 'abort alert names PatternItems');
+        var roster = TracerHarness.getRows('Roster');
+        equal(roster[0].slice(0, 6).join(','), 'Raider (nom exact en jeu),Groupe de raid,Classe,Sp\u00e9,R\u00f4le,Parse WCL moyen', 'Roster headers relabelled');
+        equal(roster[1].slice(0, 4).join(',') + ',' + roster[1][5], 'Ana,,Mage,\u2744\ufe0f Givre,80', 'Roster spec rewritten with emoji, parse kept');
+        contains(roster[1][4], "MATCH($C2&\"|\"&$D2,'_Listes'!$Q$2:$Q$200,0)", 'Roster R\u00f4le is the Classe|Sp\u00e9 lookup formula');
+        contains(TracerHarness.getRows('_Listes')[1][6], 'XLOOKUP(Roster!C2', '_Listes spec lookup reads the Classe column');
       });
 
       withHarness(function () {
         seedCoreFlatTabs();
         TracerHarness.seedSheet('Objets Heal', [
-          ['', '', 'Heal'],
-          ['', '', 'Paladin Sacr\u00e9'],
-          ['Objet (ID)', 'Objet', 'Gain (%)', 'Statut']
+          ['', '', '', 'Heal'],
+          ['', '', '', 'Paladin Sacr\u00e9'],
+          ['Objet (ID)', 'Objet', 'Emplacement', 'Statut', 'Gain (%)']
         ]);
 
         setUpWorkbook();
@@ -177,42 +90,7 @@
       });
 
       withHarness(function () {
-        // Tab built before the Emplacement column: owner data moves right with its spec.
         seedCoreFlatTabs();
-        TracerHarness.seedSheet('Objets Heal', [
-          ['', '', 'Heal'],
-          ['', '', 'Sacr\u00e9'],
-          ['Objet (ID)', 'Objet', 'Statut', 'Gain (%)'],
-          [19019, 'Thunderfury', 'BIS', 0.03]
-        ]);
-
-        setUpWorkbook();
-
-        var rows = TracerHarness.getRows('Objets Heal');
-        equal(rows[3].slice(0, 5).join('|'), '19019|Thunderfury||BIS|0.03', 'existing item keeps its Statut and Gain under its spec');
-        setUpWorkbook();
-        equal(TracerHarness.getRows('Objets Heal')[3].slice(0, 5).join('|'), '19019|Thunderfury||BIS|0.03', 'second refresh inserts nothing more');
-      });
-
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('Objets Heal', [
-          ['', '', 'Heal'],
-          ['', '', 'Paladin Sacr\u00e9'],
-          ['Objet (ID)', 'Objet', 'Gain (%)', 'Statut'],
-          ['19019', 'Thunderfury', '0.03', 'BIS']
-        ]);
-
-        setUpWorkbook();
-
-        var alert = TracerHarness.getAlerts().slice(-1)[0];
-        contains(alert, 'Workbook setup failed', 'abort alert exists');
-        contains(alert, 'Objets Heal', 'abort alert names Objets tab');
-      });
-
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('Diagnostics', [['x']]);
 
         var order = buildSetupRequests_(readExistingHeadersByName_(), { sheets: [] }, ',')
           .filter(function (request) {
@@ -238,8 +116,8 @@
       withHarness(function () {
         seedCoreFlatTabs(['Roster']);
         TracerHarness.seedSheet('Roster', [
-          ['raiderKey', 'class', 'spec', 'role', 'dpsParse'],
-          ['Ana', 'Mage', '\u2744\ufe0f Givre', '\u271a Heal', '80']
+          keysOf_(tabByName_('Roster')),
+          ['Ana', '', 'Mage', '\u2744\ufe0f Givre', '\u271a Heal', '80']
         ]);
 
         setUpWorkbook();
@@ -249,110 +127,36 @@
         equal(JSON.stringify(TracerHarness.getRows('Roster')), before, 're-run keeps data unchanged');
       });
 
-      // Seeds a sheet with a header and one data row, runs setup, and checks the abort left everything untouched.
-      function expectAbort(tabName, rows, label) {
-        withHarness(function () {
-          seedCoreFlatTabs();
-          TracerHarness.seedSheet(tabName, rows);
-          setUpWorkbook();
-          contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook setup failed', label + ' aborts');
-          contains(TracerHarness.getAlerts().slice(-1)[0], tabName, label + ' alert names the tab');
-          equal(JSON.stringify(TracerHarness.getRows(tabName)), JSON.stringify(rows), label + ' data kept');
-          equal(TracerHarness.getSheetMeta('_Listes'), null, label + ' creates no _Listes');
-          equal(TracerHarness.getSheetMeta('Objets Tank'), null, label + ' creates no Objets tab');
-        });
-      }
-
-      expectAbort('RaidReports', [['reportCode', 'raidId', 'importedAt'], ['abc123', 'r1', '2026-10-20']], 'RaidReports with data');
-      expectAbort('PatternItems', [['itemID', 'itemName'], ['19019', 'Pattern']], 'PatternItems with data');
-      expectAbort('Raids', [['raidId', 'tierId', 'bisWindowId', 'instance', 'raidDate', 'status'], ['R1', 't1', 'w1', 'MC', '2026-01-01', 'OPEN']], 'old Raids with data');
-      expectAbort('Awards', [['Checksum Gargul', 'Raid (ID)'], ['c1', 'R1']], 'old flat Awards with data');
-      expectAbort('TierItems', [['Palier', 'Objet (ID)', 'Objet'], ['t1', '19019', 'Thunderfury']], 'old flat TierItems with an item');
-      expectAbort('TierItems', [['', '', 'Tank'], ['', '', 'Guerrier Protection'], ['Objet (ID)', 'Objet', 'Gain (%)'], ['19019', 'Thunderfury', 0.03]], 'single TierItems grid with items');
-      expectAbort('Objets Heal', [['', '', 'Heal'], ['', '', 'Paladin Sacré'], ['Objet (ID)', 'Objet', 'Gain (%)', 'Statut'], ['19019', 'Thunderfury', '0.03', 'BIS']], 'Objets Heal with items in the old order');
-
-      withHarness(function () {
-        seedLegacyLiveWorkbook();
-        TracerHarness.seedSheet('Attendance', [['raidId', 'raiderKey']]);
-        TracerHarness.seedSheet('Bench', [['raidId', 'raiderKey']]);
-        TracerHarness.seedSheet('Butin', [['legacy']]);
-        setUpWorkbook();
-        equal(TracerHarness.getSheetMeta('Attendance') === null && TracerHarness.getSheetMeta('Bench') === null &&
-          TracerHarness.getSheetMeta('Butin') === null, true, 'Attendance, Bench and Butin deleted');
-        equal(TracerHarness.getSheetMeta('Raids') !== null, true, 'Raids recreated');
-
-        var before = JSON.stringify(['Roster', 'Raids'].map(function (name) { return TracerHarness.getRows(name); }));
-        setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 're-run after migration succeeds');
-        equal(JSON.stringify(['Roster', 'Raids'].map(function (name) { return TracerHarness.getRows(name); })), before,
-          're-run after migration moves no data and repeats no migration');
-      });
-
       withHarness(function () {
         seedCoreFlatTabs(['Roster']);
         TracerHarness.seedSheet('Roster', [
-          ['raiderKey', 'class', 'spec', 'role', 'tankPriority', 'Unexpected', 'gainFraction'],
-          ['Ana', 'Mage', '', '', '', 'x', '']
+          keysOf_(tabByName_('Roster')).concat(['Unexpected']),
+          ['Ana', '', 'Mage', '', '', '', '', '', '', '', '', '', 'x']
         ]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Header conflict in tab "Roster"', 'old Roster with an unknown column aborts');
-        equal(TracerHarness.getRows('Roster')[1][5], 'x', 'unknown column data kept');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Conflit d\'en-têtes dans l\'onglet "Roster"', 'Roster with an unknown column aborts');
+        equal(TracerHarness.getRows('Roster')[1][12], 'x', 'unknown column data kept');
       });
 
       withHarness(function () {
-        // Removed alt tab in its last layout, with a row: refresh deletes it and _Listes keeps no lookup for it.
         seedCoreFlatTabs();
-        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey'], ['AnaAlt', 'Prêtre', '', '', '', 'Ana']]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'refresh with the removed alt tab succeeds');
-        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted');
         var lists = TracerHarness.getRows('_Listes');
         equal([11, 12, 13, 14].map(function (c) { return lists[1][c] || ''; }).join(''), '', '_Listes L:O stay empty');
-        equal(lists.some(function (row) { return row.some(function (cell) { return String(cell).indexOf('Rerolls!') !== -1; }); }), false, 'no _Listes formula reads the removed tab');
         var priestRow = lists.filter(function (row) { return row[0] === 'Prêtre'; })[0];
         equal(priestRow.slice(1, 4).join(','), '📿 Discipline,✨ Sacré,🌑 Ombre', 'Prêtre specs offered with emoji');
       });
 
       withHarness(function () {
-        // Removed alt tab with headers only: refresh deletes it too.
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey']]);
-        setUpWorkbook();
-        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'empty removed alt tab deleted');
-      });
-
-      withHarness(function () {
-        // A former alt with grid columns: its tab goes, and its Présence/Awards columns archive like any name not in Roster.
+        // A name dropped from Roster: its Présence/Awards columns archive.
         seedCoreFlatTabs();
         seedRoster(['Ana', 'AnaAlt']);
         setUpWorkbook();
-        TracerHarness.seedSheet('Rerolls', [['rerollName', 'class', 'spec', 'role', 'dpsParse', 'mainKey'], ['AnaAlt', '', '', '', '', 'Ana']]);
         seedRoster(['Ana']);
         setUpWorkbook();
-        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'removed alt tab deleted with its row');
-        equal(TracerHarness.getRows('Pr\u00e9sence')[0].slice(3).filter(function (v) { return v; }).join('|'), 'Ana', 'former alt column left Pr\u00e9sence');
-        equal(TracerHarness.getRows('Pr\u00e9sence (archive)')[0][3], 'AnaAlt', 'former alt Pr\u00e9sence column archived');
-        equal(TracerHarness.getRows('Awards (archive)')[0][0], 'AnaAlt', 'former alt Awards block archived');
-      });
-
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('Objets Heal', [
-          ['', '', 'Heal'],
-          ['', '', 'Paladin Sacré'],
-          ['Objet (ID)', 'Objet', 'Gain (%)', 'Statut']
-        ]);
-        var healId = SpreadsheetApp.getActive().getSheetByName('Objets Heal').getSheetId();
-        // The old Statut dropdown sat on column D, which becomes Gain.
-        Sheets.Spreadsheets.batchUpdate({ requests: [{ setDataValidation: {
-          range: { sheetId: healId, startRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },
-          rule: { condition: { type: 'ONE_OF_LIST', values: [{ userEnteredValue: 'BIS' }] } }
-        } }] }, SpreadsheetApp.getActive().getId());
-        setUpWorkbook();
-        var meta = TracerHarness.getSheetMeta('Objets Heal');
-        equal(validationForColumn(meta, 4), null, 'old Statut dropdown removed from the Gain column');
-        var formulas = meta.conditionalFormatRules.map(function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue; });
-        equal(formulas.indexOf('=E4<0') !== -1 && formulas.indexOf('=D4<0') === -1, true, 'gain rules moved to the second column of the pair');
+        equal(TracerHarness.getRows('Pr\u00e9sence')[0].slice(3).filter(function (v) { return v; }).join('|'), 'Ana', 'dropped name left Pr\u00e9sence');
+        equal(TracerHarness.getRows('Pr\u00e9sence (archive)')[0][3], 'AnaAlt', 'dropped name Pr\u00e9sence column archived');
+        equal(TracerHarness.getRows('Awards (archive)')[0][0], 'AnaAlt', 'dropped name Awards block archived');
       });
 
       withHarness(function () {
@@ -423,15 +227,6 @@
           return [name, '', 'Mage', '', '', ''];
         })));
       }
-
-      withHarness(function () {
-        seedCoreFlatTabs();
-        TracerHarness.seedSheet('Bench', [['raidId', 'raiderKey'], ['R1', 'Ana']]);
-        setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Bench', 'abort alert names Bench');
-        equal(TracerHarness.getRows('Bench')[1].join(','), 'R1,Ana', 'abort keeps the Bench row');
-        equal(TracerHarness.getSheetMeta('_Listes'), null, 'abort creates no _Listes');
-      });
 
       withHarness(function () {
         seedCoreFlatTabs();
@@ -555,7 +350,7 @@
       withHarness(function () {
         TracerHarness.setLocale('fr_FR');
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'fr_FR setup succeeds');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'fr_FR setup succeeds');
         ['Roster', 'Objets Caster DPS'].forEach(function (name) {
           TracerHarness.getSheetMeta(name).conditionalFormatRules.forEach(function (rule) {
             equal(rule.booleanRule.condition.values[0].userEnteredValue.indexOf(','), -1, 'fr ' + name + ' rule has no commas');
@@ -563,7 +358,6 @@
         });
         contains(TracerHarness.getRows('_Listes')[1][6], ';', 'fr _Listes formula uses semicolons');
         // Fresh workbook: setup created Roster itself.
-        equal(TracerHarness.getSheetMeta('Rerolls'), null, 'fresh workbook has no alt tab');
         equal(TracerHarness.getRows('Roster')[0][1], 'Groupe de raid', 'fresh Roster has Groupe de raid in B');
         equal(validationForColumn(TracerHarness.getSheetMeta('Roster'), 1).condition.values.map(function (v) { return v.userEnteredValue; }).join(','), 'Raid 1,Raid 2', 'fresh Roster group dropdown');
       });
@@ -572,7 +366,7 @@
         TracerHarness.seedSheet('Config', [['tierId', 'Unexpected']]);
         TracerHarness.seedSheet('Marker', [['stable']]);
         setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Header conflict in tab "Config"', 'conflict names tab');
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Conflit d\'en-têtes dans l\'onglet "Config"', 'conflict names tab');
         equal(TracerHarness.getRows('Marker')[0][0], 'stable', 'conflict keeps existing values unchanged');
         equal(TracerHarness.getSheetMeta('Objets Tank'), null, 'conflict abort is atomic');
         equal(TracerHarness.isLockHeld(), false, 'lock released after conflict');
@@ -585,24 +379,11 @@
           requireRosterIndex_();
         } catch (error) {
           threw = true;
-          contains(error.message, 'duplicate key "Ana" at rows 2 and 3', 'requireRosterIndex_ names key and both rows');
+          contains(error.message, 'nom en double "Ana" aux lignes 2 et 3', 'requireRosterIndex_ names key and both rows');
         }
         equal(threw, true, 'requireRosterIndex_ throws on duplicate');
         equal(classNames_().indexOf('D\u00e9moniste') !== -1, true, 'class names keep accents');
         equal(SPEC_COLUMNS.length, 28, '28 spec columns as mapped');
-      });
-
-      withHarness(function () {
-        seedCoreFlatTabs(['Roster']);
-        // Live Roster after a manual column cleanup: the Parse header still has its earlier label.
-        TracerHarness.seedSheet('Roster', [
-          ['Raider (nom exact en jeu)', 'Classe', 'Spé', 'Rôle', 'Parse WCL moyen (1-100)'],
-          ['Ana', 'Mage', 'Givre', 'Heal', 80]
-        ]);
-        setUpWorkbook();
-        contains(TracerHarness.getAlerts().slice(-1)[0], 'Workbook layout applied', 'former Parse label is accepted');
-        equal(TracerHarness.getRows('Roster')[0][5], 'Parse WCL moyen', 'Parse header renamed to the current label');
-        equal(TracerHarness.getRows('Roster')[1][5], 80, 'Parse value kept');
       });
 
       withHarness(function () {
@@ -617,7 +398,7 @@
         rosterLookupTests();
       });
 
-      document.getElementById('result').textContent = 'PASS: ' + assertions + ' assertions';
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;
       try {

@@ -11,13 +11,13 @@ function endRaid() {
     var configRows = requireCurrentLayout_(snapshotSheet_(SpreadsheetApp.getActive(), 'Config').getDataRange().getValues(), 'Config');
     var openRaidId = normalizeCellString_(((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')])).trim();
     if (!openRaidId) {
-      ui.alert('Raid > Démarrer first.');
+      ui.alert('Lancez d\'abord Raid > Démarrer.');
       return;
     }
 
     showEndRaidDialog_(openRaidId);
   } catch (error) {
-    ui.alert('End raid failed:\n' + error.message);
+    ui.alert('Fin du raid impossible :\n' + error.message);
   }
 }
 
@@ -25,13 +25,13 @@ function endRaid() {
 function setWclCredentials() {
   var html = HtmlService.createHtmlOutput(
     '<div style="font-family:Verdana,Arial,sans-serif;padding:12px">' +
-      '<p style="margin:0 0 10px 0"><strong>Set WCL credentials</strong></p>' +
-      '<label style="display:block;margin:0 0 6px 0">Client ID</label>' +
+      '<p style="margin:0 0 10px 0"><strong>Identifiants WCL</strong></p>' +
+      '<label style="display:block;margin:0 0 6px 0">ID client</label>' +
       '<input id="wcl-client-id" style="width:100%;box-sizing:border-box;margin:0 0 10px 0" />' +
-      '<label style="display:block;margin:0 0 6px 0">Client secret</label>' +
+      '<label style="display:block;margin:0 0 6px 0">Secret client</label>' +
       '<input id="wcl-client-secret" type="password" style="width:100%;box-sizing:border-box;margin:0 0 10px 0" />' +
       '<div style="display:flex;gap:8px;align-items:center">' +
-        '<button onclick="save()">Save</button>' +
+        '<button onclick="save()">Enregistrer</button>' +
         '<span id="status" style="color:#1E7D32"></span>' +
       '</div>' +
       '<script>' +
@@ -39,7 +39,7 @@ function setWclCredentials() {
           'var clientId=document.getElementById("wcl-client-id").value;' +
           'var clientSecret=document.getElementById("wcl-client-secret").value;' +
           'var status=document.getElementById("status");' +
-          'status.textContent="Saving...";' +
+          'status.textContent="Enregistrement...";' +
           'google.script.run.withSuccessHandler(function(message){status.textContent=message;google.script.host.close();})' +
           '.withFailureHandler(function(error){status.textContent="";alert(error&&error.message?error.message:error);})' +
           '.saveWclCredentials(clientId,clientSecret);' +
@@ -48,7 +48,7 @@ function setWclCredentials() {
     '</div>'
   ).setWidth(460).setHeight(260);
 
-  SpreadsheetApp.getUi().showModalDialog(html, 'Set WCL credentials');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Identifiants WCL');
 }
 
 // Stores WCL credentials in owner User Properties.
@@ -56,14 +56,14 @@ function saveWclCredentials(clientId, clientSecret) {
   var normalizedClientId = normalizeCellString_(clientId).trim();
   var normalizedClientSecret = normalizeCellString_(clientSecret).trim();
   if (!normalizedClientId || !normalizedClientSecret) {
-    throw new Error('Both client ID and client secret are required.');
+    throw new Error('L\'ID client et le secret client sont obligatoires.');
   }
 
   PropertiesService.getUserProperties().setProperties({
     WCL_CLIENT_ID: normalizedClientId,
     WCL_CLIENT_SECRET: normalizedClientSecret
   });
-  return 'Credentials saved.';
+  return 'Identifiants enregistrés.';
 }
 
 // Parses and validates Gargul text for End raid preview.
@@ -75,7 +75,7 @@ function previewEndRaidLoot(gargulText) {
   var configRows = requireCurrentLayout_(snapshotSheet_(spreadsheet, 'Config').getDataRange().getValues(), 'Config');
   var openRaidId = normalizeCellString_((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')]).trim();
   if (!openRaidId) {
-    throw new Error('Raid > Démarrer first.');
+    throw new Error('Lancez d\'abord Raid > Démarrer.');
   }
   var parsed = parseGargulExport_(gargulText);
   var inRaid = validateRaidIds_(parsed.lines, openRaidId);
@@ -123,7 +123,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
     var openRaidId = normalizeCellString_(((configRows[1] || [])[columnOf_(tabByName_('Config'), 'openRaidId')])).trim();
 
     if (!openRaidId) {
-      throw new Error('Raid > Démarrer first.');
+      throw new Error('Lancez d\'abord Raid > Démarrer.');
     }
 
     var rosterIndex = requireRosterIndex_();
@@ -146,7 +146,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
         : award.treatment;
       var treatment = Number(award.os) === 1 ? 'NORMAL' : (isKnownTreatment_(chosen) ? chosen : '');
       if (!treatment) {
-        throw new Error('Choose a Traitement for every award before ending the raid.');
+        throw new Error('Choisissez un Traitement pour chaque loot avant de terminer le raid.');
       }
       return {
         lineNumber: award.lineNumber,
@@ -192,15 +192,15 @@ function submitEndRaid(linkText, gargulText, treatments) {
       );
     }
 
-    outcome.message = outcome.message + '\nLoot awards imported: ' + importedAwards.length + '.';
+    outcome.message = outcome.message + '\nLoots importés : ' + importedAwards.length + '.';
     if (rejections.length) {
-      outcome.message += '\nRejected loot lines:\n' + summarizeRejectedLootLines_(rejections);
+      outcome.message += '\nLignes de loot rejetées :\n' + summarizeRejectedLootLines_(rejections);
     }
 
     return outcome.requests;
   });
 
-  return outcome ? outcome.message : 'Raid ended.';
+  return outcome ? outcome.message : 'Raid terminé.';
 }
 
 // Serial of the date already typed on the raid's Présence row, so awards keep the same date; null when empty.
@@ -226,7 +226,7 @@ function existingPresenceDateSerial_(presenceRows, raidId) {
 // One text line per rejected loot line for the End raid result.
 function summarizeRejectedLootLines_(rejected) {
   return (rejected || []).map(function (line) {
-    var parts = ['line ' + line.lineNumber];
+    var parts = ['ligne ' + line.lineNumber];
     if (line.checksum) {
       parts.push('checksum ' + line.checksum);
     }
@@ -234,12 +234,12 @@ function summarizeRejectedLootLines_(rejected) {
       parts.push('date ' + line.date);
     }
     if (line.time) {
-      parts.push('time ' + line.time);
+      parts.push('heure ' + line.time);
     }
     if (line.winner) {
-      parts.push('winner ' + line.winner);
+      parts.push('gagnant ' + line.winner);
     }
-    parts.push('reason: ' + line.reason);
+    parts.push('raison : ' + line.reason);
     return '- ' + parts.join(', ');
   }).join('\n');
 }
@@ -248,7 +248,7 @@ function summarizeRejectedLootLines_(rejected) {
 function extractReportCode_(linksText) {
   var text = normalizeCellString_(linksText).trim();
   if (!text) {
-    throw new Error('WCL link required.');
+    throw new Error('Lien WCL obligatoire.');
   }
 
   var codes = [];
@@ -264,10 +264,10 @@ function extractReportCode_(linksText) {
   });
 
   if (codes.length === 0 || unrecognized) {
-    throw new Error('WCL link not recognized.');
+    throw new Error('Lien WCL non reconnu.');
   }
   if (codes.length > 1) {
-    throw new Error('Only one WCL link is allowed.');
+    throw new Error('Un seul lien WCL est accepté.');
   }
   return codes[0];
 }
@@ -465,15 +465,15 @@ function buildEndRaidRequests_(context) {
   });
 
   var messageLines = [
-    'Raid ' + openRaidId + ' ended.',
-    'Pulls counted: ' + context.credits.pullCount + '.',
-    'Credited raiders: ' + writtenKeys.length + '.'
+    'Raid ' + openRaidId + ' terminé.',
+    'Pulls comptés : ' + context.credits.pullCount + '.',
+    'Raiders crédités : ' + writtenKeys.length + '.'
   ];
   if ((context.credits.unmatchedNames || []).length) {
-    messageLines.push('Unmatched names: ' + context.credits.unmatchedNames.join(', ') + '.');
+    messageLines.push('Noms non reconnus : ' + context.credits.unmatchedNames.join(', ') + '.');
   }
   if (missingColumns.length) {
-    messageLines.push('No Présence column for: ' + missingColumns.join(', ') + '. Run Configuration > Rafraîchir le classeur.');
+    messageLines.push('Pas de colonne Présence pour : ' + missingColumns.join(', ') + '. Lancez Configuration > Rafraîchir le classeur.');
   }
 
   return {
@@ -486,10 +486,10 @@ function buildEndRaidRequests_(context) {
 function showEndRaidDialog_(openRaidId) {
   var html = HtmlService.createHtmlOutput(
     '<div style="font-family:Verdana,Arial,sans-serif;padding:12px">' +
-      '<p style="margin:0 0 10px 0"><strong>End raid</strong> — raid ID ' + snapshotEscapeHtml_(openRaidId) + '</p>' +
-      '<label style="display:block;margin:0 0 6px 0">WCL link (one report)</label>' +
+      '<p style="margin:0 0 10px 0"><strong>Terminer le raid</strong> — raid ' + snapshotEscapeHtml_(openRaidId) + '</p>' +
+      '<label style="display:block;margin:0 0 6px 0">Lien WCL (un rapport)</label>' +
       '<input id="wcl-link" style="width:100%;box-sizing:border-box;margin:0 0 10px 0" />' +
-      '<label style="display:block;margin:0 0 6px 0">Gargul export</label>' +
+      '<label style="display:block;margin:0 0 6px 0">Export Gargul</label>' +
       '<textarea id="gargul-text" style="width:100%;height:120px;box-sizing:border-box;margin:0 0 8px 0"></textarea>' +
       '<div style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">' +
         '<button onclick="previewLoot()">Prévisualiser le loot</button>' +
@@ -497,7 +497,7 @@ function showEndRaidDialog_(openRaidId) {
       '<div id="preview-awards" style="margin:0 0 10px 0"></div>' +
       '<div id="preview-rejected" style="margin:0 0 10px 0"></div>' +
       '<div style="display:flex;gap:8px;align-items:center">' +
-        '<button onclick="submitEndRaidForm()">End raid</button>' +
+        '<button onclick="submitEndRaidForm()">Terminer le raid</button>' +
         '<span id="status" style="color:#1E7D32"></span>' +
       '</div>' +
       '<script>' +
@@ -508,19 +508,19 @@ function showEndRaidDialog_(openRaidId) {
           'var rejected=(data&&data.rejected)||[];' +
           'var awardHtml="<p style=\\"margin:0 0 6px 0\\"><strong>Awards valides</strong> ("+awards.length+")</p>";' +
           'if(!awards.length){awardHtml+="<p style=\\"margin:0\\">Aucune ligne valide.</p>";}else{' +
-            'awardHtml+="<table style=\\"border-collapse:collapse;width:100%\\"><thead><tr><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Winner</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet (ID)</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">OS</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Traitement</th></tr></thead><tbody>";' +
+            'awardHtml+="<table style=\\"border-collapse:collapse;width:100%\\"><thead><tr><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Gagnant</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet (ID)</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">OS</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Traitement</th></tr></thead><tbody>";' +
             'for(var i=0;i<awards.length;i+=1){var row=awards[i];var disabled=row.os===1?" disabled":"";var forced=row.os===1?"NORMAL":(row.treatment||"");awardHtml+="<tr><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.winner)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemName)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemID)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+(row.os===1?"oui":"")+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\"><select data-checksum=\\""+esc(row.checksum)+"\\""+disabled+"><option value=\\"\\""+(forced===""?" selected":"")+">(choisir)</option><option value=\\"BIS\\""+(forced==="BIS"?" selected":"")+">BIS</option><option value=\\"IMPACT\\""+(forced==="IMPACT"?" selected":"")+">IMPACT</option><option value=\\"CLASS_BOUND\\""+(forced==="CLASS_BOUND"?" selected":"")+">CLASS_BOUND</option><option value=\\"NORMAL\\""+(forced==="NORMAL"?" selected":"")+">NORMAL</option></select></td></tr>";}' +
             'awardHtml+="</tbody></table>";' +
           '}' +
           'document.getElementById("preview-awards").innerHTML=awardHtml;' +
           'var rejectedHtml="<p style=\\"margin:10px 0 6px 0\\"><strong>Lignes rejetées</strong> ("+rejected.length+")</p>";' +
-          'if(!rejected.length){rejectedHtml+="<p style=\\"margin:0\\">Aucune ligne rejetée.</p>";}else{rejectedHtml+="<ul style=\\"margin:0;padding-left:18px\\">";for(var r=0;r<rejected.length;r+=1){var item=rejected[r];rejectedHtml+="<li>Ligne "+esc(item.lineNumber)+"; checksum: "+esc(item.checksum)+"; date: "+esc(item.date)+"; time: "+esc(item.time)+"; winner: "+esc(item.winner)+"; raison: "+esc(item.reason)+"</li>";}rejectedHtml+="</ul>";}' +
+          'if(!rejected.length){rejectedHtml+="<p style=\\"margin:0\\">Aucune ligne rejetée.</p>";}else{rejectedHtml+="<ul style=\\"margin:0;padding-left:18px\\">";for(var r=0;r<rejected.length;r+=1){var item=rejected[r];rejectedHtml+="<li>Ligne "+esc(item.lineNumber)+" ; checksum : "+esc(item.checksum)+" ; date : "+esc(item.date)+" ; heure : "+esc(item.time)+" ; gagnant : "+esc(item.winner)+" ; raison : "+esc(item.reason)+"</li>";}rejectedHtml+="</ul>";}' +
           'document.getElementById("preview-rejected").innerHTML=rejectedHtml;' +
         '}' +
         'function previewLoot(){' +
           'var gargul=document.getElementById("gargul-text").value;' +
           'var status=document.getElementById("status");' +
-          'status.textContent="Preview...";' +
+          'status.textContent="Prévisualisation...";' +
           'google.script.run.withSuccessHandler(function(result){status.textContent="";renderPreview(result);})' +
           '.withFailureHandler(function(error){status.textContent="";alert(error&&error.message?error.message:error);})' +
           '.previewEndRaidLoot(gargul);' +
@@ -530,7 +530,7 @@ function showEndRaidDialog_(openRaidId) {
           'var gargul=document.getElementById("gargul-text").value;' +
           'var treatments=currentTreatments();' +
           'var status=document.getElementById("status");' +
-          'status.textContent="Running...";' +
+          'status.textContent="En cours...";' +
           'google.script.run.withSuccessHandler(function(message){status.textContent="";alert(message);google.script.host.close();})' +
           '.withFailureHandler(function(error){status.textContent="";alert(error&&error.message?error.message:error);})' +
           '.submitEndRaid(link,gargul,treatments);' +
@@ -539,7 +539,7 @@ function showEndRaidDialog_(openRaidId) {
     '</div>'
   ).setWidth(760).setHeight(620);
 
-  SpreadsheetApp.getUi().showModalDialog(html, 'End raid');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Terminer le raid');
 }
 
 // Reads owner-scoped WCL credentials from User Properties.
@@ -548,7 +548,7 @@ function requireWclCredentials_() {
   var clientId = normalizeCellString_(properties.getProperty(WCL_CLIENT_ID_KEY)).trim();
   var clientSecret = normalizeCellString_(properties.getProperty(WCL_CLIENT_SECRET_KEY)).trim();
   if (!clientId || !clientSecret) {
-    throw new Error('Configuration > Identifiants WCL first.');
+    throw new Error('Renseignez d\'abord Configuration > Identifiants WCL.');
   }
   return {
     clientId: clientId,
@@ -570,11 +570,11 @@ function getWclAccessToken_(credentials) {
 
   var statusCode = response.getResponseCode();
   if (statusCode < 200 || statusCode >= 300) {
-    throw new Error('Warcraft Logs authentication failed (HTTP ' + statusCode + ').');
+    throw new Error('Échec de l\'authentification Warcraft Logs (HTTP ' + statusCode + ').');
   }
   var payload = safeJsonParse_(response.getContentText());
   if (!payload.access_token) {
-    throw new Error('Warcraft Logs authentication failed (HTTP ' + statusCode + ').');
+    throw new Error('Échec de l\'authentification Warcraft Logs (HTTP ' + statusCode + ').');
   }
   return payload.access_token;
 }
@@ -620,18 +620,18 @@ function fetchWarcraftLogsReport_(reportCode, credentials) {
 
   var statusCode = response.getResponseCode();
   if (statusCode < 200 || statusCode >= 300) {
-    throw new Error('Warcraft Logs report error (HTTP ' + statusCode + ').');
+    throw new Error('Erreur du rapport Warcraft Logs (HTTP ' + statusCode + ').');
   }
   var payload = safeJsonParse_(response.getContentText());
   var errors = Array.isArray(payload.errors) ? payload.errors : [];
   if (errors.length) {
     // GraphQL reports an unknown or private code as HTTP 200 with errors[].
-    throw new Error('Warcraft Logs report error: ' + normalizeCellString_(errors[0] && errors[0].message) + ' (code ' + reportCode + ').');
+    throw new Error('Erreur du rapport Warcraft Logs : ' + normalizeCellString_(errors[0] && errors[0].message) + ' (code ' + reportCode + ').');
   }
 
   var report = payload && payload.data && payload.data.reportData && payload.data.reportData.report;
   if (!report) {
-    throw new Error('Unknown or inaccessible WCL report code.');
+    throw new Error('Code de rapport WCL inconnu ou inaccessible.');
   }
   return report;
 }
@@ -641,7 +641,7 @@ function safeJsonParse_(text) {
   try {
     return JSON.parse(String(text || '{}'));
   } catch (error) {
-    throw new Error('Warcraft Logs returned invalid JSON.');
+    throw new Error('Warcraft Logs a renvoyé un JSON invalide.');
   }
 }
 

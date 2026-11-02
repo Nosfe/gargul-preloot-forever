@@ -34,7 +34,7 @@ function updateWclParses() {
     });
     ui.alert(summary);
   } catch (error) {
-    ui.alert('Update WCL parses failed:\n' + error.message);
+    ui.alert('Mise à jour des parses WCL impossible :\n' + error.message);
   }
 }
 
@@ -83,13 +83,13 @@ function fetchCharacterParses_(token, realm, targets) {
 
   var statusCode = response.getResponseCode();
   if (statusCode < 200 || statusCode >= 300) {
-    throw new Error('Warcraft Logs character error (HTTP ' + statusCode + ').');
+    throw new Error('Erreur personnage Warcraft Logs (HTTP ' + statusCode + ').');
   }
   var payload = safeJsonParse_(response.getContentText());
   var characters = (payload.data && payload.data.characterData) || null;
   if (!characters) {
     var errors = Array.isArray(payload.errors) ? payload.errors : [];
-    throw new Error('Warcraft Logs character error: ' + normalizeCellString_(errors[0] && errors[0].message) + '.');
+    throw new Error('Erreur personnage Warcraft Logs : ' + normalizeCellString_(errors[0] && errors[0].message) + '.');
   }
   return targets.map(function (target, index) {
     var character = characters['c' + index];

@@ -16,9 +16,9 @@ function setUpWorkbook() {
       return plan.requests;
     });
 
-    ui.alert('Workbook layout applied.');
+    ui.alert('Classeur mis à jour.');
   } catch (error) {
-    ui.alert('Workbook setup failed: ' + error.message);
+    ui.alert('Mise à jour du classeur impossible : ' + error.message);
   }
 }
 
@@ -41,23 +41,15 @@ function formulaArgSeparator_() {
 // then delete the old rules/banding and add the current ones. A header conflict throws: nothing is written.
 function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   var separator = argSeparator || ',';
-  // Column migrations run first: the _Listes lookup written by the grids would otherwise shift with an inserted column.
-  var requests = buildLegacyTabMigrationRequests_(existingHeadersByName);
-  // Grids next: they delete obsolete tabs and create _Listes, which the Roster Spé dropdown references.
+  // Grids first: they create _Listes, which the Roster Spé dropdown references.
   // Grids read live sheet data inside the lock, so this part of the plan is not pure.
-  requests = requests.concat(buildGridRequests_(separator));
-  var effectiveHeadersByName = effectiveHeadersByName_(existingHeadersByName);
-  var deletedSheetIds = deletedSheetIdsFromRequests_(requests);
+  var requests = buildGridRequests_(separator);
   var metadataBySheetId = sheetMetadataById_(sheetsMetadata);
 
   for (var i = 0; i < TABS.length; i += 1) {
     var tab = TABS[i];
-    var existing = effectiveHeadersByName[tab.name];
+    var existing = existingHeadersByName[tab.name];
     var sheetId = tab.sheetId;
-
-    if (existing && deletedSheetIds[existing.sheetId]) {
-      existing = null;
-    }
 
     if (!existing) {
       requests = requests.concat(buildCreateTabRequests_(tab));
@@ -85,7 +77,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildConditionalFormatRequestsForTab_(sheetId, tab, separator));
   }
 
-  requests = requests.concat(buildRoleAndSpecRewriteRequests_(effectiveHeadersByName));
+  requests = requests.concat(buildRoleAndSpecRewriteRequests_(existingHeadersByName));
 
   requests = requests.concat(buildTabOrderRequests_(requests));
 
@@ -263,151 +255,6 @@ function buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOff
     ',SUMPRODUCT((t="' + treatment + '")*(((e="")+(e>=N(' + configStartDateRef + ')))>0))),0))';
 }
 
-// Returns the sheet ids deleted by requests already queued in the same batch.
-function deletedSheetIdsFromRequests_(requests) {
-  var ids = Object.create(null);
-  requests.forEach(function (request) {
-    if (request.deleteSheet && typeof request.deleteSheet.sheetId === 'number') {
-      ids[request.deleteSheet.sheetId] = true;
-    }
-  });
-  return ids;
-}
-
-// Applies this batch's Roster/Config column migrations to the read headers and rows, so the header check
-// and the role/spec rewrite see the real post-migration columns.
-function effectiveHeadersByName_(existingHeadersByName) {
-  var next = Object.create(null);
-  Object.keys(existingHeadersByName || {}).forEach(function (name) {
-    next[name] = existingHeadersByName[name];
-  });
-
-  var roster = next.Roster;
-  if (roster && isLegacyRosterHeaders_(roster.headers || [])) {
-    var removed = legacyRosterColumns_(roster.headers);
-    var keep = function (_, index) { return removed.indexOf(index) === -1; };
-    next.Roster = {
-      sheetId: roster.sheetId,
-      headers: roster.headers.filter(keep),
-      rows: (roster.rows || []).map(function (row) { return (row || []).filter(keep); }),
-      hasDataRows: roster.hasDataRows
-    };
-  }
-
-  roster = next.Roster;
-  if (roster && needsRosterGroupColumn_(roster.headers || [])) {
-    var groupLabel = labelsOf_(tabByName_('Roster'))[columnOf_(tabByName_('Roster'), 'raidGroup')];
-    next.Roster = {
-      sheetId: roster.sheetId,
-      headers: roster.headers.slice(0, 1).concat([groupLabel], roster.headers.slice(1)),
-      rows: (roster.rows || []).map(function (row) {
-        var copy = (row || []).slice();
-        copy.splice(1, 0, '');
-        return copy;
-      }),
-      hasDataRows: roster.hasDataRows
-    };
-  }
-
-  var config = next.Config;
-  var windowColumn = config ? legacyConfigWindowColumn_(config.headers || []) : -1;
-  if (windowColumn !== -1) {
-    var keepConfig = function (_, index) { return index !== windowColumn; };
-    next.Config = {
-      sheetId: config.sheetId,
-      headers: config.headers.filter(keepConfig),
-      rows: (config.rows || []).map(function (row) { return (row || []).filter(keepConfig); }),
-      hasDataRows: config.hasDataRows
-    };
-  }
-
-  return next;
-}
-
-// Index of the removed Config BiS window ID column (the BiS window is the tier), else -1.
-function legacyConfigWindowColumn_(headers) {
-  return indexOfHeader_(headers, ['bisWindowId', 'Fenêtre BiS active (ID)']);
-}
-
-// Indexes of the removed Roster columns (tank priority, raider gain, lifetime presence and its max), highest first.
-function legacyRosterColumns_(headers) {
-  return [
-    indexOfHeader_(headers, ['tankPriority', 'Priorité tank']),
-    indexOfHeader_(headers, ['gainFraction', 'Gain simulé du raider (%)']),
-    indexOfHeader_(headers, ['lifetimePresence', 'Présence totale', 'Présence vie']),
-    indexOfHeader_(headers, ['lifetimePresenceMax', 'Nombre de raids totaux', 'Max vie'])
-  ].filter(function (index) { return index !== -1; }).sort(function (a, b) { return b - a; });
-}
-
-// Adds delete/insert column migrations needed before writing reshaped headers.
-function buildLegacyTabMigrationRequests_(existingHeadersByName) {
-  var requests = [];
-  var roster = existingHeadersByName.Roster;
-  var config = existingHeadersByName.Config;
-
-  if (config && legacyConfigWindowColumn_(config.headers || []) !== -1) {
-    requests.push(buildDeleteColumnRequest_(config.sheetId, legacyConfigWindowColumn_(config.headers)));
-  }
-
-  if (roster && isLegacyRosterHeaders_(roster.headers || [])) {
-    legacyRosterColumns_(roster.headers).forEach(function (index) {
-      requests.push(buildDeleteColumnRequest_(roster.sheetId, index));
-    });
-  }
-
-  if (roster && needsRosterGroupColumn_(roster.headers || [])) {
-    requests.push({
-      insertDimension: {
-        range: {
-          sheetId: roster.sheetId,
-          dimension: 'COLUMNS',
-          startIndex: 1,
-          endIndex: 2
-        },
-        inheritFromBefore: true
-      }
-    });
-  }
-
-  return requests;
-}
-
-// True when Roster still has a removed column (tank priority, raider gain, lifetime presence).
-function isLegacyRosterHeaders_(headers) {
-  return legacyRosterColumns_(headers).length > 0;
-}
-
-// True when an existing Roster predates the "Groupe de raid" column (inserted at B, right after the name).
-function needsRosterGroupColumn_(headers) {
-  return headers.length > 0 && indexOfHeader_(headers, ['raidGroup', 'Groupe de raid']) === -1;
-}
-
-// First index in headers that matches any candidate, else -1.
-function indexOfHeader_(headers, candidates) {
-  for (var i = 0; i < headers.length; i += 1) {
-    for (var j = 0; j < candidates.length; j += 1) {
-      if (headers[i] === candidates[j]) {
-        return i;
-      }
-    }
-  }
-  return -1;
-}
-
-// Builds one deleteDimension request for a single column.
-function buildDeleteColumnRequest_(sheetId, index) {
-  return {
-    deleteDimension: {
-      range: {
-        sheetId: sheetId,
-        dimension: 'COLUMNS',
-        startIndex: index,
-        endIndex: index + 1
-      }
-    }
-  };
-}
-
 // Bold text on every Roster data cell (rows 2+); only the bold flag is touched.
 function buildBoldDataRequests_(sheetId, tab) {
   if (tab.name !== 'Roster') {
@@ -512,7 +359,7 @@ function hasAnyDataRows_(rows) {
   return false;
 }
 
-// Each existing header cell must hold its column's label or its old technical key (first 4.2 version).
+// Each existing header cell must hold its column's label or its technical key.
 function validateHeaderCompatibility_(tab, existingHeaders) {
   var keys = keysOf_(tab);
   var labels = labelsOf_(tab);
@@ -520,8 +367,7 @@ function validateHeaderCompatibility_(tab, existingHeaders) {
   var i;
 
   for (i = 0; i < keys.length; i += 1) {
-    // A renamed column still matches its earlier label, so renaming a label never blocks setup.
-    knownByIndex.push([keys[i], labels[i]].concat(tab.columns[i].formerLabels || []));
+    knownByIndex.push([keys[i], labels[i]]);
   }
 
   for (i = 0; i < existingHeaders.length; i += 1) {
@@ -536,8 +382,8 @@ function validateHeaderCompatibility_(tab, existingHeaders) {
 
 function headerConflictError_(tabName, existingHeaders, expectedLabels) {
   return new Error(
-    'Header conflict in tab "' + tabName + '". Existing: [' + existingHeaders.join(', ') +
-    ']. Expected keys or labels for: [' + expectedLabels.join(', ') + '].'
+    'Conflit d\'en-têtes dans l\'onglet "' + tabName + '". Existants : [' + existingHeaders.join(', ') +
+    ']. Attendus : [' + expectedLabels.join(', ') + '].'
   );
 }
 
@@ -1015,21 +861,13 @@ function buildRoleAndSpecRewriteForTab_(state, tab) {
     var roleValue = normalizeCellString_(row[roleIndex]);
 
     var roleDisplay = roleDisplayValue_(roleValue);
-    var specDisplay = specDisplayValue_(className, legacyDruidSpec_(className, specValue, roleDisplay));
+    var specDisplay = specDisplayValue_(className, specValue);
     if (specDisplay && specDisplay !== specValue) {
       requests.push(buildCellRewriteRequest_(state.sheetId, rowIndex, specIndex, specDisplay));
     }
   }
 
   return requests;
-}
-
-// The former single druid feral spec becomes ours (tank role) or félin (any other role); other specs pass through.
-function legacyDruidSpec_(className, specValue, roleDisplay) {
-  if (className !== 'Druide' || ['Combat farouche', '🐻 Combat farouche'].indexOf(specValue) === -1) {
-    return specValue;
-  }
-  return roleDisplay === ROLE_DISPLAY.Tank.value ? 'Combat farouche (ours)' : 'Combat farouche (félin)';
 }
 
 // One updateCells request that rewrites a single value.

@@ -4,7 +4,7 @@ var LOCK_TIMEOUT_MS = 1000;
 function withDocumentLock_(fn) {
   var lock = LockService.getDocumentLock();
   if (!lock.tryLock(LOCK_TIMEOUT_MS)) {
-    throw new Error('Another action is already running. Please try again.');
+    throw new Error('Une autre action est déjà en cours. Réessayez.');
   }
 
   try {

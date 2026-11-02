@@ -28,14 +28,14 @@ function deleteRaid() {
           'document.getElementById("status").textContent="Suppression...";' +
           'google.script.run' +
             '.withSuccessHandler(function(message){alert(message);google.script.host.close();})' +
-            '.withFailureHandler(function(error){document.getElementById("delete").disabled=false;document.getElementById("status").textContent="";alert("Delete raid failed:\\n"+error.message);})' +
+            '.withFailureHandler(function(error){document.getElementById("delete").disabled=false;document.getElementById("status").textContent="";alert("Suppression du raid impossible :\\n"+error.message);})' +
             '.submitDeleteRaid(select.value);' +
         '}' +
       '</script>' +
     '</div>'
   ).setWidth(520).setHeight(200);
 
-  ui.showModalDialog(html, 'Delete raid');
+  ui.showModalDialog(html, 'Supprimer un raid');
 }
 
 // Called by the Delete raid dialog after the owner confirmed; returns the summary.

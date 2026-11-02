@@ -110,11 +110,10 @@ var SPEC_COLUMNS = [
   { role: 'Caster DPS', className: 'Druide', spec: 'Équilibre', label: 'Druide Équilibre' }
 ];
 
-// Grid tabs rebuilt or refreshed by setup. tierItems is the former single grid, kept only so setup can remove it.
+// Grid tabs rebuilt or refreshed by setup.
 var GRID_TABS = {
   presence: { name: 'Présence', sheetId: 1011 },
-  awards: { name: 'Awards', sheetId: 1012 },
-  tierItems: { name: 'TierItems', sheetId: 1013 }
+  awards: { name: 'Awards', sheetId: 1012 }
 };
 
 // Shared grid coordinates used by setup formulas and grid builders.
@@ -134,7 +133,7 @@ var ARCHIVE_TABS = {
   awards: { name: 'Awards (archive)', sheetId: 1017 }
 };
 
-// One item grid per role, same layout as the former TierItems, restricted to the role's specs.
+// One item grid per role, restricted to the role's specs.
 var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
   return { role: role, name: 'Objets ' + role, sheetId: 1021 + index };
 });
@@ -201,9 +200,6 @@ function classHeaderTextHex_(className) {
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
-// Tabs from earlier layouts that setup deletes, data included (owner decision 2026-10-23: every character is in Roster).
-var REMOVED_TAB_NAMES = ['Rerolls'];
-
 // _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
 // (spills over 4 columns), and the Classe|Spé → Rôle table read by the Rôle formula.
 var LISTS_LAYOUT = {
@@ -237,8 +233,8 @@ var TABS = [
     group: 'input',
     columns: [
       { key: 'tierId', label: 'Palier actif (ID)', note: 'Identifiant du palier en cours, ex. forever-t1. Rempli par l\'officier en ligne 2.' },
-      { key: 'bisWindowStart', label: 'Début du palier', formerLabels: ['Début fenêtre BiS', 'Date de début du palier en cours'], note: 'Date de début du palier actif. Seuls les raids et loots BiS à partir de cette date comptent pour Présence palier et Ratio BiS (reset BiS à chaque nouveau palier).' },
-      { key: 'openRaidId', label: 'Raid en cours', formerLabels: ['Raid ouvert (ID)'], note: 'Identifiant du raid en cours, rempli par Raid > Démarrer et vidé par Raid > Terminer ou Annuler.' },
+      { key: 'bisWindowStart', label: 'Début du palier', note: 'Date de début du palier actif. Seuls les raids et loots BiS à partir de cette date comptent pour Présence palier et Ratio BiS (reset BiS à chaque nouveau palier).' },
+      { key: 'openRaidId', label: 'Raid en cours', note: 'Identifiant du raid en cours, rempli par Raid > Démarrer et vidé par Raid > Terminer ou Annuler.' },
       { key: 'wclRealm', label: 'Serveur WCL', note: 'Région et serveur des personnages sur Warcraft Logs, ex. eu/thunderstrike. Utilisé par Configuration > Mettre à jour les parses WCL.' }
     ]
   },
@@ -252,9 +248,9 @@ var TABS = [
       { key: 'class', label: 'Classe', note: 'Classe du personnage (liste).' },
       { key: 'spec', label: 'Spé', note: 'Spécialisation : une des spés de la classe, ex. Mage → Arcanes, Feu ou Givre ; Druide → Combat farouche (ours) ou (félin).' },
       { key: 'role', label: 'Rôle', note: 'Rempli automatiquement depuis la classe et la spé, ne pas saisir.', formula: true },
-      { key: 'dpsParse', label: 'Parse WCL moyen', formerLabels: ['Parse WCL moyen (1-100)'], note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
+      { key: 'dpsParse', label: 'Parse WCL moyen', note: 'Parse moyen Warcraft Logs du palier, de 1 à 100. Vide = 1.' },
       { key: 'tierPresence', label: 'Présence palier', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'tierPresenceMax', label: 'Nombre de raids du palier', formerLabels: ['Max palier', 'Nombre de raids par palier'], note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'tierPresenceMax', label: 'Nombre de raids du palier', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisLootCount', label: 'Loots BiS', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },

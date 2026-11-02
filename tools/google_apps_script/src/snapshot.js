@@ -50,7 +50,7 @@ function exportRaidSnapshot() {
 
     showSnapshotDialog_(snapshot);
   } catch (error) {
-    ui.alert('Export raid snapshot failed:\n' + error.message);
+    ui.alert('Export du snapshot impossible :\n' + error.message);
   }
 }
 
@@ -283,7 +283,7 @@ function buildSnapshot_(data) {
   var tierId = normalizeCellString_(configRow[columnOf_(configTab, 'tierId')]).trim();
 
   if (!tierId) {
-    errors.push('Config: Palier actif (ID) vide.');
+    errors.push('Config : Palier actif (ID) vide.');
   }
 
   var raidersResult = buildSnapshotRaiders_((data && data.rosterRows) || []);
@@ -291,7 +291,7 @@ function buildSnapshot_(data) {
   errors = errors.concat(raidersResult.errors, itemsResult.errors);
 
   if (errors.length) {
-    throw new Error('Snapshot validation failed:\n- ' + errors.join('\n- '));
+    throw new Error('Snapshot invalide :\n- ' + errors.join('\n- '));
   }
 
   return {
@@ -408,17 +408,17 @@ function snapshotRole_(roleCell) {
   return null;
 }
 
-// Rows of a contract tab whose row 1 matches the current columns (label, former label or key);
+// Rows of a contract tab whose row 1 matches the current columns (label or key);
 // otherwise columns read by index would hit the wrong cells, so ask for a setup refresh.
 function requireCurrentLayout_(rows, tabName) {
   var tab = tabByName_(tabName);
   var header = (rows && rows[0]) || [];
   var mismatch = tab.columns.some(function (column, index) {
     var cell = normalizeCellString_(header[index]).trim();
-    return [column.label, column.key].concat(column.formerLabels || []).indexOf(cell) === -1;
+    return [column.label, column.key].indexOf(cell) === -1;
   });
   if (mismatch) {
-    throw new Error('The "' + tabName + '" tab does not match the current layout. Run "Configuration > Rafraîchir le classeur" first; nothing was changed.');
+    throw new Error('L\'onglet "' + tabName + '" ne suit pas la disposition actuelle. Lancez d\'abord "Configuration > Rafraîchir le classeur" ; rien n\'a été modifié.');
   }
   return rows;
 }
@@ -427,7 +427,7 @@ function requireCurrentLayout_(rows, tabName) {
 function snapshotSheet_(spreadsheet, name) {
   var sheet = spreadsheet.getSheetByName(name);
   if (!sheet) {
-    throw new Error('Missing tab: ' + name + '.');
+    throw new Error('Onglet manquant : ' + name + '.');
   }
   return sheet;
 }
@@ -490,7 +490,7 @@ function showSnapshotDialog_(snapshot) {
     '</div>'
   ).setWidth(760).setHeight(420);
 
-  SpreadsheetApp.getUi().showModalDialog(html, 'Export raid snapshot');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Export du snapshot');
 }
 
 // Escapes text for an HTML attribute or element body.
@@ -503,7 +503,7 @@ function snapshotEscapeHtml_(value) {
 }
 
 // Menu action: abandons the open raid (no loot to import): removes the raid protections,
-// clears Config's Raid ouvert and drops its Raids row when it holds nothing but the ID.
+// clears Config's Raid en cours and drops its Raids row when it holds nothing but the ID.
 function cancelOpenRaid() {
   var ui = SpreadsheetApp.getUi();
 
@@ -555,10 +555,10 @@ function cancelOpenRaid() {
     });
 
     ui.alert(raidId
-      ? 'Raid ' + raidId + ' annulé : protections retirées, Raid ouvert vidé.'
+      ? 'Raid ' + raidId + ' annulé : protections retirées, Raid en cours vidé.'
       : 'Aucun raid démarré : rien à annuler.');
   } catch (error) {
-    ui.alert('Cancel open raid failed:\n' + error.message);
+    ui.alert('Annulation du raid impossible :\n' + error.message);
   }
 }
 
