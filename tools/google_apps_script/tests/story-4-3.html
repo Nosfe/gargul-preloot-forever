@@ -92,19 +92,36 @@
         contains(gainTable, "='IMPACT'".replace(/'/g, '"'), 'gain table keeps IMPACT rows only');
         equal(gainTable.split('FILTER(HSTACK(').length - 1, SPEC_COLUMNS.filter(function (spec) { return spec.role !== 'Tank'; }).length, 'one FILTER per non-tank spec column');
         var ranking = TracerHarness.getRows(RANKING_TAB_NAME);
-        equal(ranking[0].slice(0, 7).join('|'), 'Objet (ID)|Objet|1er|2e|3e|4e|5e', 'ranking headers');
+        equal(ranking[0].slice(0, 12).join('|'), 'Objet (ID)|Objet|1er|Score 1er|2e|Score 2e|3e|Score 3e|4e|Score 4e|5e|Score 5e', 'ranking headers');
         contains(ranking[1][0], "SORT(UNIQUE(FILTER('_Listes'!$V$2:$V$" + LISTS_LAYOUT.rowCount, 'item list from the gain table');
         contains(ranking[1][1], "'_Listes'!$W$2:$W$" + LISTS_LAYOUT.rowCount, 'item name from the gain table');
         var first = ranking[1][2];
-        var fifth = ranking[1][6];
+        var firstScore = ranking[1][3];
+        var fifth = ranking[1][10];
         contains(first, "XLOOKUP(i&\"|\"&'Roster'!$C$2:$C$201&\"|\"&'Roster'!$D$2:$D$201", 'gain looked up by item and Classe|Spé');
         contains(first, "'Roster'!$E$2:$E$201=\"Tank\"", 'tanks have no Impact');
         contains(first, "('Roster'!$G$2:$G$201/'Roster'!$H$2:$H$201)*IF(ISNUMBER(p)*(p<>0),p,1)", 'presence ratio × parse');
         contains(first, "s,IF((g=\"\")+(b=\"\"),\"\",b*g/('Roster'!$J$2:$J$201+1))", '× gain in DPS / (Loots Impact + 1), like scores.js');
         contains(first, 'SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE)', 'raiders sorted by score, highest first');
-        contains(first, 'INDEX(r,1,1)&" ("&FIXED(INDEX(r,1,2),3,TRUE)&")"', '1er shows name and score with 3 decimals');
+        contains(first, 'IFERROR(INDEX(r,1,1),"")', '1er column is the name');
+        contains(firstScore, 'IFERROR(INDEX(r,1,2),"")', 'Score 1er column is the number');
         contains(fifth, 'INDEX(r,5,1)', '5e reads rank 5');
         contains(first, '$A$2:$A$' + (RANKING_ROW_COUNT + 1), 'formulas cover the item rows');
+        var rankingRules = TracerHarness.getSheetMeta(RANKING_TAB_NAME).conditionalFormatRules;
+        equal(rankingRules.length, CLASS_SPECS.length, 'one class colour rule per class');
+        var mageRankRule = rankingRules.filter(function (rule) { return rule.booleanRule.condition.values[0].userEnteredValue.indexOf('="Mage"') !== -1; })[0];
+        equal(mageRankRule.ranges.map(function (range) { return range.startColumnIndex; }).join(','), '2,4,6,8,10', 'class colour on the 5 name columns');
+        contains(mageRankRule.booleanRule.condition.values[0].userEnteredValue, '=XLOOKUP(C2,INDIRECT("\'Roster\'!$A$2:$A$201"),INDIRECT("\'Roster\'!$C$2:$C$201"),"")="Mage"', 'name looked up in Roster for its class');
+        equal(mageRankRule.booleanRule.format.textFormat.bold, true, 'names bold');
+        equal(RANKING_SCORE_COLORS.slice(3).join(','), '000000,000000', '4e and 5e scores in black');
+        var scoreFormats = buildRankingFormulaRequests_(1030, tabByName_(RANKING_TAB_NAME), ',').filter(function (request) {
+          return request.repeatCell && request.repeatCell.cell.userEnteredFormat.numberFormat;
+        });
+        equal(scoreFormats.map(function (request) { return request.repeatCell.range.startColumnIndex; }).join(','), '3,5,7,9,11', 'score format on the 5 score columns');
+        var gold = scoreFormats[0].repeatCell.cell.userEnteredFormat.textFormat;
+        equal(JSON.stringify(gold.foregroundColor) + '|' + gold.bold, JSON.stringify(rgbHex_('C9A227')) + '|true', '1er score in bold gold');
+        equal(JSON.stringify(scoreFormats[4].repeatCell.cell.userEnteredFormat.textFormat.foregroundColor), JSON.stringify(rgbHex_('000000')), '5e score in black');
+        equal(scoreFormats[0].repeatCell.cell.userEnteredFormat.numberFormat.pattern, '0.000', 'scores with 3 decimals');
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
@@ -139,6 +156,15 @@
         equal(JSON.stringify(TracerHarness.getRows('Roster')), before, 'setup rerun is stable for formulas');
       });
 
+      // A Classement par objet tab from the earlier layout (one column per rank) is rewritten, not refused.
+      withHarness(function () {
+        seedCoreFlatTabs();
+        TracerHarness.seedSheet(RANKING_TAB_NAME, [['Objet (ID)', 'Objet', '1er', '2e', '3e', '4e', '5e']]);
+        setUpWorkbook();
+        contains(TracerHarness.getAlerts().slice(-1)[0], 'Classeur mis à jour', 'old ranking layout refreshed');
+        equal(TracerHarness.getRows(RANKING_TAB_NAME)[0][3], 'Score 1er', 'ranking headers rewritten');
+      });
+
       withHarness(function () {
         TracerHarness.setLocale('fr_FR');
         seedCoreFlatTabs();
@@ -158,7 +184,7 @@
           var value = rows[1][columnOf_(rosterTab, key)];
           equal(String(value).indexOf(','), -1, key + ' uses no commas in fr_FR');
         });
-        TracerHarness.getRows(RANKING_TAB_NAME)[1].slice(0, 7).concat([TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn]]).forEach(function (formula, index) {
+        TracerHarness.getRows(RANKING_TAB_NAME)[1].slice(0, 12).concat([TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn]]).forEach(function (formula, index) {
           equal(String(formula).indexOf(','), -1, 'ranking formula ' + index + ' uses no commas in fr_FR');
         });
       });

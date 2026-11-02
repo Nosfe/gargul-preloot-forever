@@ -47,7 +47,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Roster | One row per character: raid group, class, spec, role, parse, tier presence, loot counts and BiS Ratio. |
 | Présence | One row per raid, one column per raider (`1` present, `B` bench). |
 | Awards | One block per raider: date, item, item ID, Traitement and the raid ID (hidden). |
-| Classement par objet | Formulas only: one row per item with an IMPACT Statut, and the 5 raiders with the best Impact score for it, as "Name (score)". Raid > Démarrer sends Gargul the same scores, for every raider. |
+| Classement par objet | Formulas only: one row per item with an IMPACT Statut, and the 5 raiders with the best Impact score for it (name in bold, in its class colour; score in gold, silver and bronze for the top 3). Raid > Démarrer sends Gargul the same scores, for every raider. |
 | Objets Tank / Heal / Melee DPS / Ranged DPS / Caster DPS | Items of the tier, with a Statut (BIS, IMPACT, CLASS_BOUND, NORMAL) and a Gain (DPS) per spec: the raw DPS the item adds for that spec. |
 | Raids | Raid ID, instance, date, report codes, import time, tier. |
 | Config | Active tier, tier start, open raid, WCL server. |

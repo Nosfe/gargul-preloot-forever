@@ -137,6 +137,8 @@ var OBJETS_FIRST_SPEC_COLUMN = 3;
 var RANKING_TAB_NAME = 'Classement par objet';
 var RANKING_ROW_COUNT = 500;
 var RANKING_SIZE = 5;
+// Score text colour by rank: gold, silver, bronze, then black.
+var RANKING_SCORE_COLORS = ['C9A227', '8E9399', 'B0682A', '000000', '000000'];
 var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
   'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
   'Distance', 'Relique'];
@@ -277,11 +279,16 @@ var TABS = [
     columns: [
       { key: 'itemId', label: 'Objet (ID)', note: 'Objets avec le statut IMPACT pour au moins une spé. Calculé, ne pas saisir.', formula: true },
       { key: 'itemName', label: 'Objet', note: 'Nom repris des onglets Objets. Calculé, ne pas saisir.', formula: true },
-      { key: 'rank1', label: '1er', note: 'Meilleur score Impact pour cet objet : Présence palier ÷ Nombre de raids du palier × parse × gain de l\'objet en DPS pour sa spé ÷ (Loots Impact + 1). Les tanks n\'ont pas d\'Impact. Calculé, ne pas saisir.', formula: true },
+      { key: 'rank1', label: '1er', note: 'Raider au meilleur score Impact pour cet objet. Calculé, ne pas saisir.', formula: true },
+      { key: 'score1', label: 'Score 1er', note: 'Score Impact : Présence palier ÷ Nombre de raids du palier × parse × gain de l\'objet en DPS pour sa spé ÷ (Loots Impact + 1). Les tanks n\'ont pas d\'Impact. Calculé, ne pas saisir.', formula: true },
       { key: 'rank2', label: '2e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'score2', label: 'Score 2e', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'rank3', label: '3e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'score3', label: 'Score 3e', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'rank4', label: '4e', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'rank5', label: '5e', note: 'Calculé, ne pas saisir.', formula: true }
+      { key: 'score4', label: 'Score 4e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'rank5', label: '5e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'score5', label: 'Score 5e', note: 'Calculé, ne pas saisir.', formula: true }
     ]
   }
 ];

@@ -54,7 +54,10 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
     if (!existing) {
       requests = requests.concat(buildCreateTabRequests_(tab));
     } else {
-      validateHeaderCompatibility_(tab, existing.headers);
+      // A view holds only formulas, so its headers are simply rewritten.
+      if (tab.group !== 'view') {
+        validateHeaderCompatibility_(tab, existing.headers);
+      }
       sheetId = existing.sheetId;
     }
 
@@ -185,17 +188,23 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
     '=MAP(' + items + ',LAMBDA(i,IF(i="","",IFERROR(INDEX(FILTER(' + listsRange(3) + ',' + listsRange(2) + '=i,' + listsRange(3) + '<>""),1),""))))'
   ];
   for (var rank = 1; rank <= RANKING_SIZE; rank += 1) {
-    formulas.push('=MAP(' + items + ',LAMBDA(i,IF(i="","",ARRAYFORMULA(LET(' +
-      'n,' + rosterRange('raiderKey') + ',' +
-      'g,IFERROR(XLOOKUP(i&"|"&' + rosterRange('class') + '&"|"&' + rosterRange('spec') + ',' + listsRange(0) + ',' + listsRange(1) + '),""),' +
-      'p,' + rosterRange('dpsParse') + ',' +
-      'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)),""),' +
-      's,IF((g="")+(b=""),"",b*g/(' + rosterRange('impactLootCount') + '+1)),' +
-      'r,IFERROR(SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE),""),' +
-      'IFERROR(INDEX(r,' + rank + ',1)&" ("&FIXED(INDEX(r,' + rank + ',2),3,TRUE)&")",""))))))');
+    // Name then score: column 1 and 2 of the sorted (name, score) list.
+    [1, 2].forEach(function (part) {
+      formulas.push('=MAP(' + items + ',LAMBDA(i,IF(i="","",ARRAYFORMULA(LET(' +
+        'n,' + rosterRange('raiderKey') + ',' +
+        'g,IFERROR(XLOOKUP(i&"|"&' + rosterRange('class') + '&"|"&' + rosterRange('spec') + ',' + listsRange(0) + ',' + listsRange(1) + '),""),' +
+        'p,' + rosterRange('dpsParse') + ',' +
+        'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)),""),' +
+        's,IF((g="")+(b=""),"",b*g/(' + rosterRange('impactLootCount') + '+1)),' +
+        'r,IFERROR(SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE),""),' +
+        'IFERROR(INDEX(r,' + rank + ',' + part + '),""))))))');
+    });
   }
 
-  return [{
+  var dataRange = function (column) {
+    return { sheetId: sheetId, startRowIndex: 1, endRowIndex: RANKING_ROW_COUNT + 1, startColumnIndex: column, endColumnIndex: column + 1 };
+  };
+  var requests = [{
     updateCells: {
       start: { sheetId: sheetId, rowIndex: 1, columnIndex: 0 },
       rows: [{ values: formulas.map(function (formula) {
@@ -204,6 +213,49 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
       fields: 'userEnteredValue'
     }
   }];
+  // Names bold (class colour comes from conditional rules); scores 3 decimals, gold/silver/bronze for the top 3.
+  for (var index = 0; index < RANKING_SIZE; index += 1) {
+    requests.push({
+      repeatCell: {
+        range: dataRange(columnOf_(tab, 'rank' + (index + 1))),
+        cell: { userEnteredFormat: { textFormat: { bold: true } } },
+        fields: 'userEnteredFormat.textFormat'
+      }
+    }, {
+      repeatCell: {
+        range: dataRange(columnOf_(tab, 'score' + (index + 1))),
+        cell: { userEnteredFormat: {
+          numberFormat: { type: 'NUMBER', pattern: '0.000' },
+          textFormat: { foregroundColor: rgbHex_(RANKING_SCORE_COLORS[index]), bold: index < 3 }
+        } },
+        fields: 'userEnteredFormat(numberFormat,textFormat)'
+      }
+    });
+  }
+  return requests;
+}
+
+// Ranking names in their class colour (like the Présence headers); conditional rules cannot read Roster without INDIRECT.
+function buildRankingClassColorRules_(sheetId, argSeparator) {
+  var tab = tabByName_(RANKING_TAB_NAME);
+  var firstName = columnLetter_(columnOf_(tab, 'rank1'));
+  var roster = tabByName_('Roster');
+  var rosterRange = function (key) {
+    var letter = columnLetter_(columnOf_(roster, key));
+    return 'INDIRECT("\'Roster\'!$' + letter + '$2:$' + letter + '$201")';
+  };
+  return CLASS_SPECS.map(function (entry) {
+    var request = buildConditionalFormatRequest_(sheetId, columnOf_(tab, 'rank1'), columnOf_(tab, 'rank1') + 1,
+      '=XLOOKUP(' + firstName + '2,' + rosterRange('raiderKey') + ',' + rosterRange('class') + ',"")="' + entry.name + '"',
+      { textFormat: { foregroundColor: rgbHex_(classHeaderTextHex_(entry.name)), bold: true } },
+      argSeparator);
+    var ranges = request.addConditionalFormatRule.rule.ranges;
+    for (var rank = 2; rank <= RANKING_SIZE; rank += 1) {
+      var column = columnOf_(tab, 'rank' + rank);
+      ranges.push({ sheetId: sheetId, startRowIndex: 1, startColumnIndex: column, endColumnIndex: column + 1 });
+    }
+    return request;
+  });
 }
 
 // Rôle formula on Roster rows 2..201: looks up Classe|Spé in the _Listes role table.
@@ -835,6 +887,10 @@ function buildConditionalFormatRequestsForTab_(sheetId, tab, argSeparator) {
         separator
       )
     );
+  }
+
+  if (tab.name === RANKING_TAB_NAME) {
+    requests = requests.concat(buildRankingClassColorRules_(sheetId, separator));
   }
 
   if (tab.name === 'Raids') {
