@@ -134,7 +134,7 @@ var OBJETS_SLOT_COLUMN = 2;
 var OBJETS_FIRST_SPEC_COLUMN = 3;
 
 // Top 5 Impact per item; the formulas cover this many item rows.
-var RANKING_TAB_NAME = 'Classement par objet';
+var RANKING_TAB_NAME = 'Classement Impact';
 var RANKING_ROW_COUNT = 500;
 var RANKING_SIZE = 5;
 // Ranking fill by rank: gold, silver, bronze, then none.
@@ -147,7 +147,7 @@ var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains
 var RAID_GROUPS = ['Raid 1', 'Raid 2'];
 
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
-var TAB_ORDER = ['Roster', 'Présence', 'Awards', RANKING_TAB_NAME]
+var TAB_ORDER = ['Roster', RANKING_TAB_NAME, 'Présence', 'Awards']
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
   .concat(['Raids', 'Config', ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, '_Listes']);
 
@@ -200,7 +200,7 @@ var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
 // _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
 // (spills over 4 columns), the Classe|Spé → Rôle table read by the Rôle formula, and the IMPACT gain table
-// (key Objet|Classe|Spé, gain, Objet (ID), Objet; spills over 4 columns) read by the Classement par objet tab.
+// (key Objet|Classe|Spé, gain, Objet (ID), Objet; spills over 4 columns) read by the Classement Impact tab.
 var LISTS_LAYOUT = {
   specCount: 4,
   rosterLookupColumn: 6,

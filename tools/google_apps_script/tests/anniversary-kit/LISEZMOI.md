@@ -20,7 +20,7 @@ Pour coller : ouvrir le fichier, Ctrl+A, Ctrl+C, cliquer la cellule indiquée, C
    - Configuration > Rafraîchir le classeur.
    - Configuration > Nouveau palier (ex. `anniversary-test`, date du jour).
    - Coller les fichiers du kit. Les classes tournent : Yajiru est Démoniste Affliction, corriger sa ligne si besoin.
-2. **Un objet à soi** : pour voir l'Impact sur soi, ajouter dans l'onglet Objets de son rôle une ligne avec l'ID d'un objet de ses sacs (Wowhead), `IMPACT` et un gain en DPS brut sur sa spé. L'onglet **Classement par objet** montre alors les 5 meilleurs scores Impact de chaque objet ; ce sont ces scores que Gargul affichera.
+2. **Un objet à soi** : pour voir l'Impact sur soi, ajouter dans l'onglet Objets de son rôle une ligne avec l'ID d'un objet de ses sacs (Wowhead), `IMPACT` et un gain en DPS brut sur sa spé. L'onglet **Classement Impact** montre alors les 5 meilleurs scores Impact de chaque objet ; ce sont ces scores que Gargul affichera.
 3. **Addon**
    - Copier `Gargul_Preloot/Gargul_Preloot` dans `Interface/AddOns` du client Anniversary (normalement `World of Warcraft\_anniversary_\`).
    - Supprimer l'ancienne 1.1.0.

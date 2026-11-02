@@ -168,7 +168,7 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   ];
 }
 
-// Classement par objet row 2: the IMPACT item list, names, then one spill per rank. Same Impact formula as the
+// Classement Impact row 2: the IMPACT item list, names, then one spill per rank. Same Impact formula as the
 // snapshot (scores.js): presence ratio × parse (empty, text or 0 = 1) × gain in DPS / (Loots Impact + 1); no tanks.
 function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
   if (tab.name !== RANKING_TAB_NAME) {

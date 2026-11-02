@@ -86,7 +86,7 @@
         equal(keysOf_(rosterTab).indexOf('impactBase'), -1, 'Roster has no Impact column');
         equal(rows[0][columnOf_(rosterTab, 'bisRatio') + 1] || '', '', 'Ratio BiS is the last Roster column');
 
-        // Classement par objet: IMPACT gain table in _Listes, then item list, names and top 5.
+        // Classement Impact: IMPACT gain table in _Listes, then item list, names and top 5.
         var gainTable = TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn];
         contains(gainTable, "FILTER(HSTACK('Objets Caster DPS'!$A$4:$A$1000&\"|Mage|Givre\"", 'gain table keys Objet|Classe|Spé');
         contains(gainTable, "='IMPACT'".replace(/'/g, '"'), 'gain table keeps IMPACT rows only');
@@ -152,7 +152,7 @@
         equal(JSON.stringify(TracerHarness.getRows('Roster')), before, 'setup rerun is stable for formulas');
       });
 
-      // A Classement par objet tab from an earlier layout (name and score columns) is cleared and rebuilt, not refused.
+      // A Classement Impact tab from an earlier layout (name and score columns) is cleared and rebuilt, not refused.
       withHarness(function () {
         seedCoreFlatTabs();
         TracerHarness.seedSheet(RANKING_TAB_NAME, [
