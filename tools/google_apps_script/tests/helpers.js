@@ -41,6 +41,16 @@ function loadJsonSync_(path) {
   return JSON.parse(request.responseText);
 }
 
+function loadTextSync_(path) {
+  var request = new XMLHttpRequest();
+  request.open('GET', path, false);
+  request.send(null);
+  if (request.status !== 0 && request.status !== 200) {
+    throw new Error('Unable to load ' + path + ': status ' + request.status);
+  }
+  return request.responseText;
+}
+
 function textCell_(value) {
   return { userEnteredValue: { stringValue: String(value) } };
 }

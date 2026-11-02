@@ -1,5 +1,5 @@
 var WCL_TOKEN_URL = 'https://www.warcraftlogs.com/oauth/token';
-var WCL_API_URL = 'https://www.warcraftlogs.com/api/v2/client';
+var WCL_API_URL = 'https://fresh.warcraftlogs.com/api/v2/client';
 var WCL_CLIENT_ID_KEY = 'WCL_CLIENT_ID';
 var WCL_CLIENT_SECRET_KEY = 'WCL_CLIENT_SECRET';
 
@@ -159,7 +159,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
     });
 
     var reportCode = extractReportCode_(linkText);
-    var report = fetchWarcraftLogsReport_(reportCode, requireWclCredentials_());
+    var report = fetchWarcraftLogsReport_(reportCode, requireWclCredentials_(), wclApiUrlForLink_(linkText));
     var raidPulls = buildRaidPulls_(report);
     var credits = creditedRaiders_(raidPulls, rosterIndex);
     var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
@@ -579,8 +579,14 @@ function getWclAccessToken_(credentials) {
   return payload.access_token;
 }
 
+// Each WCL site (fresh, classic, sod, www) only serves its own reports; a bare code uses fresh, like the parses.
+function wclApiUrlForLink_(linkText) {
+  var match = normalizeCellString_(linkText).match(/\b(www|fresh|classic|sod)\.warcraftlogs\.com\b/i);
+  return match ? 'https://' + match[1].toLowerCase() + '.warcraftlogs.com/api/v2/client' : WCL_API_URL;
+}
+
 // Fetches one report payload from WCL GraphQL.
-function fetchWarcraftLogsReport_(reportCode, credentials) {
+function fetchWarcraftLogsReport_(reportCode, credentials, apiUrl) {
   var token = getWclAccessToken_(credentials);
   var query = [
     'query RaidAttendance($code: String!) {',
@@ -607,7 +613,7 @@ function fetchWarcraftLogsReport_(reportCode, credentials) {
     '}'
   ].join('\n');
 
-  var response = UrlFetchApp.fetch(WCL_API_URL, {
+  var response = UrlFetchApp.fetch(apiUrl || WCL_API_URL, {
     method: 'post',
     contentType: 'application/json',
     headers: { Authorization: 'Bearer ' + token },

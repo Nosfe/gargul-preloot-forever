@@ -465,6 +465,27 @@
         equal(protectionCount_() + '|' + TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')], '0|', 'protections and Raid ouvert cleared');
       });
 
+      // The Anniversary kit (tests/make_anniversary_kit.js) pastes into a valid snapshot.
+      var tsvRows = function (name) {
+        return loadTextSync_('anniversary-kit/' + name).split(/\r?\n/).filter(Boolean).map(function (line) {
+          return line.split('\t').map(function (cell) {
+            if (/^\d+%$/.test(cell)) { return Number(cell.slice(0, -1)) / 100; }
+            return /^\d+$/.test(cell) ? Number(cell) : cell;
+          });
+        });
+      };
+      var kitItems = buildSnapshotItems_(ITEM_TABS.map(function (tab) {
+        return { role: tab.role, rows: [[], [], []].concat(tsvRows('objets-' + tab.role.toLowerCase().replace(/ /g, '-') + '-A4.tsv')) };
+      }));
+      equal(kitItems.errors.join(' | '), '', 'kit Objets tabs have no snapshot error');
+      equal(kitItems.items.length, 46, 'kit has 46 items');
+      var kitRoster = tsvRows('roster-A2.tsv');
+      equal(kitRoster.length + '|' + tsvRows('roster-parse-F2.tsv').length, '28|28', 'kit Roster and parses have 28 rows');
+      kitRoster.forEach(function (row) {
+        var role = SPEC_COLUMNS.filter(function (spec) { return spec.className === row[2] && spec.spec === row[3]; })[0].role;
+        classSpecLabel_(row[2], row[3], snapshotRole_(role));
+      });
+
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;

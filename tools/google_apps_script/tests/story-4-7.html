@@ -15,16 +15,6 @@
 <script src="../src/attendance.js"></script>
 <script>
   (function () {
-    function loadTextSync_(path) {
-      var request = new XMLHttpRequest();
-      request.open('GET', path, false);
-      request.send(null);
-      if (request.status !== 0 && request.status !== 200) {
-        throw new Error('Unable to load ' + path + ': status ' + request.status);
-      }
-      return request.responseText;
-    }
-
     function findAwardBlockStart_(winner) {
       var header = TracerHarness.getRows('Awards')[0] || [];
       for (var start = 0; start < header.length; start += AWARDS_BLOCK_WIDTH) {
