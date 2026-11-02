@@ -208,7 +208,7 @@ local function validateItem(item, index, errors, seenIDs, validRaiders)
             if not STATUTS[spec.statut] then
                 errors[#errors + 1] = where .. " : statut invalide pour " .. spec.classSpec
             end
-            if spec.gainFraction ~= nil and not isFiniteNumber(spec.gainFraction) then
+            if spec.gainDps ~= nil and not isFiniteNumber(spec.gainDps) then
                 errors[#errors + 1] = where .. " : gain non numérique pour " .. spec.classSpec
             end
         end
@@ -305,7 +305,7 @@ function Snapshot.statut(itemID, classSpec)
     return spec and spec.statut or nil
 end
 
---- The snapshot's {classSpec, statut, gainFraction} for an item and spec, or nil.
+--- The snapshot's {classSpec, statut, gainDps} for an item and spec, or nil.
 function Snapshot.itemSpec(itemID, classSpec)
     local bySpec = statutsByItem[tonumber(itemID)]
     return bySpec and bySpec[classSpec] or nil

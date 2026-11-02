@@ -201,7 +201,7 @@ function buildTierArchiveRows_(itemStates) {
   return archive;
 }
 
-// The archive tab: header, rows, percent Gain, frozen header and a warning-only protection.
+// The archive tab: header, rows, Gain in DPS, frozen header and a warning-only protection.
 function buildTierArchiveTabRequests_(archiveName, archiveRows, spreadsheet) {
   // Fixed id derived from the name, so later requests in the same batch can target the new tab; skip ids in use.
   var sheetId = 2000;
@@ -213,7 +213,7 @@ function buildTierArchiveTabRequests_(archiveName, archiveRows, spreadsheet) {
   while (usedIds.indexOf(sheetId) !== -1) {
     sheetId += 1;
   }
-  var header = ['Rôle', 'Objet (ID)', 'Objet', 'Emplacement', 'Spé', 'Statut', 'Gain (%)'];
+  var header = ['Rôle', 'Objet (ID)', 'Objet', 'Emplacement', 'Spé', 'Statut', 'Gain (DPS)'];
   var toCell = function (value) {
     return typeof value === 'number' ? { userEnteredValue: { numberValue: value } } : { userEnteredValue: { stringValue: String(value) } };
   };
@@ -240,7 +240,7 @@ function buildTierArchiveTabRequests_(archiveName, archiveRows, spreadsheet) {
   }, {
     repeatCell: {
       range: { sheetId: sheetId, startRowIndex: 1, startColumnIndex: header.length - 1, endColumnIndex: header.length },
-      cell: { userEnteredFormat: { numberFormat: { type: 'PERCENT', pattern: '0.0%' } } },
+      cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '0.0' } } },
       fields: 'userEnteredFormat.numberFormat'
     }
   }, {

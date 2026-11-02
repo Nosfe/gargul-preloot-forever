@@ -76,7 +76,7 @@
         equal(raids[1][raidsTier] + '|' + raids[2][raidsTier] + '|' + raids[3][raidsTier], 't1|t0|t2', 'blank raid tiers stamped by date (before the start: outgoing; from it: new), others kept');
 
         var archive = TracerHarness.getRows('Objets (t1)');
-        equal(archive[0].join('|'), 'R\u00f4le|Objet (ID)|Objet|Emplacement|Sp\u00e9|Statut|Gain (%)', 'archive header (long layout)');
+        equal(archive[0].join('|'), 'R\u00f4le|Objet (ID)|Objet|Emplacement|Sp\u00e9|Statut|Gain (DPS)', 'archive header (long layout)');
         var tankSpecs = SPEC_COLUMNS.filter(function (entry) { return entry.role === 'Tank'; });
         equal(archive[1].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[0].label + '|BIS|0.12', 'one row per filled spec (1)');
         equal(archive[2].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[1].label + '|IMPACT|0.3', 'one row per filled spec (2)');

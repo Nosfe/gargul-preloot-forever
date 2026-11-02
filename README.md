@@ -8,10 +8,10 @@ The workbook and its Apps Script live in [tools/google_apps_script](tools/google
 
 ## What it does
 
-- **Snapshot import:** paste the snapshot exported by the workbook (Base64 or raw JSON). It holds each raider's spec, tier presence, loot counts and parse, the Objets table (Statut and Gain per item and spec), and the full Impact score of every raider for each item. The whole snapshot is checked and every score is recomputed. Anything inconsistent is refused, and the previous snapshot is kept.
+- **Snapshot import:** paste the snapshot exported by the workbook (Base64 or raw JSON). It holds each raider's spec, tier presence, loot counts and parse, the Objets table (Statut and Gain in DPS per item and spec), and the full Impact score of every raider for each item. The whole snapshot is checked and every score is recomputed. Anything inconsistent is refused, and the previous snapshot is kept.
 - **Two columns after Gargul's own:**
   - **Ratio BiS**: (tier presence / raids in the tier) / (BiS loots + 1).
-  - **Impact**: the workbook's score for the rolled item and the roller: (tier presence / raids in the tier) × parse / (Impact loots + 1) × the item's gain for the roller's spec. It is shown only when that spec's Statut for the item is IMPACT, and never for tanks. It stays as exported until the next snapshot.
+  - **Impact**: the workbook's score for the rolled item and the roller: (tier presence / raids in the tier) × parse × the item's gain in DPS for the roller's spec / (Impact loots + 1). It is shown only when that spec's Statut for the item is IMPACT, and never for tanks. It stays as exported until the next snapshot.
 - **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and NORMAL. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked NORMAL.
   - Click a button, or **Fermer** (Close) to keep the marked one.
   - `/preloot` lists every award of the raid, so a treatment can be changed later.

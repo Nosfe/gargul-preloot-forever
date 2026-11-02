@@ -72,7 +72,7 @@ for index, itemID in ipairs(ITEM_IDS) do
         specs[#specs + 1] = {
             classSpec = spec[1],
             statut = statut,
-            gainFraction = statut == "IMPACT" and (5 + (index * 7 + slot * 3) % 30) / 100 or nil,
+            gainDps = statut == "IMPACT" and (5 + (index * 7 + slot * 3) % 30) or nil,
         }
     end
     -- Same rule as the workbook: every raider whose spec has IMPACT on the item gets its full score.

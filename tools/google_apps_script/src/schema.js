@@ -277,7 +277,7 @@ var TABS = [
     columns: [
       { key: 'itemId', label: 'Objet (ID)', note: 'Objets avec le statut IMPACT pour au moins une spé. Calculé, ne pas saisir.', formula: true },
       { key: 'itemName', label: 'Objet', note: 'Nom repris des onglets Objets. Calculé, ne pas saisir.', formula: true },
-      { key: 'rank1', label: '1er', note: 'Meilleur score Impact pour cet objet : Présence palier ÷ Nombre de raids du palier × parse ÷ (Loots Impact + 1) × gain de l\'objet pour sa spé. Les tanks n\'ont pas d\'Impact. Calculé, ne pas saisir.', formula: true },
+      { key: 'rank1', label: '1er', note: 'Meilleur score Impact pour cet objet : Présence palier ÷ Nombre de raids du palier × parse × gain de l\'objet en DPS pour sa spé ÷ (Loots Impact + 1). Les tanks n\'ont pas d\'Impact. Calculé, ne pas saisir.', formula: true },
       { key: 'rank2', label: '2e', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'rank3', label: '3e', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'rank4', label: '4e', note: 'Calculé, ne pas saisir.', formula: true },

@@ -37,16 +37,13 @@
         var expected = entry.expected;
         var isTank = inputs.role === ROLE_DISPLAY.Tank.value;
         var bisRatio = bisRatio_(inputs.tierPresence, inputs.tierMax, inputs.bisLoots);
-        var impactBase = impactBase_(inputs.tierPresence, inputs.tierMax, inputs.parse, inputs.impactLoots, isTank);
-        var impactScore = impactScore_(impactBase, inputs.statut, inputs.gainFraction);
+        var impactScore = impactScore_(inputs.tierPresence, inputs.tierMax, inputs.parse, inputs.impactLoots, isTank, inputs.statut, inputs.gainDps);
 
         equal(bisRatio, expected.bisRatio, entry.name + ' bisRatio');
-        equal(impactBase, expected.impactBase, entry.name + ' impactBase');
         equal(impactScore, expected.impactScore, entry.name + ' impactScore');
 
         resultsByName[entry.name] = {
           bisRatio: bisRatio,
-          impactBase: impactBase,
           impactScore: impactScore
         };
       });
@@ -54,13 +51,12 @@
       var nearTieA = resultsByName['near-tie-a'];
       var nearTieB = resultsByName['near-tie-b'];
       truthy(nearTieA && nearTieB, 'near-tie cases loaded');
-      equal(nearTieA.impactBase === nearTieB.impactBase, false, 'near-tie pair stays distinct');
+      equal(nearTieA.impactScore === nearTieB.impactScore, false, 'near-tie pair stays distinct');
 
       var exactTieA = resultsByName['exact-tie-a'];
       var exactTieB = resultsByName['exact-tie-b'];
       truthy(exactTieA && exactTieB, 'exact-tie cases loaded');
       equal(exactTieA.bisRatio, exactTieB.bisRatio, 'exact-tie pair bisRatio equal');
-      equal(exactTieA.impactBase, exactTieB.impactBase, 'exact-tie pair impactBase equal');
       equal(exactTieA.impactScore, exactTieB.impactScore, 'exact-tie pair impactScore equal');
     }
 
@@ -103,7 +99,8 @@
         var fifth = ranking[1][6];
         contains(first, "XLOOKUP(i&\"|\"&'Roster'!$C$2:$C$201&\"|\"&'Roster'!$D$2:$D$201", 'gain looked up by item and Classe|Spé');
         contains(first, "'Roster'!$E$2:$E$201=\"Tank\"", 'tanks have no Impact');
-        contains(first, "('Roster'!$G$2:$G$201/'Roster'!$H$2:$H$201)*IF(ISNUMBER(p)*(p<>0),p,1)/('Roster'!$J$2:$J$201+1)", 'Impact base like scores.js');
+        contains(first, "('Roster'!$G$2:$G$201/'Roster'!$H$2:$H$201)*IF(ISNUMBER(p)*(p<>0),p,1)", 'presence ratio × parse');
+        contains(first, "s,IF((g=\"\")+(b=\"\"),\"\",b*g/('Roster'!$J$2:$J$201+1))", '× gain in DPS / (Loots Impact + 1), like scores.js');
         contains(first, 'SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE)', 'raiders sorted by score, highest first');
         contains(first, 'INDEX(r,1,1)&" ("&FIXED(INDEX(r,1,2),3,TRUE)&")"', '1er shows name and score with 3 decimals');
         contains(fifth, 'INDEX(r,5,1)', '5e reads rank 5');
@@ -189,8 +186,8 @@
         equal(rows[0][6], 'Présence palier', 'first calculated column appended at G');
       });
 
-      equal(impactBase_(3, 3, '80', 1, false), 40 / 80 * 1 * 1, 'text parse counts as 1, like the sheet');
-      equal(impactBase_(2, 4, 80, 1, false), 20, 'tier presence 2/4, parse 80, 1 Impact loot gives 20');
+      equal(impactScore_(3, 3, '80', 1, false, 'IMPACT', 10), 5, 'text parse counts as 1, like the sheet');
+      equal(impactScore_(2, 4, 80, 1, false, 'IMPACT', 25), 500, 'tier presence 2/4, parse 80, 25 DPS, 1 Impact loot gives 500');
 
       withHarness(function () {
         TABS.forEach(function (tab) {

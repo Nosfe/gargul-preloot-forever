@@ -164,7 +164,7 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
 }
 
 // Classement par objet row 2: the IMPACT item list, names, then one spill per rank. Same Impact formula as the
-// snapshot (scores.js): presence ratio × parse (empty, text or 0 = 1) / (Loots Impact + 1) × gain; no tanks.
+// snapshot (scores.js): presence ratio × parse (empty, text or 0 = 1) × gain in DPS / (Loots Impact + 1); no tanks.
 function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
   if (tab.name !== RANKING_TAB_NAME) {
     return [];
@@ -189,8 +189,8 @@ function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
       'n,' + rosterRange('raiderKey') + ',' +
       'g,IFERROR(XLOOKUP(i&"|"&' + rosterRange('class') + '&"|"&' + rosterRange('spec') + ',' + listsRange(0) + ',' + listsRange(1) + '),""),' +
       'p,' + rosterRange('dpsParse') + ',' +
-      'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)/(' + rosterRange('impactLootCount') + '+1)),""),' +
-      's,IF((g="")+(b=""),"",b*g),' +
+      'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)),""),' +
+      's,IF((g="")+(b=""),"",b*g/(' + rosterRange('impactLootCount') + '+1)),' +
       'r,IFERROR(SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE),""),' +
       'IFERROR(INDEX(r,' + rank + ',1)&" ("&FIXED(INDEX(r,' + rank + ',2),3,TRUE)&")",""))))))');
   }

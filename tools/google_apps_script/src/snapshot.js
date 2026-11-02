@@ -187,8 +187,8 @@ function addImpactScores_(items, raiders) {
     item.impactScores = [];
     (raiders || []).forEach(function (raider) {
       var spec = specByLabel[raider.classSpec];
-      var base = impactBase_(raider.tierPresence, raider.tierPresenceMax, raider.dpsParse, raider.impactLootCount, raider.role === 'TANK');
-      var score = spec ? impactScore_(base, spec.statut, spec.gainFraction) : null;
+      var score = spec ? impactScore_(raider.tierPresence, raider.tierPresenceMax, raider.dpsParse, raider.impactLootCount,
+        raider.role === 'TANK', spec.statut, spec.gainDps) : null;
       if (score !== null) {
         item.impactScores.push({ raiderKey: raider.raiderKey, score: score });
       }
@@ -242,13 +242,13 @@ function buildSnapshotItems_(itemStates) {
           return;
         }
 
-        var gainFraction = null;
+        var gainDps = null;
         if (!(gainCell === '' || gainCell === null || gainCell === undefined)) {
           if (typeof gainCell !== 'number' || !isFinite(gainCell)) {
             errors.push(where + (rowIndex + 1) + ': gain non numérique pour ' + spec.label + '.');
             return;
           }
-          gainFraction = gainCell;
+          gainDps = gainCell;
         }
 
         var pairKey = itemKey + '|' + spec.label;
@@ -261,7 +261,7 @@ function buildSnapshotItems_(itemStates) {
         itemsById[itemKey].specs.push({
           classSpec: spec.label,
           statut: statutCell,
-          gainFraction: gainFraction
+          gainDps: gainDps
         });
       });
     }

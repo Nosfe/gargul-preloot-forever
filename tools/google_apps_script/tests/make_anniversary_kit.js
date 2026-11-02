@@ -42,14 +42,14 @@ write('roster-parse-F2.tsv', NAMES.map(function (name, index) {
   return [String(35 + ((index + 1) * 13) % 65)];
 }));
 
-// Objets tabs from A4: ID, Objet, Emplacement, then Statut | Gain (%) per spec of the tab.
+// Objets tabs from A4: ID, Objet, Emplacement, then Statut | Gain (DPS) per spec of the tab.
 ITEM_TABS.forEach(function (tab) {
   var specs = SPEC_COLUMNS.filter(function (spec) { return spec.role === tab.role; });
   write('objets-' + tab.role.toLowerCase().replace(/ /g, '-') + '-A4.tsv', ITEM_IDS.map(function (itemID, itemIndex) {
     var row = [String(itemID), '', ''];
     specs.forEach(function (spec, specIndex) {
       var statut = STATUTS[(itemIndex + specIndex) % STATUTS.length];
-      row.push(statut, statut === 'IMPACT' ? (5 + (itemIndex * 7 + specIndex * 3) % 30) + '%' : '');
+      row.push(statut, statut === 'IMPACT' ? String(5 + (itemIndex * 7 + specIndex * 3) % 30) : '');
     });
     return row;
   }));

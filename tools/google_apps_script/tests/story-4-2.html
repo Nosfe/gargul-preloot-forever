@@ -73,7 +73,7 @@
         TracerHarness.seedSheet('Objets Heal', [
           ['', '', '', 'Heal'],
           ['', '', '', 'Paladin Sacr\u00e9'],
-          ['Objet (ID)', 'Objet', 'Emplacement', 'Statut', 'Gain (%)']
+          ['Objet (ID)', 'Objet', 'Emplacement', 'Statut', 'Gain (DPS)']
         ]);
 
         setUpWorkbook();
@@ -81,7 +81,7 @@
         var rows = TracerHarness.getRows('Objets Heal');
         equal(rows[2][2], 'Emplacement', 'Objets row 3 has Emplacement in column C');
         equal(rows[2][3], 'Statut', 'Objets row 3 first of pair is Statut');
-        equal(rows[2][4], 'Gain (%)', 'Objets row 3 second of pair is Gain (%)');
+        equal(rows[2][4], 'Gain (DPS)', 'Objets row 3 second of pair is Gain (DPS)');
 
         var meta = TracerHarness.getSheetMeta('Objets Heal');
         var statusRule = validationForColumn(meta, 3);
@@ -249,12 +249,12 @@
           '4,9', 'Raid (ID) hidden in each Awards block');
 
         var tierRows = TracerHarness.getRows('Objets Tank');
-        equal(tierRows[2][2] + ',' + tierRows[2][3] + ',' + tierRows[2][4], 'Emplacement,Statut,Gain (%)', 'Objets: Emplacement, then Statut then Gain');
+        equal(tierRows[2][2] + ',' + tierRows[2][3] + ',' + tierRows[2][4], 'Emplacement,Statut,Gain (DPS)', 'Objets: Emplacement, then Statut then Gain');
         var tierMeta = TracerHarness.getSheetMeta('Objets Tank');
         var tierFormulas = tierMeta.conditionalFormatRules.map(function (rule) {
           return rule.booleanRule.condition.values[0].userEnteredValue;
         });
-        equal(tierFormulas.indexOf('=E4<0') !== -1 && tierFormulas.indexOf('=E4>=1/50') !== -1, true, 'gain rules on the second column of the pair');
+        equal(tierFormulas.indexOf('=E4<0') !== -1 && tierFormulas.indexOf('=E4>0') !== -1, true, 'gain rules on the second column of the pair');
         equal(validationForColumn(tierMeta, 4), null, 'no Statut dropdown left on the Gain column');
 
         var lists = TracerHarness.getRows('_Listes');

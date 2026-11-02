@@ -44,12 +44,12 @@
         {
           "classSpec": "Guerrier Protection",
           "statut": "BIS",
-          "gainFraction": 0.12
+          "gainDps": 12
         },
         {
           "classSpec": "Paladin Sacré",
           "statut": "IMPACT",
-          "gainFraction": 0.35
+          "gainDps": 35
         }
       ],
       "impactScores": []
@@ -60,13 +60,13 @@
         {
           "classSpec": "Mage Givre",
           "statut": "IMPACT",
-          "gainFraction": 0.5
+          "gainDps": 50
         }
       ],
       "impactScores": [
         {
           "raiderKey": "Alya",
-          "score": 0.08333333333333333
+          "score": 8.333333333333334
         }
       ]
     }

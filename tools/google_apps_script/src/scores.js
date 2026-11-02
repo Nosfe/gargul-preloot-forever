@@ -9,29 +9,22 @@ function bisRatio_(tierPresence, tierMax, bisLoots) {
   return (presence / max) / (loots + 1);
 }
 
-// Impact base: normalized tier presence * parse / (Impact loots + 1), null for tanks.
-function impactBase_(tierPresence, tierMax, parse, impactLoots, isTank) {
-  if (isTank) {
+// Impact score: (tier presence / raids of the tier) × parse × item gain in DPS / (Impact loots + 1).
+// Only for an IMPACT Statut, never for tanks (null); an empty gain counts as 0.
+function impactScore_(tierPresence, tierMax, parse, impactLoots, isTank, statut, gainDps) {
+  if (isTank || statut !== 'IMPACT') {
     return null;
   }
 
   var presence = Number(tierPresence || 0);
   var max = Number(tierMax || 0);
   var loots = Number(impactLoots || 0);
-  // Same rule as the sheet's IF(N(parse)=0,1,parse): only a real non-zero number counts.
+  // Same rule as the sheet: only a real non-zero number counts as the parse, anything else is 1.
   var parseNumber = typeof parse === 'number' && parse !== 0 && isFinite(parse) ? parse : 1;
 
   if (max <= 0) {
     max = 1;
   }
 
-  return (presence / max) * parseNumber / (loots + 1);
-}
-
-// Full impact score: only for IMPACT items, null otherwise.
-function impactScore_(impactBase, statut, gainFraction) {
-  if (statut !== 'IMPACT' || impactBase === null || impactBase === undefined) {
-    return null;
-  }
-  return Number(impactBase) * Number(gainFraction || 0);
+  return (presence / max) * parseNumber * Number(gainDps || 0) / (loots + 1);
 }

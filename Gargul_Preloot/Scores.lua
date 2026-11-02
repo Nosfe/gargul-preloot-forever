@@ -26,9 +26,10 @@ function Scores.bisRatio(raider)
     return (presence / presenceMax) / (bisLoots + 1)
 end
 
---- Impact base = (Tier Presence / Tier Presence Max) × parse / (Impact loots + 1); nil for tanks or a missing operand.
-function Scores.impactBase(raider)
-    if type(raider) ~= "table" or raider.role == "TANK" then
+--- Impact Score = (Tier Presence / Tier Presence Max) × parse × item gain in DPS / (Impact loots + 1), only for an IMPACT
+--- Statut; nil for tanks or a missing operand; a null gain counts as 0 like the workbook. Used to check the snapshot's scores.
+function Scores.impactScore(raider, itemSpec)
+    if type(raider) ~= "table" or raider.role == "TANK" or type(itemSpec) ~= "table" or itemSpec.statut ~= "IMPACT" then
         return nil
     end
 
@@ -40,20 +41,5 @@ function Scores.impactBase(raider)
         return nil
     end
 
-    return (presence / presenceMax) * parse / (impactLoots + 1)
-end
-
---- Full Impact Score = Impact base × gain, only for an IMPACT Statut; a null gain counts as 0 like the workbook.
---- Used to check the snapshot's precomputed scores.
-function Scores.impactScore(raider, itemSpec)
-    if type(itemSpec) ~= "table" or itemSpec.statut ~= "IMPACT" then
-        return nil
-    end
-
-    local impactBase = Scores.impactBase(raider)
-    if not impactBase then
-        return nil
-    end
-
-    return impactBase * (tonumber(itemSpec.gainFraction) or 0)
+    return (presence / presenceMax) * parse * (tonumber(itemSpec.gainDps) or 0) / (impactLoots + 1)
 end

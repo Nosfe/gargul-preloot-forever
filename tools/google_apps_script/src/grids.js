@@ -27,7 +27,7 @@ function buildGridRequests_(argSeparator) {
   return requests;
 }
 
-// _Listes T2: one row per Objets row and non-tank spec with Statut IMPACT: Objet|Classe|Spé, gain (empty = 0), Objet (ID), Objet.
+// _Listes T2: one row per Objets row and non-tank spec with Statut IMPACT: Objet|Classe|Spé, gain in DPS (empty = 0), Objet (ID), Objet.
 function buildImpactGainTableRequest_(listsSheetId, argSeparator) {
   var parts = [];
   ITEM_TABS.filter(function (itemTab) { return itemTab.role !== 'Tank'; }).forEach(function (itemTab) {
@@ -1047,7 +1047,7 @@ function buildTierHeaderRows_(specs) {
     var statusColumn = OBJETS_FIRST_SPEC_COLUMN + (index * 2);
     row2[statusColumn] = { userEnteredValue: { stringValue: entry.spec } };
     row3[statusColumn] = { userEnteredValue: { stringValue: 'Statut' } };
-    row3[statusColumn + 1] = { userEnteredValue: { stringValue: 'Gain (%)' } };
+    row3[statusColumn + 1] = { userEnteredValue: { stringValue: 'Gain (DPS)' } };
 
     if (!Object.prototype.hasOwnProperty.call(roleStartByName, entry.role)) {
       roleStartByName[entry.role] = statusColumn;
@@ -1164,7 +1164,7 @@ function buildTierWidthRequests_(sheetId, specs) {
   return requests;
 }
 
-// Builds one negative and one >=2% conditional format rule for each gain column.
+// Builds one negative and one positive conditional format rule for each gain column.
 function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
   var requests = [];
 
@@ -1190,7 +1190,7 @@ function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
         gainColumn,
         gainColumn + 1,
         3,
-        '=' + gainLetter + '4>=1/50',
+        '=' + gainLetter + '4>0',
         { textFormat: { foregroundColor: rgbHex_('1E7D32'), bold: true } },
         argSeparator
       )
@@ -1266,7 +1266,7 @@ function buildTierSlotValidationRequests_(sheetId) {
   })];
 }
 
-// Applies percent number format on all gain columns from row 4 onward.
+// Gain columns from row 4 onward: raw DPS with one decimal.
 function buildTierGainFormatRequests_(sheetId, specs) {
   var requests = [];
 
@@ -1283,8 +1283,8 @@ function buildTierGainFormatRequests_(sheetId, specs) {
         cell: {
           userEnteredFormat: {
             numberFormat: {
-              type: 'PERCENT',
-              pattern: '0.0%'
+              type: 'NUMBER',
+              pattern: '0.0'
             }
           }
         },

@@ -10,12 +10,11 @@
         "impactLoots": 1,
         "role": "Heal",
         "statut": "IMPACT",
-        "gainFraction": 0.25
+        "gainDps": 25
       },
       "expected": {
         "bisRatio": 0.5,
-        "impactBase": 40,
-        "impactScore": 10
+        "impactScore": 1000
       }
     },
     {
@@ -28,12 +27,11 @@
         "impactLoots": 1,
         "role": "Melee DPS",
         "statut": "IMPACT",
-        "gainFraction": 0.3
+        "gainDps": 30
       },
       "expected": {
         "bisRatio": 0.8,
-        "impactBase": 0.4,
-        "impactScore": 0.12
+        "impactScore": 12
       }
     },
     {
@@ -46,11 +44,10 @@
         "impactLoots": 3,
         "role": "Tank",
         "statut": "IMPACT",
-        "gainFraction": 0.4
+        "gainDps": 40
       },
       "expected": {
         "bisRatio": 0.2777777777777778,
-        "impactBase": null,
         "impactScore": null
       }
     },
@@ -64,11 +61,10 @@
         "impactLoots": 1,
         "role": "Caster DPS",
         "statut": "NORMAL",
-        "gainFraction": 0.5
+        "gainDps": 50
       },
       "expected": {
         "bisRatio": 0.25,
-        "impactBase": 25,
         "impactScore": null
       }
     },
@@ -82,12 +78,11 @@
         "impactLoots": 1,
         "role": "Ranged DPS",
         "statut": "IMPACT",
-        "gainFraction": -0.1
+        "gainDps": -10
       },
       "expected": {
         "bisRatio": 1,
-        "impactBase": 12,
-        "impactScore": -1.2000000000000002
+        "impactScore": -120
       }
     },
     {
@@ -100,11 +95,10 @@
         "impactLoots": 0,
         "role": "Heal",
         "statut": "IMPACT",
-        "gainFraction": 0.2
+        "gainDps": 20
       },
       "expected": {
         "bisRatio": 0,
-        "impactBase": 0,
         "impactScore": 0
       }
     },
@@ -118,11 +112,10 @@
         "impactLoots": 0,
         "role": "Melee DPS",
         "statut": "IMPACT",
-        "gainFraction": 1
+        "gainDps": 1
       },
       "expected": {
         "bisRatio": 1,
-        "impactBase": 1,
         "impactScore": 1
       }
     },
@@ -136,11 +129,10 @@
         "impactLoots": 0,
         "role": "Melee DPS",
         "statut": "IMPACT",
-        "gainFraction": 1
+        "gainDps": 1
       },
       "expected": {
         "bisRatio": 1,
-        "impactBase": 1.0000000005,
         "impactScore": 1.0000000005
       }
     },
@@ -154,12 +146,11 @@
         "impactLoots": 1,
         "role": "Caster DPS",
         "statut": "IMPACT",
-        "gainFraction": 0.4
+        "gainDps": 40
       },
       "expected": {
         "bisRatio": 0.5,
-        "impactBase": 2.5,
-        "impactScore": 1
+        "impactScore": 100
       }
     },
     {
@@ -172,12 +163,11 @@
         "impactLoots": 1,
         "role": "Caster DPS",
         "statut": "IMPACT",
-        "gainFraction": 0.4
+        "gainDps": 40
       },
       "expected": {
         "bisRatio": 0.5,
-        "impactBase": 2.5,
-        "impactScore": 1
+        "impactScore": 100
       }
     }
   ]

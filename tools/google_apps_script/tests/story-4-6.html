@@ -149,9 +149,9 @@
         writeCells_(sheetId, 3, statusColumn, [statut, gain]);
       }
 
-      setItem_('Objets Tank', 777, 'Protection', 'BIS', 0.12);
-      setItem_('Objets Heal', 777, 'Sacré', 'IMPACT', 0.35);
-      setItem_('Objets Caster DPS', 888, 'Givre', 'IMPACT', 0.5);
+      setItem_('Objets Tank', 777, 'Protection', 'BIS', 12);
+      setItem_('Objets Heal', 777, 'Sacré', 'IMPACT', 35);
+      setItem_('Objets Caster DPS', 888, 'Givre', 'IMPACT', 50);
     }
 
     try {
@@ -306,12 +306,12 @@
         // Snapshot v3: full Impact score per item for each raider whose spec has IMPACT; none for tanks.
         var zoe = raiders_({}).raiders[0];
         var scored = addImpactScores_([
-          { itemID: 12, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainFraction: 0.5 }, { classSpec: 'Guerrier Protection', statut: 'IMPACT', gainFraction: 0.5 }] },
-          { itemID: 13, specs: [{ classSpec: 'Mage Feu', statut: 'BIS', gainFraction: 0.3 }] },
-          { itemID: 14, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainFraction: null }] },
-          { itemID: 15, specs: [{ classSpec: 'Mage Givre', statut: 'IMPACT', gainFraction: 0.5 }] }
+          { itemID: 12, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainDps: 50 }, { classSpec: 'Guerrier Protection', statut: 'IMPACT', gainDps: 50 }] },
+          { itemID: 13, specs: [{ classSpec: 'Mage Feu', statut: 'BIS', gainDps: 30 }] },
+          { itemID: 14, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainDps: null }] },
+          { itemID: 15, specs: [{ classSpec: 'Mage Givre', statut: 'IMPACT', gainDps: 50 }] }
         ], [zoe, tank]);
-        deepEqual(scored[0].impactScores, [{ raiderKey: 'Zoe', score: 6.25 }], 'IMPACT spec: (2/4) × 50 / 2 × 0.5; tank gets none');
+        deepEqual(scored[0].impactScores, [{ raiderKey: 'Zoe', score: 625 }], 'IMPACT spec: (2/4) × 50 × 50 DPS / 2; tank gets none');
         deepEqual(scored[1].impactScores, [], 'BIS Statut: no Impact score');
         deepEqual(scored[2].impactScores, [{ raiderKey: 'Zoe', score: 0 }], 'empty gain counts as 0');
         deepEqual(scored[3].impactScores, [], 'other spec: no Impact score');
@@ -322,7 +322,7 @@
         }
         contains(items_([12.5, 'X', 'Doigt', 'IMPACT', 0.1]).errors.join(' '), 'Objet (ID) invalide', 'non-integer itemID rejected');
         contains(items_([12, 'X', 'Doigt', 'IMPACT', 'abc']).errors.join(' '), 'gain non numérique', 'non-numeric gain rejected');
-        equal(items_([12, 'X', 'Doigt', 'IMPACT', '']).items[0].specs[0].gainFraction, null, 'blank gain exported as null');
+        equal(items_([12, 'X', 'Doigt', 'IMPACT', '']).items[0].specs[0].gainDps, null, 'blank gain exported as null');
         var dup = buildSnapshotItems_([
           { role: 'Caster DPS', rows: [[], [], [], [12, 'X', 'Doigt', 'IMPACT', 0.1], [12, 'X', 'Doigt', 'BIS', 0.2]] }
         ]);
