@@ -31,10 +31,9 @@ function Columns.bisCellText(displayName)
     return GP.Scores.format(ratio)
 end
 
---- Text shown in the Impact cell: empty unless the item's Statut is IMPACT for the roller's spec.
+--- Text shown in the Impact cell: the workbook's score for the rolled item and roller, empty when it has none.
 function Columns.impactCellText(displayName, itemID)
-    local raider = GP.Awards.liveRaider(Columns.rollerKey(displayName))
-    local score = raider and GP.Scores.impactScore(raider, GP.Snapshot.itemSpec(itemID, raider.classSpec))
+    local score = itemID and GP.Snapshot.impactScore(itemID, Columns.rollerKey(displayName))
     if not score then
         return ""
     end

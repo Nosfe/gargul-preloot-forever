@@ -132,6 +132,11 @@ var ITEM_TABS = ROLE_OPTIONS.map(function (role, index) {
 // Objets columns: A Objet (ID), B Objet, C Emplacement, then one Statut/Gain pair per spec.
 var OBJETS_SLOT_COLUMN = 2;
 var OBJETS_FIRST_SPEC_COLUMN = 3;
+
+// Top 5 Impact per item; the formulas cover this many item rows.
+var RANKING_TAB_NAME = 'Classement par objet';
+var RANKING_ROW_COUNT = 500;
+var RANKING_SIZE = 5;
 var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
   'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
   'Distance', 'Relique'];
@@ -140,7 +145,7 @@ var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains
 var RAID_GROUPS = ['Raid 1', 'Raid 2'];
 
 // Tab order applied on every setup run; technical tabs last. Tabs not listed end up after these.
-var TAB_ORDER = ['Roster', 'Présence', 'Awards']
+var TAB_ORDER = ['Roster', 'Présence', 'Awards', RANKING_TAB_NAME]
   .concat(ITEM_TABS.map(function (tab) { return tab.name; }))
   .concat(['Raids', 'Config', ARCHIVE_TABS.presence.name, ARCHIVE_TABS.awards.name, '_Listes']);
 
@@ -192,12 +197,15 @@ function classHeaderTextHex_(className) {
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
 // _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
-// (spills over 4 columns), and the Classe|Spé → Rôle table read by the Rôle formula.
+// (spills over 4 columns), the Classe|Spé → Rôle table read by the Rôle formula, and the IMPACT gain table
+// (key Objet|Classe|Spé, gain, Objet (ID), Objet; spills over 4 columns) read by the Classement par objet tab.
 var LISTS_LAYOUT = {
   specCount: 4,
   rosterLookupColumn: 6,
   roleKeyColumn: 16,
   roleValueColumn: 17,
+  impactGainColumn: 19,
+  rowCount: 5000,
   columnCount: 26
 };
 
@@ -244,8 +252,7 @@ var TABS = [
       { key: 'tierPresenceMax', label: 'Nombre de raids du palier', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'bisLootCount', label: 'Loots BiS', note: 'Calculé, ne pas saisir.', formula: true },
       { key: 'impactLootCount', label: 'Loots Impact', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true },
-      { key: 'impactBase', label: 'Impact (sans gain objet)', note: 'Calculé, ne pas saisir.', formula: true }
+      { key: 'bisRatio', label: 'Ratio BiS', note: 'Calculé, ne pas saisir.', formula: true }
     ]
   },
   {
@@ -260,6 +267,21 @@ var TABS = [
       { key: 'reportCodes', label: 'Rapports WCL', note: 'Codes de rapports importés pour ce raid, séparés par des espaces.' },
       { key: 'importedAt', label: 'Importé le', note: 'Date et heure du dernier import de rapport pour ce raid.' },
       { key: 'raidTier', label: 'Palier (ID)', note: 'Palier du raid : écrit par Raid > Démarrer, et par Nouveau palier pour les raids sans palier.' }
+    ]
+  },
+  {
+    // Formula view: top 5 full Impact scores per item, from Roster and the Objets tabs.
+    name: RANKING_TAB_NAME,
+    sheetId: 1030,
+    group: 'view',
+    columns: [
+      { key: 'itemId', label: 'Objet (ID)', note: 'Objets avec le statut IMPACT pour au moins une spé. Calculé, ne pas saisir.', formula: true },
+      { key: 'itemName', label: 'Objet', note: 'Nom repris des onglets Objets. Calculé, ne pas saisir.', formula: true },
+      { key: 'rank1', label: '1er', note: 'Meilleur score Impact pour cet objet : Présence palier ÷ Nombre de raids du palier × parse ÷ (Loots Impact + 1) × gain de l\'objet pour sa spé. Les tanks n\'ont pas d\'Impact. Calculé, ne pas saisir.', formula: true },
+      { key: 'rank2', label: '2e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'rank3', label: '3e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'rank4', label: '4e', note: 'Calculé, ne pas saisir.', formula: true },
+      { key: 'rank5', label: '5e', note: 'Calculé, ne pas saisir.', formula: true }
     ]
   }
 ];

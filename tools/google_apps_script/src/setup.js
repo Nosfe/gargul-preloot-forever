@@ -67,6 +67,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
       .concat(buildValidationRequestsForTab_(sheetId, tab, separator));
 
     requests = requests.concat(buildRosterFormulaRequests_(sheetId, tab, separator));
+    requests = requests.concat(buildRankingFormulaRequests_(sheetId, tab, separator));
     requests = requests.concat(buildRoleFormulaRequests_(sheetId, tab, separator));
     requests = requests.concat(buildConfigProtectionRequests_(sheetId, tab, metadataBySheetId));
 
@@ -84,7 +85,7 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   return { requests: requests };
 }
 
-// Writes all Roster score formulas for rows 2..201 and applies 3-decimal display on ratio and impact.
+// Writes all Roster score formulas for rows 2..201 and applies 3-decimal display on Ratio BiS.
 function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   if (tab.name !== 'Roster') {
     return [];
@@ -94,21 +95,14 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
   var rosterTab = tabByName_('Roster');
   var configTab = tabByName_('Config');
   var nameColumn = columnOf_(rosterTab, 'raiderKey');
-  var roleColumn = columnOf_(rosterTab, 'role');
-  var parseColumn = columnOf_(rosterTab, 'dpsParse');
   var tierPresenceColumn = columnOf_(rosterTab, 'tierPresence');
   var tierPresenceMaxColumn = columnOf_(rosterTab, 'tierPresenceMax');
   var bisLootCountColumn = columnOf_(rosterTab, 'bisLootCount');
-  var impactLootCountColumn = columnOf_(rosterTab, 'impactLootCount');
   var bisRatioColumn = columnOf_(rosterTab, 'bisRatio');
-  var impactBaseColumn = columnOf_(rosterTab, 'impactBase');
   var nameLetter = columnLetter_(nameColumn);
-  var roleLetter = columnLetter_(roleColumn);
-  var parseLetter = columnLetter_(parseColumn);
   var tierPresenceLetter = columnLetter_(tierPresenceColumn);
   var tierPresenceMaxLetter = columnLetter_(tierPresenceMaxColumn);
   var bisLootCountLetter = columnLetter_(bisLootCountColumn);
-  var impactLootCountLetter = columnLetter_(impactLootCountColumn);
   var presenceStart = '$' + PRESENCE_FIRST_RAID_ROW + ':$1000';
   var awardsStart = '$' + AWARDS_FIRST_ROW + ':$1000';
   var presenceSheet = "'" + GRID_TABS.presence.name + "'!";
@@ -129,8 +123,7 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
       { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",' + buildTierPresenceMaxFormula_(presenceSheet, presenceStart, presenceDateColumn, presenceRaidIdColumn, configStartDateRef).slice(1) + ')', separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef, 'BIS'), separator) } },
       { userEnteredValue: { formulaValue: applyArgSeparator_(buildTierLootFormula_(nameLetter, rowNumber, awardsStart, awardsDateOffset, awardsTreatmentOffset, AWARDS_RAID_ID_OFFSET, presenceDateLookup, configStartDateRef, 'IMPACT'), separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')/($' + bisLootCountLetter + rowNumber + '+1))', separator) } },
-      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF(OR($' + nameLetter + rowNumber + '="",$' + roleLetter + rowNumber + '="' + ROLE_DISPLAY.Tank.value + '"),"",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')*IF(N($' + parseLetter + rowNumber + ')=0,1,$' + parseLetter + rowNumber + ')/($' + impactLootCountLetter + rowNumber + '+1))', separator) } }
+      { userEnteredValue: { formulaValue: applyArgSeparator_('=IF($' + nameLetter + rowNumber + '="","",($' + tierPresenceLetter + rowNumber + '/$' + tierPresenceMaxLetter + rowNumber + ')/($' + bisLootCountLetter + rowNumber + '+1))', separator) } }
     ];
     rows.push({ values: rowValues });
   }
@@ -154,7 +147,7 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
           startRowIndex: 1,
           endRowIndex: 201,
           startColumnIndex: bisRatioColumn,
-          endColumnIndex: impactBaseColumn + 1
+          endColumnIndex: bisRatioColumn + 1
         },
         cell: {
           userEnteredFormat: {
@@ -168,6 +161,49 @@ function buildRosterFormulaRequests_(sheetId, tab, argSeparator) {
       }
     }
   ];
+}
+
+// Classement par objet row 2: the IMPACT item list, names, then one spill per rank. Same Impact formula as the
+// snapshot (scores.js): presence ratio × parse (empty, text or 0 = 1) / (Loots Impact + 1) × gain; no tanks.
+function buildRankingFormulaRequests_(sheetId, tab, argSeparator) {
+  if (tab.name !== RANKING_TAB_NAME) {
+    return [];
+  }
+
+  var roster = tabByName_('Roster');
+  var rosterRange = function (key) {
+    var letter = columnLetter_(columnOf_(roster, key));
+    return "'Roster'!$" + letter + '$2:$' + letter + '$201';
+  };
+  var listsRange = function (offset) {
+    var letter = columnLetter_(LISTS_LAYOUT.impactGainColumn + offset);
+    return "'" + LISTS_TAB.name + "'!$" + letter + '$2:$' + letter + '$' + LISTS_LAYOUT.rowCount;
+  };
+  var items = '$A$2:$A$' + (RANKING_ROW_COUNT + 1);
+  var formulas = [
+    '=IFERROR(SORT(UNIQUE(FILTER(' + listsRange(2) + ',' + listsRange(2) + '<>""))),"")',
+    '=MAP(' + items + ',LAMBDA(i,IF(i="","",IFERROR(INDEX(FILTER(' + listsRange(3) + ',' + listsRange(2) + '=i,' + listsRange(3) + '<>""),1),""))))'
+  ];
+  for (var rank = 1; rank <= RANKING_SIZE; rank += 1) {
+    formulas.push('=MAP(' + items + ',LAMBDA(i,IF(i="","",ARRAYFORMULA(LET(' +
+      'n,' + rosterRange('raiderKey') + ',' +
+      'g,IFERROR(XLOOKUP(i&"|"&' + rosterRange('class') + '&"|"&' + rosterRange('spec') + ',' + listsRange(0) + ',' + listsRange(1) + '),""),' +
+      'p,' + rosterRange('dpsParse') + ',' +
+      'b,IFERROR(IF((n="")+(' + rosterRange('role') + '="' + ROLE_DISPLAY.Tank.value + '"),"",(' + rosterRange('tierPresence') + '/' + rosterRange('tierPresenceMax') + ')*IF(ISNUMBER(p)*(p<>0),p,1)/(' + rosterRange('impactLootCount') + '+1)),""),' +
+      's,IF((g="")+(b=""),"",b*g),' +
+      'r,IFERROR(SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE),""),' +
+      'IFERROR(INDEX(r,' + rank + ',1)&" ("&FIXED(INDEX(r,' + rank + ',2),3,TRUE)&")",""))))))');
+  }
+
+  return [{
+    updateCells: {
+      start: { sheetId: sheetId, rowIndex: 1, columnIndex: 0 },
+      rows: [{ values: formulas.map(function (formula) {
+        return { userEnteredValue: { formulaValue: applyArgSeparator_(formula, argSeparator || ',') } };
+      }) }],
+      fields: 'userEnteredValue'
+    }
+  }];
 }
 
 // Rôle formula on Roster rows 2..201: looks up Classe|Spé in the _Listes role table.
@@ -520,7 +556,12 @@ function buildColumnWidthRequests_(sheetId, tab) {
     spec: 170,
     role: 150,
     dpsParse: 145,
-    itemName: 220
+    itemName: 220,
+    rank1: 190,
+    rank2: 190,
+    rank3: 190,
+    rank4: 190,
+    rank5: 190
   };
 
   return tab.columns.map(function (column, index) {

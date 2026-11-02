@@ -3,11 +3,12 @@ local _, GP = ...
 local Snapshot = {}
 GP.Snapshot = Snapshot
 
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 
 local current = nil
 local raidersByKey = {}
 local statutsByItem = {}
+local impactByItem = {}
 
 local function trim(text)
     return (text:gsub("^%s+", ""):gsub("%s+$", ""))
@@ -141,19 +142,44 @@ local function validateRaider(raider, index, errors, seenKeys)
         end
     end
 
-    if raider.role == "TANK" then
-        if raider.impactBase ~= nil then
-            fail("impactBase doit être null pour un tank")
+    return countsValid and parseValid and ROLES[raider.role] and isNonEmptyString(raider.classSpec)
+end
+
+local function validateImpactScores(item, where, errors, specsByLabel, validRaiders)
+    if not isArray(item.impactScores) then
+        errors[#errors + 1] = where .. " : liste impactScores invalide"
+        return
+    end
+
+    local seen = {}
+    for _, entry in ipairs(item.impactScores) do
+        local key = type(entry) == "table" and entry.raiderKey
+        local raider = isNonEmptyString(key) and validRaiders[key]
+        if not isNonEmptyString(key) then
+            errors[#errors + 1] = where .. " : score Impact sans raiderKey"
+        elseif seen[key] then
+            errors[#errors + 1] = where .. " : score Impact en double pour " .. key
+        elseif raider == nil then
+            errors[#errors + 1] = where .. " : score Impact pour un raider inconnu (" .. key .. ")"
+        elseif raider then
+            seen[key] = true
+            local expected = GP.Scores.impactScore(raider, specsByLabel[raider.classSpec])
+            if not expected then
+                errors[#errors + 1] = where .. " : " .. key .. " n'a pas de statut IMPACT sur cet objet"
+            elseif not isFiniteNumber(entry.score) or not withinTolerance(entry.score, expected) then
+                errors[#errors + 1] = where .. " : score Impact de " .. key .. " ne correspond pas au calcul"
+            end
         end
-    elseif countsValid and parseValid and ROLES[raider.role] then
-        local impactBase = GP.Scores.impactBase(raider)
-        if not isFiniteNumber(raider.impactBase) or not withinTolerance(raider.impactBase, impactBase) then
-            fail("impactBase ne correspond pas au calcul")
+    end
+
+    for key, raider in pairs(validRaiders) do
+        if raider and not seen[key] and GP.Scores.impactScore(raider, specsByLabel[raider.classSpec]) then
+            errors[#errors + 1] = where .. " : score Impact manquant pour " .. key
         end
     end
 end
 
-local function validateItem(item, index, errors, seenIDs)
+local function validateItem(item, index, errors, seenIDs, validRaiders)
     if type(item) ~= "table" or not isInteger(item.itemID, 1) then
         errors[#errors + 1] = ("objet %d : itemID invalide"):format(index)
         return
@@ -178,7 +204,7 @@ local function validateItem(item, index, errors, seenIDs)
         elseif seenSpecs[spec.classSpec] then
             errors[#errors + 1] = where .. " : " .. spec.classSpec .. " en double"
         else
-            seenSpecs[spec.classSpec] = true
+            seenSpecs[spec.classSpec] = spec
             if not STATUTS[spec.statut] then
                 errors[#errors + 1] = where .. " : statut invalide pour " .. spec.classSpec
             end
@@ -187,9 +213,11 @@ local function validateItem(item, index, errors, seenIDs)
             end
         end
     end
+
+    validateImpactScores(item, where, errors, seenSpecs, validRaiders)
 end
 
---- Full Interchange v2 check; returns nil when valid, else the first problem in French and how many others.
+--- Full Interchange v3 check; returns nil when valid, else the first problem in French and how many others.
 function Snapshot.validate(data)
     if not isArray(data.raiders) then
         return "liste raiders manquante ou invalide"
@@ -206,13 +234,19 @@ function Snapshot.validate(data)
         errors[#errors + 1] = "tierId ou raidId manquant"
     end
 
+    -- Scores of a raider whose own fields are invalid are not checked again (false), only unknown names (nil).
     local seenKeys = {}
+    local validRaiders = {}
     for index, raider in ipairs(data.raiders) do
-        validateRaider(raider, index, errors, seenKeys)
+        local before = #errors
+        local valid = validateRaider(raider, index, errors, seenKeys)
+        if type(raider) == "table" and isNonEmptyString(raider.raiderKey) and validRaiders[raider.raiderKey] == nil then
+            validRaiders[raider.raiderKey] = (valid and #errors == before) and raider or false
+        end
     end
     local seenIDs = {}
     for index, item in ipairs(data.items) do
-        validateItem(item, index, errors, seenIDs)
+        validateItem(item, index, errors, seenIDs, validRaiders)
     end
 
     if #errors == 0 then
@@ -233,6 +267,7 @@ function Snapshot.set(data)
     end
 
     statutsByItem = {}
+    impactByItem = {}
     for _, item in ipairs(type(data.items) == "table" and data.items or {}) do
         local itemID = type(item) == "table" and tonumber(item.itemID)
         if itemID and type(item.specs) == "table" then
@@ -243,6 +278,15 @@ function Snapshot.set(data)
                 end
             end
             statutsByItem[itemID] = bySpec
+        end
+        if itemID and type(item.impactScores) == "table" then
+            local byRaider = {}
+            for _, entry in ipairs(item.impactScores) do
+                if type(entry) == "table" and type(entry.raiderKey) == "string" then
+                    byRaider[entry.raiderKey] = tonumber(entry.score)
+                end
+            end
+            impactByItem[itemID] = byRaider
         end
     end
 end
@@ -267,8 +311,15 @@ function Snapshot.itemSpec(itemID, classSpec)
     return bySpec and bySpec[classSpec] or nil
 end
 
+--- The workbook's full Impact score for an item and raider, or nil (no IMPACT Statut for the spec, tank, unknown).
+function Snapshot.impactScore(itemID, raiderKey)
+    local byRaider = impactByItem[tonumber(itemID)]
+    return byRaider and byRaider[raiderKey] or nil
+end
+
 function Snapshot.clear()
     current = nil
     raidersByKey = {}
     statutsByItem = {}
+    impactByItem = {}
 end

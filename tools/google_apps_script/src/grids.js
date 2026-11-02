@@ -21,8 +21,37 @@ function buildGridRequests_(argSeparator) {
       buildTierItemsGridRequests_(states.itemTabs[index], metadataBySheetId, separator, itemTab)
     );
   });
+  // After the Objets tabs: on a new workbook the formula must find them.
+  requests.push(buildImpactGainTableRequest_(states.lists.exists ? states.lists.sheetId : LISTS_TAB.sheetId, separator));
 
   return requests;
+}
+
+// _Listes T2: one row per Objets row and non-tank spec with Statut IMPACT: Objet|Classe|Spé, gain (empty = 0), Objet (ID), Objet.
+function buildImpactGainTableRequest_(listsSheetId, argSeparator) {
+  var parts = [];
+  ITEM_TABS.filter(function (itemTab) { return itemTab.role !== 'Tank'; }).forEach(function (itemTab) {
+    var sheet = "'" + itemTab.name + "'!";
+    var range = function (column) {
+      var letter = columnLetter_(column);
+      return sheet + '$' + letter + '$4:$' + letter + '$1000';
+    };
+    SPEC_COLUMNS.filter(function (spec) { return spec.role === itemTab.role; }).forEach(function (spec, specIndex) {
+      var statutColumn = OBJETS_FIRST_SPEC_COLUMN + (specIndex * 2);
+      parts.push('IFERROR(FILTER(HSTACK(' + range(0) + '&"|' + spec.className + '|' + spec.spec + '",' + range(statutColumn + 1) + '*1,' +
+        range(0) + ',' + range(1) + '),' + range(statutColumn) + '="IMPACT",' + range(0) + '<>""),HSTACK("",0,"",""))');
+    });
+  });
+
+  return {
+    updateCells: {
+      start: { sheetId: listsSheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.impactGainColumn },
+      rows: [{ values: [{ userEnteredValue: { formulaValue: applyArgSeparator_(
+        '=LET(s,VSTACK(' + parts.join(',') + '),IFERROR(FILTER(s,INDEX(s,0,3)<>""),""))', argSeparator || ','
+      ) } }] }],
+      fields: 'userEnteredValue'
+    }
+  };
 }
 
 // Reads the sheets the grid refresh needs.
@@ -86,7 +115,7 @@ function buildListsTabRequests_(listsState, argSeparator) {
           sheetId: LISTS_TAB.sheetId,
           title: LISTS_TAB.name,
           hidden: true,
-          gridProperties: { columnCount: LISTS_LAYOUT.columnCount }
+          gridProperties: { rowCount: LISTS_LAYOUT.rowCount, columnCount: LISTS_LAYOUT.columnCount }
         }
       }
     });
@@ -97,9 +126,12 @@ function buildListsTabRequests_(listsState, argSeparator) {
       properties: {
         sheetId: sheetId,
         hidden: true,
-        gridProperties: { columnCount: Math.max(LISTS_LAYOUT.columnCount, listsState.exists ? Number(listsState.maxColumns || 0) : 0) }
+        gridProperties: {
+          rowCount: LISTS_LAYOUT.rowCount,
+          columnCount: Math.max(LISTS_LAYOUT.columnCount, listsState.exists ? Number(listsState.maxColumns || 0) : 0)
+        }
       },
-      fields: 'hidden,gridProperties.columnCount'
+      fields: 'hidden,gridProperties.rowCount,gridProperties.columnCount'
     }
   });
 

@@ -8,15 +8,15 @@ The workbook and its Apps Script live in [tools/google_apps_script](tools/google
 
 ## What it does
 
-- **Snapshot import:** paste the snapshot exported by the workbook (Base64 or raw JSON). It holds each raider's spec, tier presence, loot counts and parse, plus the Objets table (Statut and Gain per item and spec). The whole snapshot is checked and both scores are recomputed. Anything inconsistent is refused, and the previous snapshot is kept.
+- **Snapshot import:** paste the snapshot exported by the workbook (Base64 or raw JSON). It holds each raider's spec, tier presence, loot counts and parse, the Objets table (Statut and Gain per item and spec), and the full Impact score of every raider for each item. The whole snapshot is checked and every score is recomputed. Anything inconsistent is refused, and the previous snapshot is kept.
 - **Two columns after Gargul's own:**
   - **Ratio BiS**: (tier presence / raids in the tier) / (BiS loots + 1).
-  - **Impact**: (tier presence / raids in the tier) × parse / (Impact loots + 1) × the rolled item's gain for the roller's spec. It is shown only when that spec's Statut for the item is IMPACT, and never for tanks.
+  - **Impact**: the workbook's score for the rolled item and the roller: (tier presence / raids in the tier) × parse / (Impact loots + 1) × the item's gain for the roller's spec. It is shown only when that spec's Statut for the item is IMPACT, and never for tanks. It stays as exported until the next snapshot.
 - **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and NORMAL. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked NORMAL.
   - Click a button, or **Fermer** (Close) to keep the marked one.
   - `/preloot` lists every award of the raid, so a treatment can be changed later.
-- **Live values:** BIS and IMPACT awards count immediately, so both columns are up to date for the next roll. NORMAL and CLASS_BOUND count for nothing.
-- **Chat line:** when a treatment is confirmed in the window, a French line goes to group chat with the winner's new value. For example: `Alya : nouveau ratio BiS 0.167` or `Alya : nouveau score Impact 0.063 pour [item]`. Nothing is sent for NORMAL or CLASS_BOUND, nor when Gargul's award announcements are turned off.
+- **Live values:** BIS awards count immediately, so Ratio BiS is up to date for the next roll. NORMAL and CLASS_BOUND count for nothing.
+- **Chat line:** when a treatment is confirmed in the window, a French line goes to group chat. For example: `Alya : nouveau ratio BiS 0.167` or `Alya : score Impact 0.083 pour [item]`. Nothing is sent for NORMAL or CLASS_BOUND, nor when Gargul's award announcements are turned off.
 - **Export fill:** Gargul's Custom export gets each line's `raidId` and `treatment` filled in, matched by the award's checksum, so the workbook's **Raid > Terminer** can import it.
 
 ## Requirements
@@ -93,11 +93,11 @@ The addon is the `Gargul_Preloot/` folder:
 | --- | --- |
 | `Gargul_Preloot.toc` | Addon metadata and load order |
 | `Compat.lua` | Gargul feature detection and fallbacks |
-| `Snapshot.lua` | Snapshot decoding and Interchange v2 validation |
-| `Scores.lua` | BiS Ratio, Impact base and Impact Score, display rounding |
+| `Snapshot.lua` | Snapshot decoding and Interchange v3 validation |
+| `Scores.lua` | BiS Ratio and the Impact formula used to check the snapshot, display rounding |
 | `Columns.lua` | Ratio BiS and Impact columns in the roll table |
 | `Import.lua` | Importer button and paste window |
-| `Awards.lua` | Treatment per award for the session, and live loot counts |
+| `Awards.lua` | Treatment per award for the session, and live BiS loot counts |
 | `Picker.lua` | Treatment window and `/preloot` list |
 | `Chat.lua` | The French chat line |
 | `Export.lua` | `@GPRAID` / `@GPTREATMENT` fill in Gargul's Custom export |

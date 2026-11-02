@@ -44,6 +44,7 @@ function Scores.impactBase(raider)
 end
 
 --- Full Impact Score = Impact base × gain, only for an IMPACT Statut; a null gain counts as 0 like the workbook.
+--- Used to check the snapshot's precomputed scores.
 function Scores.impactScore(raider, itemSpec)
     if type(itemSpec) ~= "table" or itemSpec.statut ~= "IMPACT" then
         return nil

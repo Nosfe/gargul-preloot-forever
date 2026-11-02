@@ -1,4 +1,4 @@
--- Builds a valid Interchange v2 test snapshot for in-game trials without workbook data.
+-- Builds a valid Interchange v3 test snapshot for in-game trials without workbook data.
 -- Run from the repo root: luajit tests/addon/make_test_snapshot.lua
 local scriptDir = (arg and arg[0] or "make_test_snapshot.lua"):match("^(.*)[\\/][^\\/]*$") or "."
 local root = scriptDir .. "/../.."
@@ -59,7 +59,6 @@ for index, name in ipairs(NAMES) do
         dpsParse = 35 + (index * 13) % 65,
     }
     raider.bisRatio = GP.Scores.bisRatio(raider)
-    raider.impactBase = GP.Scores.impactBase(raider)
     raiders[#raiders + 1] = raider
 end
 
@@ -76,10 +75,22 @@ for index, itemID in ipairs(ITEM_IDS) do
             gainFraction = statut == "IMPACT" and (5 + (index * 7 + slot * 3) % 30) / 100 or nil,
         }
     end
-    items[#items + 1] = { itemID = itemID, specs = specs }
+    -- Same rule as the workbook: every raider whose spec has IMPACT on the item gets its full score.
+    local impactScores = {}
+    for _, raider in ipairs(raiders) do
+        for _, spec in ipairs(specs) do
+            if spec.classSpec == raider.classSpec then
+                local score = GP.Scores.impactScore(raider, spec)
+                if score then
+                    impactScores[#impactScores + 1] = { raiderKey = raider.raiderKey, score = score }
+                end
+            end
+        end
+    end
+    items[#items + 1] = { itemID = itemID, specs = specs, impactScores = impactScores }
 end
 
-local snapshot = { schemaVersion = 2, tierId = "anniversary-test", raidId = "test-1", raiders = raiders, items = items }
+local snapshot = { schemaVersion = 3, tierId = "anniversary-test", raidId = "test-1", raiders = raiders, items = items }
 local json = GL.JSON:encode(snapshot)
 local b64 = GL.Base64.encode(json)
 

@@ -7,7 +7,7 @@ local function number(value)
     return GP.Scores.format(value)
 end
 
---- French line for a confirmed award: new BiS Ratio for BIS, new Impact Score for IMPACT, nil otherwise or when not computable.
+--- French line for a confirmed award: new BiS Ratio for BIS, the item's Impact Score for IMPACT, nil otherwise or when not computable.
 function Chat.message(entry)
     if type(entry) ~= "table" then
         return nil
@@ -24,8 +24,8 @@ function Chat.message(entry)
     end
 
     if entry.treatment == "IMPACT" then
-        local score = GP.Scores.impactScore(raider, GP.Snapshot.itemSpec(entry.itemID, raider.classSpec))
-        return score and ("%s : nouveau score Impact %s pour %s"):format(entry.winner, number(score), GP.Awards.itemLink(entry)) or nil
+        local score = GP.Snapshot.impactScore(entry.itemID, entry.winner)
+        return score and ("%s : score Impact %s pour %s"):format(entry.winner, number(score), GP.Awards.itemLink(entry)) or nil
     end
 
     return nil

@@ -1,4 +1,4 @@
-// Exports one Interchange v2 snapshot and opens a Base64 dialog; opens a raid only when none is open.
+// Exports one Interchange v3 snapshot and opens a Base64 dialog; opens a raid only when none is open.
 function exportRaidSnapshot() {
   var ui = SpreadsheetApp.getUi();
 
@@ -140,9 +140,7 @@ function buildSnapshotRaiders_(rosterRows) {
     }
 
     var bisRatioCell = row[columnOf_(tab, 'bisRatio')];
-    var impactBaseCell = row[columnOf_(tab, 'impactBase')];
     var bisRatio = null;
-    var impactBase = null;
 
     if (tierPresence !== null && tierPresenceMax !== null && bisLootCount !== null) {
       var recomputedBisRatio = bisRatio_(tierPresence, tierPresenceMax, bisLootCount);
@@ -155,23 +153,7 @@ function buildSnapshotRaiders_(rosterRows) {
       }
     }
 
-    if (role === 'TANK') {
-      impactBase = null;
-    } else if (parseValid && tierPresence !== null && tierPresenceMax !== null && impactLootCount !== null) {
-      var recomputedImpactBase = impactBase_(tierPresence, tierPresenceMax, dpsParse, impactLootCount, false);
-      if (typeof impactBaseCell !== 'number' || !isFinite(impactBaseCell)) {
-        errors.push(raiderKey + ': Impact (sans gain objet) non numérique.');
-      } else if (!withinSnapshotTolerance_(impactBaseCell, recomputedImpactBase)) {
-        errors.push(raiderKey + ': Impact (sans gain objet) ne correspond pas au calcul.');
-      } else {
-        impactBase = impactBaseCell;
-      }
-    }
-
-    if (!classSpec || !role || bisRatio === null) {
-      continue;
-    }
-    if (role !== 'TANK' && impactBase === null) {
+    if (!classSpec || !role || bisRatio === null || !parseValid) {
       continue;
     }
     if (tierPresence === null || tierPresenceMax === null ||
@@ -188,12 +170,31 @@ function buildSnapshotRaiders_(rosterRows) {
       bisLootCount: bisLootCount,
       impactLootCount: impactLootCount,
       dpsParse: dpsParse,
-      bisRatio: bisRatio,
-      impactBase: impactBase
+      bisRatio: bisRatio
     });
   }
 
   return { raiders: raiders, errors: errors };
+}
+
+// Adds to each item the full Impact score of every non-tank raider whose spec has Statut IMPACT on it (Roster order).
+function addImpactScores_(items, raiders) {
+  (items || []).forEach(function (item) {
+    var specByLabel = Object.create(null);
+    item.specs.forEach(function (spec) {
+      specByLabel[spec.classSpec] = spec;
+    });
+    item.impactScores = [];
+    (raiders || []).forEach(function (raider) {
+      var spec = specByLabel[raider.classSpec];
+      var base = impactBase_(raider.tierPresence, raider.tierPresenceMax, raider.dpsParse, raider.impactLootCount, raider.role === 'TANK');
+      var score = spec ? impactScore_(base, spec.statut, spec.gainFraction) : null;
+      if (score !== null) {
+        item.impactScores.push({ raiderKey: raider.raiderKey, score: score });
+      }
+    });
+  });
+  return items;
 }
 
 // Builds snapshot items from all Objets tabs and merges item ids across roles.
@@ -275,7 +276,7 @@ function buildSnapshotItems_(itemStates) {
   };
 }
 
-// Builds and validates one Interchange v2 snapshot envelope.
+// Builds and validates one Interchange v3 snapshot envelope.
 function buildSnapshot_(data) {
   var errors = [];
   var configTab = tabByName_('Config');
@@ -295,11 +296,11 @@ function buildSnapshot_(data) {
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     tierId: tierId,
     raidId: String(data.raidId),
     raiders: raidersResult.raiders,
-    items: itemsResult.items
+    items: addImpactScores_(itemsResult.items, raidersResult.raiders)
   };
 }
 

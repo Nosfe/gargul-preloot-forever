@@ -100,7 +100,7 @@
           .map(function (request) {
             var id = request.updateSheetProperties.properties.sheetId;
             var name = null;
-            ['Roster', 'Raids', 'Awards', 'Config'].forEach(function (candidate) {
+            ['Roster', 'Raids', 'Awards', 'Config', RANKING_TAB_NAME].forEach(function (candidate) {
               var sheet = SpreadsheetApp.getActive().getSheetByName(candidate);
               if (sheet && sheet.getSheetId() === id) {
                 name = candidate;
@@ -110,8 +110,8 @@
           });
 
         equal(order.join(','),
-          'Roster,1011,1012,1021,1022,1023,1024,1025,Raids,Config,1020',
-          'tabs ordered as Roster, Pr\u00e9sence, Awards, Objets, Raids, Config, _Listes');
+          'Roster,1011,1012,' + RANKING_TAB_NAME + ',1021,1022,1023,1024,1025,Raids,Config,1020',
+          'tabs ordered as Roster, Pr\u00e9sence, Awards, Classement par objet, Objets, Raids, Config, _Listes');
       });
 
       withHarness(function () {

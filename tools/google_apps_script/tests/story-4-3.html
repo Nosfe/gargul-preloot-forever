@@ -79,7 +79,6 @@
         var bisLoots = rows[1][columnOf_(rosterTab, 'bisLootCount')];
         var impactLoots = rows[1][columnOf_(rosterTab, 'impactLootCount')];
         var ratio = rows[1][columnOf_(rosterTab, 'bisRatio')];
-        var impactBase = rows[1][columnOf_(rosterTab, 'impactBase')];
 
         contains(tierPresence, "'Présence'!", 'tier presence uses quoted Présence sheet');
         contains(tierPresence, '(d>=N(Config!$B$2))', 'tier presence uses start date filter');
@@ -88,10 +87,27 @@
         contains(bisLoots, '="BIS"', 'BiS count filters BIS');
         contains(impactLoots, '="IMPACT"', 'Impact count filters IMPACT');
         contains(ratio, '/($I2+1)', 'ratio divides by BiS loots plus one');
-        contains(impactBase, '$E2="Tank"', 'impact base keeps tank blank');
-        contains(impactBase, 'IF(N($F2)=0,1,$F2)', 'impact base uses parse=1 fallback');
-        contains(impactBase, '($G2/$H2)', 'impact base uses tier presence, like the BiS ratio');
-        contains(impactBase, '/($J2+1)', 'impact base divides by Impact loots plus one');
+        equal(keysOf_(rosterTab).indexOf('impactBase'), -1, 'Roster has no Impact column');
+        equal(rows[0][columnOf_(rosterTab, 'bisRatio') + 1] || '', '', 'Ratio BiS is the last Roster column');
+
+        // Classement par objet: IMPACT gain table in _Listes, then item list, names and top 5.
+        var gainTable = TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn];
+        contains(gainTable, "FILTER(HSTACK('Objets Caster DPS'!$A$4:$A$1000&\"|Mage|Givre\"", 'gain table keys Objet|Classe|Spé');
+        contains(gainTable, "='IMPACT'".replace(/'/g, '"'), 'gain table keeps IMPACT rows only');
+        equal(gainTable.split('FILTER(HSTACK(').length - 1, SPEC_COLUMNS.filter(function (spec) { return spec.role !== 'Tank'; }).length, 'one FILTER per non-tank spec column');
+        var ranking = TracerHarness.getRows(RANKING_TAB_NAME);
+        equal(ranking[0].slice(0, 7).join('|'), 'Objet (ID)|Objet|1er|2e|3e|4e|5e', 'ranking headers');
+        contains(ranking[1][0], "SORT(UNIQUE(FILTER('_Listes'!$V$2:$V$" + LISTS_LAYOUT.rowCount, 'item list from the gain table');
+        contains(ranking[1][1], "'_Listes'!$W$2:$W$" + LISTS_LAYOUT.rowCount, 'item name from the gain table');
+        var first = ranking[1][2];
+        var fifth = ranking[1][6];
+        contains(first, "XLOOKUP(i&\"|\"&'Roster'!$C$2:$C$201&\"|\"&'Roster'!$D$2:$D$201", 'gain looked up by item and Classe|Spé');
+        contains(first, "'Roster'!$E$2:$E$201=\"Tank\"", 'tanks have no Impact');
+        contains(first, "('Roster'!$G$2:$G$201/'Roster'!$H$2:$H$201)*IF(ISNUMBER(p)*(p<>0),p,1)/('Roster'!$J$2:$J$201+1)", 'Impact base like scores.js');
+        contains(first, 'SORT(FILTER(HSTACK(n,s),s<>""),2,FALSE)', 'raiders sorted by score, highest first');
+        contains(first, 'INDEX(r,1,1)&" ("&FIXED(INDEX(r,1,2),3,TRUE)&")"', '1er shows name and score with 3 decimals');
+        contains(fifth, 'INDEX(r,5,1)', '5e reads rank 5');
+        contains(first, '$A$2:$A$' + (RANKING_ROW_COUNT + 1), 'formulas cover the item rows');
 
         contains(tierPresence, 'MATCH(TRUE,ARRAYFORMULA(EXACT(', 'raider column found by exact name');
         contains(bisLoots, 'MATCH(TRUE,ARRAYFORMULA(EXACT(Awards!$1:$1', 'Awards block found by exact name');
@@ -138,13 +154,15 @@
           'tierPresenceMax',
           'bisLootCount',
           'impactLootCount',
-          'bisRatio',
-          'impactBase'
+          'bisRatio'
         ];
 
         formulaKeys.forEach(function (key) {
           var value = rows[1][columnOf_(rosterTab, key)];
           equal(String(value).indexOf(','), -1, key + ' uses no commas in fr_FR');
+        });
+        TracerHarness.getRows(RANKING_TAB_NAME)[1].slice(0, 7).concat([TracerHarness.getRows('_Listes')[1][LISTS_LAYOUT.impactGainColumn]]).forEach(function (formula, index) {
+          equal(String(formula).indexOf(','), -1, 'ranking formula ' + index + ' uses no commas in fr_FR');
         });
       });
     }

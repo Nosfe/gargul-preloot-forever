@@ -69,7 +69,7 @@
       var presenceId = spreadsheet.getSheetByName('Présence').getSheetId();
 
       var rosterTab = tabByName_('Roster');
-      function rosterRowValues_(name, className, spec, role, parse, tierPresence, tierMax, bisLoot, impactLoot, bisRatio, impactBase) {
+      function rosterRowValues_(name, className, spec, role, parse, tierPresence, tierMax, bisLoot, impactLoot, bisRatio) {
         var values = [];
         values[columnOf_(rosterTab, 'raiderKey')] = name;
         values[columnOf_(rosterTab, 'class')] = className;
@@ -81,7 +81,6 @@
         values[columnOf_(rosterTab, 'bisLootCount')] = bisLoot;
         values[columnOf_(rosterTab, 'impactLootCount')] = impactLoot;
         values[columnOf_(rosterTab, 'bisRatio')] = bisRatio;
-        values[columnOf_(rosterTab, 'impactBase')] = impactBase;
         for (var i = 0; i < values.length; i += 1) {
           if (values[i] === undefined) {
             values[i] = '';
@@ -100,8 +99,7 @@
         8,
         1,
         2,
-        0.25,
-        0.16666666666666666
+        0.25
       ));
       writeCells_(rosterId, 2, 0, rosterRowValues_(
         'Beryl',
@@ -113,8 +111,7 @@
         8,
         0,
         1,
-        0.75,
-        33
+        0.75
       ));
       writeCells_(rosterId, 3, 0, rosterRowValues_(
         'Cairn',
@@ -126,8 +123,7 @@
         8,
         3,
         0,
-        0.25,
-        ''
+        0.25
       ));
 
       writeCells_(configId, 1, 0, ['forever-t1', '2026-10-01', '']);
@@ -275,7 +271,7 @@
           var base = {
             raiderKey: 'Zoe', class: 'Mage', spec: specDisplayValue_('Mage', 'Feu'), role: ROLE_DISPLAY['Caster DPS'].value,
             dpsParse: 50, tierPresence: 2, tierPresenceMax: 4,
-            bisLootCount: 0, impactLootCount: 1, bisRatio: 0.5, impactBase: 12.5
+            bisLootCount: 0, impactLootCount: 1, bisRatio: 0.5
           };
           Object.keys(overrides || {}).forEach(function (key) { base[key] = overrides[key]; });
           var values = [];
@@ -286,19 +282,16 @@
           return buildSnapshotRaiders_([keysOf_(rosterTab), row_(overrides)]);
         }
 
-        equal(raiders_({}).raiders[0].impactBase, 12.5, 'valid DPS row exported');
+        equal(raiders_({}).raiders.length + '|' + ('impactBase' in raiders_({}).raiders[0]), '1|false', 'valid DPS row exported without impactBase');
         equal(Object.keys(raiders_({}).raiders[0]).filter(function (key) { return key.indexOf('lifetime') !== -1; }).length, 0, 'snapshot raider has no lifetime fields');
-        equal(raiders_({ tierPresence: 4, bisRatio: 1, impactBase: 25 }).raiders[0].impactBase, 25, 'impact base checked against tier presence');
-        contains(raiders_({ tierPresence: 4, bisRatio: 1, impactBase: 12.5 }).errors.join(' '), 'Impact', 'impact base from another presence is rejected');
         ['', 'abc', 0].forEach(function (parse) {
-          var result = raiders_({ dpsParse: parse, impactBase: 0.25 });
+          var result = raiders_({ dpsParse: parse });
           equal(result.raiders.length + ':' + result.raiders[0].dpsParse, '1:1', 'parse ' + JSON.stringify(parse) + ' exported as 1');
         });
         contains(raiders_({ dpsParse: 101 }).errors.join(' '), 'Zoe', 'parse above 100 rejected');
         contains(raiders_({ tierPresence: 5, bisRatio: 1.25 }).errors.join(' '), 'Présence palier >', 'Presence above Max rejected');
         contains(raiders_({ bisLootCount: 1.5 }).errors.join(' '), 'Loots BiS', 'non-integer count rejected');
         contains(raiders_({ bisRatio: 0.6 }).errors.join(' '), 'Ratio BiS', 'score mismatch rejected');
-        contains(raiders_({ impactBase: 12.6 }).errors.join(' '), 'Impact', 'impact base mismatch rejected');
         contains(raiders_({ role: '' }).errors.join(' '), 'rôle', 'missing role rejected');
         contains(raiders_({ spec: 'Ombre' }).errors.join(' '), 'spé inconnue', 'unknown spec rejected');
         equal(raiders_({}).raiders[0].classSpec, 'Mage Feu', 'plain spec resolves');
@@ -307,8 +300,21 @@
         var bearAsDps = '';
         try { classSpecLabel_('Druide', 'Combat farouche (ours)', 'DPS'); } catch (error) { bearAsDps = error.message; }
         contains(bearAsDps, 'incompatible', 'bear spec with DPS role rejected');
-        var tank = raiders_({ role: ROLE_DISPLAY.Tank.value, class: 'Guerrier', spec: 'Protection', impactBase: '' }).raiders[0];
-        equal(tank.role + ':' + tank.impactBase, 'TANK:null', 'tank has null impactBase');
+        var tank = raiders_({ role: ROLE_DISPLAY.Tank.value, class: 'Guerrier', spec: 'Protection' }).raiders[0];
+        equal(tank.role, 'TANK', 'tank exported');
+
+        // Snapshot v3: full Impact score per item for each raider whose spec has IMPACT; none for tanks.
+        var zoe = raiders_({}).raiders[0];
+        var scored = addImpactScores_([
+          { itemID: 12, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainFraction: 0.5 }, { classSpec: 'Guerrier Protection', statut: 'IMPACT', gainFraction: 0.5 }] },
+          { itemID: 13, specs: [{ classSpec: 'Mage Feu', statut: 'BIS', gainFraction: 0.3 }] },
+          { itemID: 14, specs: [{ classSpec: 'Mage Feu', statut: 'IMPACT', gainFraction: null }] },
+          { itemID: 15, specs: [{ classSpec: 'Mage Givre', statut: 'IMPACT', gainFraction: 0.5 }] }
+        ], [zoe, tank]);
+        deepEqual(scored[0].impactScores, [{ raiderKey: 'Zoe', score: 6.25 }], 'IMPACT spec: (2/4) × 50 / 2 × 0.5; tank gets none');
+        deepEqual(scored[1].impactScores, [], 'BIS Statut: no Impact score');
+        deepEqual(scored[2].impactScores, [{ raiderKey: 'Zoe', score: 0 }], 'empty gain counts as 0');
+        deepEqual(scored[3].impactScores, [], 'other spec: no Impact score');
 
         function items_(cells) {
           var rows = [[], [], []].concat([cells]);
@@ -326,9 +332,9 @@
 
         var twice = buildSnapshotRaiders_([keysOf_(rosterTab), row_({}), row_({})]);
         contains(twice.errors.join(' '), 'Zoe: nom en double', 'duplicate raider name rejected');
-        contains(raiders_({ dpsParse: 0.5, impactBase: 0.125 }).errors.join(' '), 'hors plage', 'parse between 0 and 1 rejected');
+        contains(raiders_({ dpsParse: 0.5 }).errors.join(' '), 'hors plage', 'parse between 0 and 1 rejected');
         equal(raiders_({ dpsParse: 101 }).errors.length, 1, 'parse above 100 reports only the parse error');
-        contains(raiders_({ role: ROLE_DISPLAY.Tank.value, impactBase: '' }).errors.join(' '), 'incompatible', 'DPS spec with tank role rejected');
+        contains(raiders_({ role: ROLE_DISPLAY.Tank.value }).errors.join(' '), 'incompatible', 'DPS spec with tank role rejected');
         contains(raiders_({ class: 'Guerrier', spec: 'Protection' }).errors.join(' '), 'incompatible', 'tank spec with DPS role rejected');
         equal(nextRaidId_([['h'], [true], ['1e3']], [['h'], ['t']]), '1', 'non-integer raid ids are ignored');
         equal(typeof this.exportRaidSnapshot === 'function' || typeof exportRaidSnapshot === 'function', true, 'menu action exportRaidSnapshot exists');

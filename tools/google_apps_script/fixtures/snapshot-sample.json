@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "tierId": "forever-t1",
   "raidId": "4",
   "raiders": [
@@ -12,8 +12,7 @@
       "bisLootCount": 1,
       "impactLootCount": 2,
       "dpsParse": 1,
-      "bisRatio": 0.25,
-      "impactBase": 0.16666666666666666
+      "bisRatio": 0.25
     },
     {
       "raiderKey": "Beryl",
@@ -24,8 +23,7 @@
       "bisLootCount": 0,
       "impactLootCount": 1,
       "dpsParse": 88,
-      "bisRatio": 0.75,
-      "impactBase": 33
+      "bisRatio": 0.75
     },
     {
       "raiderKey": "Cairn",
@@ -36,8 +34,7 @@
       "bisLootCount": 3,
       "impactLootCount": 0,
       "dpsParse": 95,
-      "bisRatio": 0.25,
-      "impactBase": null
+      "bisRatio": 0.25
     }
   ],
   "items": [
@@ -54,7 +51,8 @@
           "statut": "IMPACT",
           "gainFraction": 0.35
         }
-      ]
+      ],
+      "impactScores": []
     },
     {
       "itemID": 888,
@@ -63,6 +61,12 @@
           "classSpec": "Mage Givre",
           "statut": "IMPACT",
           "gainFraction": 0.5
+        }
+      ],
+      "impactScores": [
+        {
+          "raiderKey": "Alya",
+          "score": 0.08333333333333333
         }
       ]
     }

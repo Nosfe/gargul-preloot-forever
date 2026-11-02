@@ -65,12 +65,12 @@ local bad = {
     { "!!! pas du base64 !!!", "invalid Base64 characters" },
     { GL.Base64.encode("pas du json"), "Base64 of non-JSON" },
     { "{ broken json", "broken raw JSON" },
-    { sampleJson:gsub('"schemaVersion": 2', '"schemaVersion": 3'), "schemaVersion 3" },
+    { sampleJson:gsub('"schemaVersion": 3', '"schemaVersion": 2'), "schemaVersion 2" },
     { sampleJson:gsub('"raiders"', '"rangers"'), "raiders missing" },
     { sampleJson:gsub('"raidId": "4"', '"raidId": ""'), "empty raidId" },
     { sampleJson:gsub('"raiderKey": "Alya"', '"raiderKey": ""'), "raider without key" },
-    { '{"schemaVersion":2,"tierId":"t","raidId":"1","raiders":{"x":{"raiderKey":"Alya"}}}', "raiders as an object" },
-    { '{"schemaVersion":2,"tierId":"t","raidId":"1","raiders":[{"raiderKey":"A"},null,{"raiderKey":"B"}]}', "null raider entry" },
+    { '{"schemaVersion":3,"tierId":"t","raidId":"1","raiders":{"x":{"raiderKey":"Alya"}}}', "raiders as an object" },
+    { '{"schemaVersion":3,"tierId":"t","raidId":"1","raiders":[{"raiderKey":"A"},null,{"raiderKey":"B"}]}', "null raider entry" },
 }
 for _, case in ipairs(bad) do
     local result, message = GP.Snapshot.parse(case[1], GL)
@@ -109,9 +109,9 @@ equal(GP.Columns.bisCellText("Alya"), "", "no snapshot gives empty cell")
 -- Large payload (over the old 8192-letter editbox limit)
 local raiders = {}
 for i = 1, 120 do
-    raiders[#raiders + 1] = ('{"raiderKey":"Raider%d","role":"DPS","classSpec":"Mage Givre","tierPresence":3,"tierPresenceMax":4,"bisLootCount":0,"impactLootCount":0,"dpsParse":50,"bisRatio":0.75,"impactBase":37.5}'):format(i)
+    raiders[#raiders + 1] = ('{"raiderKey":"Raider%d","role":"DPS","classSpec":"Mage Givre","tierPresence":3,"tierPresenceMax":4,"bisLootCount":0,"impactLootCount":0,"dpsParse":50,"bisRatio":0.75}'):format(i)
 end
-local bigJson = '{"schemaVersion":2,"tierId":"t","raidId":"9","raiders":[' .. table.concat(raiders, ",") .. '],"items":[]}'
+local bigJson = '{"schemaVersion":3,"tierId":"t","raidId":"9","raiders":[' .. table.concat(raiders, ",") .. '],"items":[]}'
 local bigB64 = GL.Base64.encode(bigJson)
 check(#bigB64 > 8192, "large payload exceeds 8192 characters")
 local big = GP.Snapshot.parse(bigB64, GL)
@@ -461,8 +461,7 @@ do
     local kept = GP.Snapshot.get()
     GP.Awards.record({ checksum = "v1", itemID = 888, itemLink = "[888]", awardedTo = "Alya-Forever" }, GL)
     GP.Awards.setTreatment("v1", "BIS")
-    local alya = GP.Snapshot.raider("Alya")
-    near(GP.Scores.impactBase(alya), alya.impactBase, "sample impactBase recomputes")
+    near(GP.Snapshot.impactScore(888, "Alya"), (4 / 8) * 1 / 3 * 0.5, "sample Impact score for Alya on 888")
 
     local function once(pattern, replacement)
         local text, count = sampleJson:gsub(pattern, replacement, 1)
@@ -486,9 +485,12 @@ do
         { once('"itemID": 888', '"itemID": 777'), "duplicate itemID", "double" },
         { once('"classSpec": "Paladin Sacré"', '"classSpec": "Guerrier Protection"'), "duplicate spec in item", "double" },
         { once('"bisRatio": 0.75', '"bisRatio": 0.7'), "bisRatio mismatch", "Beryl" },
-        { once('"impactBase": 33', '"impactBase": 34'), "impactBase mismatch", "Beryl" },
-        { once('"impactBase": 33', '"impactBase": null'), "impactBase missing for a healer", "Beryl" },
-        { once('"impactBase": null', '"impactBase": 1'), "tank with impactBase", "Cairn" },
+        { once('"score": 0.08333333333333333', '"score": 0.09'), "Impact score mismatch", "Alya" },
+        { once('"impactScores": %[%]', '"impactScores": [{"raiderKey": "Zed", "score": 1}]'), "Impact score for an unknown raider", "Zed" },
+        { once('"impactScores": %[%]', '"impactScores": [{"raiderKey": "Cairn", "score": 0}]'), "Impact score without an IMPACT Statut", "Cairn" },
+        { once('"impactScores": %[%]', '"impactScores": "x"'), "impactScores not a list", "impactScores" },
+        { once('"score": 0.08333333333333333', '"score": 0.08333333333333333}, {"raiderKey": "Alya", "score": 0.08333333333333333'), "duplicate Impact score", "double" },
+        { once('{%s*"raiderKey": "Alya",%s*"score": 0.08333333333333333%s*}', ''), "missing Impact score", "manquant pour Alya" },
         { once('"statut": "BIS"', '"statut": "NONE"'), "unknown statut", "statut" },
         { once('"gainFraction": 0.12', '"gainFraction": "x"'), "gain not a number", "gain" },
         { once('"itemID": 777', '"itemID": 0'), "itemID not positive", "itemID" },
@@ -496,7 +498,7 @@ do
         { once('"tierId": "forever%-t1"', '"tierId": ""'), "empty tierId", "tierId" },
         { once('"dpsParse": 1,', '"dpsParse": 0.5,'), "parse below 1", "Alya" },
         { once('"bisRatio": 0.75', '"bisRatio": 1e999'), "infinite bisRatio", "Beryl" },
-        { once('"bisRatio": 0.75,', ''), "bisRatio missing", "Beryl" },
+        { once('"bisRatio": 0.75', '"other": 0.75'), "bisRatio missing", "Beryl" },
         { once('"gainFraction": 0.12', '"gainFraction": 1e999'), "infinite gain", "gain" },
         { once('"itemID": 777', '"itemID": 777.5'), "itemID not an integer", "itemID" },
     }
@@ -553,11 +555,11 @@ do
         { classSpec = "Prêtre Sacré", statut = "IMPACT", gainFraction = 0.2 },
         { classSpec = "Druide Combat farouche (ours)", statut = "IMPACT", gainFraction = 0.5 },
         { classSpec = "Mage Givre", statut = "IMPACT" },
-    } }
-    sample.items[#sample.items + 1] = { itemID = 666, specs = { { classSpec = "Mage Givre", statut = "BIS", gainFraction = 0.4 } } }
+    }, impactScores = { { raiderKey = "Beryl", score = 33 * 0.2 }, { raiderKey = "Alya", score = 0 } } }
+    sample.items[#sample.items + 1] = { itemID = 666, specs = { { classSpec = "Mage Givre", statut = "BIS", gainFraction = 0.4 } }, impactScores = {} }
     check(GP.Import.apply(GL.JSON:encode(sample), GL), "snapshot with extra items imported")
 
-    equal(GP.Columns.impactCellText("Alya", 888), ("%.3f"):format((4 / 8) * 1 / 3 * 0.5), "IMPACT item: base × gain for the roller's spec")
+    equal(GP.Columns.impactCellText("Alya", 888), ("%.3f"):format((4 / 8) * 1 / 3 * 0.5), "IMPACT item: the workbook's score for the roller")
     equal(GP.Columns.impactCellText("Alya [2]", 888), GP.Columns.impactCellText("Alya", 888), "re-roll suffix stripped")
     equal(GP.Columns.impactCellText("Beryl", 555), "6.600", "healer Impact 33 × 0.2")
     equal(GP.Columns.impactCellText("Cairn", 555), "", "tank: empty even on IMPACT")
@@ -577,8 +579,8 @@ do
     local zero = GL.JSON:decode(sampleJson)
     zero.raiders[1].tierPresence = 0
     zero.raiders[1].bisRatio = 0
-    zero.raiders[1].impactBase = 0
     zero.items[2].specs[1].gainFraction = -0.1
+    zero.items[2].impactScores[1].score = 0 * -0.1
     check(GP.Import.apply(GL.JSON:encode(zero), GL), "zero-presence snapshot imported")
     equal(GP.Columns.impactCellText("Alya", 888), "0.000", "zero score with a negative gain shows 0.000, not -0.000")
 
@@ -595,8 +597,8 @@ do
     }
     zero.raiders[1].tierPresence = 4
     zero.raiders[1].bisRatio = 0.25
-    zero.raiders[1].impactBase = (4 / 8) * 1 / 3
     zero.items[2].specs[1].gainFraction = 0.5
+    zero.items[2].impactScores[1].score = (4 / 8) * 1 / 3 * 0.5
     check(GP.Import.apply(GL.JSON:encode(zero), GL), "sample-like snapshot imported for the hook")
     GP.Columns.install({
         MasterLooterUI = { tableColumns = function() return {} end },
@@ -684,7 +686,7 @@ do
     local withExtra = GL.JSON:decode(sampleJson)
     withExtra.items[#withExtra.items + 1] = { itemID = 555, specs = {
         { classSpec = "Druide Combat farouche (ours)", statut = "IMPACT", gainFraction = 0.5 },
-    } }
+    }, impactScores = {} }
     check(GP.Import.apply(GL.JSON:encode(withExtra), GL), "sample imported for live recompute")
     GP.Awards.clear()
     local function cell(name, column)
@@ -711,13 +713,13 @@ do
     GP.Awards.setTreatment("a1", "BIS")
     equal(refreshes, 0, "same treatment again does not refresh")
 
-    -- 2. IMPACT prefilled, confirmed by the Close button: Impact loots 2 -> 3, base 0.5/4, gain 0.5
+    -- 2. IMPACT prefilled, confirmed by the Close button: Impact stays as exported (precomputed in the workbook)
     award("a2", 888, "Alya")
     lastPopup().closeButton.scripts.OnClick(lastPopup().closeButton)
-    equal(cell("Alya", 12), "0.063", "live Impact 0.0625 shown as 0.063")
+    equal(cell("Alya", 12), "0.083", "Impact stays as exported after an IMPACT award")
     equal(cell("Alya", 11), "0.167", "IMPACT leaves Ratio BiS unchanged")
     equal(cell("Beryl", 12), "", "Beryl has no Impact for 888")
-    equal(sent[2] and sent[2].message, "Alya : nouveau score Impact 0.063 pour [888]", "IMPACT chat line")
+    equal(sent[2] and sent[2].message, "Alya : score Impact 0.083 pour [888]", "IMPACT chat line")
     check(created[#created].closeButton.scripts.OnClick ~= nil, "close button script restored on release")
 
     -- 2b. A UI hide fires OnHide without the Close button: not a confirmation
@@ -741,9 +743,9 @@ do
     equal(cell("Alya", 11), "0.250", "Ratio BiS back to 0.5/2 after BIS -> NORMAL")
     equal(#sent, 2, "list change sends nothing")
 
-    -- 5. Delete: Impact loots back to 2
+    -- 5. Delete: Impact unchanged
     GP.Awards.remove("a2")
-    equal(cell("Alya", 12), ("%.3f"):format(0.5 / 3 * 0.5), "Impact back after delete")
+    equal(cell("Alya", 12), ("%.3f"):format(0.5 / 3 * 0.5), "Impact unchanged after delete")
 
     -- 6. Announcements disabled
     enabled = false

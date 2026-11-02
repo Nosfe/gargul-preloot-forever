@@ -36,7 +36,8 @@ local function changed()
     end
 end
 
---- Snapshot raider with this session's BIS and IMPACT awards added to its loot counts; nil when unknown.
+--- Snapshot raider with this session's BIS awards added to its BiS loots; nil when unknown. Impact scores come
+--- precomputed in the snapshot and stay as exported.
 function Awards.liveRaider(raiderKey)
     local raider = GP.Snapshot.raider(raiderKey)
     if not raider then
@@ -48,12 +49,8 @@ function Awards.liveRaider(raiderKey)
         live[field] = value
     end
     for _, entry in pairs(entries) do
-        if entry.winner == raiderKey then
-            if entry.treatment == "BIS" then
-                live.bisLootCount = live.bisLootCount + 1
-            elseif entry.treatment == "IMPACT" then
-                live.impactLootCount = live.impactLootCount + 1
-            end
+        if entry.winner == raiderKey and entry.treatment == "BIS" then
+            live.bisLootCount = live.bisLootCount + 1
         end
     end
 
