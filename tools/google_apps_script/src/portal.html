@@ -5,6 +5,8 @@
 <meta charset="utf-8">
 <script>var whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
 <script src="https://wow.zamimg.com/js/tooltips.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
   :root { --bg: #f4f6f9; --card: #fff; --line: #dde3ea; --head: #dce9f7; --headText: #0b4f9c; --muted: #66707c; }
   * { box-sizing: border-box; }
@@ -50,6 +52,36 @@
   .combo li { padding: 5px 8px; cursor: pointer; white-space: nowrap; }
   .combo li.hl { background: var(--head); }
   #status { padding: 24px; text-align: center; color: var(--muted); }
+
+  /* Forever theme from the logo palette: teal frame, tan trim, cream cards so class and quality colours stay readable. */
+  :root { --tan: #c8b08a; --teal: #11678a; --cream: #fff5e1; --tealDark: #0b4f6b; --tanDark: #9c8460;
+    --bg: #f4e7cc; --card: var(--cream); --line: #e3d3b4; --head: var(--teal); --headText: var(--cream); --muted: #6b6255; --gold: var(--tan); --ink: #22201c; --blue: var(--teal); --navy: var(--tealDark);
+    --body: 'IBM Plex Sans', system-ui, sans-serif; }
+  body { font-family: var(--body); color: var(--ink); background: #0b4f6b radial-gradient(ellipse at top, #2a86ab 0%, #11678a 45%, #0b4f6b 85%) fixed; }
+  header { background: linear-gradient(#0e5d7d, #083d53); border-bottom: 2px solid var(--tan); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); padding: 14px 18px; }
+  header h1 { font-family: var(--body); font-size: 24px; letter-spacing: 1px; color: var(--tan); text-shadow: 0 1px 0 #000, 0 0 8px rgba(200, 176, 138, .35); }
+  header .tier { color: var(--cream); opacity: .85; }
+  nav { background: #083d53; border-bottom: 1px solid var(--tanDark); }
+  nav button { color: var(--cream); font-family: var(--body); border: 1px solid transparent; border-radius: 4px; }
+  nav button:hover { border-color: var(--tanDark); }
+  nav button.active { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border-color: var(--tan); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
+  .card { background: var(--card); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 0 0 2px var(--tealDark), 0 4px 14px rgba(0, 0, 0, .35); }
+  .card .card { box-shadow: none; }
+  .card h2 { font-family: var(--body); font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); padding-bottom: 4px; }
+  th { background: linear-gradient(#167596, var(--teal)); color: var(--cream); font-weight: 600; border-bottom: 2px solid var(--tan); }
+  td.num, .stat .value { font-family: Verdana, Arial, sans-serif; }
+  tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
+  .stat { background: #f4e7cc; border: 1px solid var(--tan); border-radius: 4px; }
+  a.stat.link:hover { outline: 2px solid var(--teal); }
+  input, select { background: #fffdf7; border-color: var(--tan); color: var(--ink); }
+  input:focus { outline: 2px solid var(--teal); outline-offset: 0; }
+  .combo ul { background: #fffdf7; border-color: var(--tan); }
+  .combo li.hl { background: #f4e7cc; }
+  button.toggle, a.toggle { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border: 1px solid var(--tan); border-radius: 4px; font-weight: 600; }
+  button.toggle:hover, a.toggle:hover { filter: brightness(1.15); }
+  /* Wowhead's quality colours are made for dark tooltips; darker common/uncommon so they read on parchment. */
+  main a.item.q0 { color: #6b6b6b !important; } main a.item.q1 { color: var(--ink) !important; } main a.item.q2 { color: #1a8c00 !important; }
+  #status { color: var(--cream); }
 </style>
 </head>
 <body>
@@ -412,10 +444,9 @@
         groups.forEach(function (raidId) {
           var raidLoots = loots.filter(function (loot) { return loot.raidId === raidId; });
           if (!raidLoots.length) { return; }
-          holder.appendChild(el('h2', { text: raidTitle(raidId) + ' (' + raidLoots.length + ')' }));
-          holder.appendChild(table(['Raider', 'Objet', 'Statut'], raidLoots.map(function (loot) {
+          holder.appendChild(card(raidTitle(raidId) + ' (' + raidLoots.length + ')', [table(['Raider', 'Objet', 'Statut'], raidLoots.map(function (loot) {
             return el('tr', {}, [nameCell(loot.raider), itemCell(loot.itemId, loot.itemName), treatmentCell(loot.treatment)]);
-          })));
+          }))]));
         });
       }
     }
@@ -475,9 +506,8 @@
             el('td', { class: 't-' + spec.statut, text: spec.statut }), el('td', { class: 'num', text: gain })]));
         });
       });
-      holder.appendChild(table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])]));
-      holder.appendChild(el('h2', { text: rows.length + (rows.length > 1 ? ' spés' : ' spé') }));
-      holder.appendChild(table(['Spé', 'Rôle', 'Statut', 'Gain (DPS)'], rows));
+      holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
+      holder.appendChild(card(rows.length + (rows.length > 1 ? ' spés' : ' spé'), [table(['Spé', 'Rôle', 'Statut', 'Gain (DPS)'], rows)]));
     }
     function fill() {
       holder.innerHTML = '';
@@ -491,8 +521,7 @@
         item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
         return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })].concat(role.specs.map(function (label) {
           var spec = bySpec[label];
-          var gain = spec && spec.statut === 'IMPACT' && spec.gainDps !== null ? ' ' + Number(spec.gainDps).toFixed(1) : '';
-          return el('td', { class: spec ? 't-' + spec.statut : '', text: spec ? spec.statut + gain : '' });
+          return el('td', { class: spec ? 't-' + spec.statut : '', text: spec ? spec.statut : '' });
         })));
       });
       if (!rows.length) {
