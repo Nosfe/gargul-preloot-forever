@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Charte graphique Parsimonie</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="charte-parsimonie.css">
+<style>
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+  .swatch { width: 150px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #fff; }
+  .swatch div:first-child { height: 56px; }
+  .swatch div:last-child { padding: 6px 8px; font-size: 12px; }
+  .swatch code { font-family: var(--numbers); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .demo-tip { position: static; display: inline-block; }
+</style>
+</head>
+<body>
+<header><h1>Parsimonie</h1><span class="subtitle">Charte graphique</span></header>
+<nav><button class="active">Onglet actif</button><button>Onglet</button><button>Onglet</button></nav>
+<main>
+
+  <div class="card">
+    <h2>Palette du logo</h2>
+    <div class="swatches">
+      <div class="swatch"><div style="background:#11678a"></div><div><b>Bleu canard</b><br><code>#11678A</code><br>Cadre, onglet actif, boutons, en-têtes de tableau, titres</div></div>
+      <div class="swatch"><div style="background:#c8b08a"></div><div><b>Beige doré</b><br><code>#C8B08A</code><br>Titre de l'appli, liserés, bordures</div></div>
+      <div class="swatch"><div style="background:#fff5e1"></div><div><b>Crème</b><br><code>#FFF5E1</code><br>Fond des blocs, texte sur bleu</div></div>
+    </div>
+    <h2 style="margin-top:14px">Teintes dérivées</h2>
+    <div class="swatches">
+      <div class="swatch"><div style="background:#0b4f6b"></div><div>Bleu foncé <code>#0B4F6B</code><br>Fond bas, contour des blocs</div></div>
+      <div class="swatch"><div style="background:#083d53"></div><div>Bleu profond <code>#083D53</code><br>Barre d'onglets</div></div>
+      <div class="swatch"><div style="background:#1a7fa8"></div><div>Bleu clair <code>#1A7FA8</code><br>Haut des dégradés de bouton</div></div>
+      <div class="swatch"><div style="background:#9c8460"></div><div>Beige foncé <code>#9C8460</code><br>Liseré des onglets</div></div>
+      <div class="swatch"><div style="background:#f4e7cc"></div><div>Parchemin <code>#F4E7CC</code><br>Pastilles, survol de liste</div></div>
+      <div class="swatch"><div style="background:#22201c"></div><div>Encre <code>#22201C</code><br>Texte courant</div></div>
+      <div class="swatch"><div style="background:#6b6255"></div><div>Gris doux <code>#6B6255</code><br>Libellés, texte secondaire</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Typographie</h2>
+    <p><b>IBM Plex Sans</b> pour tout le texte : titre 24px (beige doré, lueur), titres de bloc 17px (bleu canard), texte 14px, libellés 12px.</p>
+    <p><b>Verdana</b> pour les chiffres : colonnes numériques (alignées à droite), valeurs des pastilles, infobulles.</p>
+    <p>Pas de police serif. Le gras sert aux noms (couleur de classe), au podium et aux statuts BIS / IMPACT.</p>
+  </div>
+
+  <div class="card">
+    <h2>Pastilles</h2>
+    <div class="stats">
+      <div class="stat" style="background:#8788ee;color:#1f1f1f"><div class="label" style="color:#1f1f1f">Classe / spé</div><div class="value">Démoniste Affliction</div></div>
+      <div class="stat"><div class="label">Ratio BiS</div><div class="value">0.375</div></div>
+      <div class="stat"><div class="label">Présence palier</div><div class="value">3 / 4</div></div>
+      <a class="stat link" href="#"><div class="label">Parse WCL (lien)</div><div class="value" style="color:#ff8000">96</div></a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Bloc avec recherche à droite</h2>
+      <div class="combo"><input type="text" placeholder="Tous les objets"></div>
+    </div>
+    <div class="row">
+      <button class="toggle">Par raid</button>
+      <a class="toggle" href="#">Voir la fiche Armory</a>
+      <div class="combo"><input type="text" placeholder="Choisis ton personnage"></div>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th class="sortable" data-dir="asc">Raider</th><th class="sortable">Objet</th><th class="sortable">Statut</th><th class="sortable">Score</th><th>Présence</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#8788ee;font-weight:bold">Yajiru</td><td>Nathrezim Mindblade</td><td class="t-IMPACT">IMPACT</td><td class="num rank1">1566.000</td><td class="P">P</td></tr>
+          <tr><td style="color:#3fc7eb;font-weight:bold">Ana</td><td>Bâton ancien</td><td class="t-BIS">BIS</td><td class="num rank2">400.000</td><td class="B">B</td></tr>
+          <tr><td style="color:#f48cba;font-weight:bold">Cid</td><td>Collier de garde</td><td class="t-CLASS_BOUND">CLASS_BOUND</td><td class="num rank3">120.000</td><td class="A"></td></tr>
+          <tr><td style="color:#c69b6d;font-weight:bold">Dorn</td><td>Anneau simple</td><td class="t-NORMAL">NORMAL</td><td class="num">42.000</td><td class="P">P</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">En-têtes triables : 1er clic ▲, 2e ▼, 3e ordre d'origine. Au-delà d'environ 12 lignes, le tableau défile sous son en-tête.</p>
+  </div>
+
+  <div class="card">
+    <h2>Infobulle</h2>
+    <div class="tip demo-tip">
+      <div class="t" style="color:#8788ee">Yajiru — 1566.000</div>
+      <table>
+        <tr><td>Présence</td><td class="v">3 / 4</td></tr>
+        <tr><td>Parse</td><td class="v" style="color:#ff8000;font-weight:bold">96</td></tr>
+        <tr><td>Gain</td><td class="v" style="color:hsl(120, 80%, 36%);font-weight:bold">24.0 DPS (Affli)</td></tr>
+        <tr><td>Loots Impact</td><td class="v">0</td></tr>
+      </table>
+      <div class="f">3/4 × 96 × 24.0 ÷ 1</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Couleurs de données</h2>
+    <p><b>Échelle rouge → jaune → vert</b> (texte en gras) pour comparer des valeurs entre elles : <code>hsl(t × 120, 80%, 36%)</code>, t de 0 (plus bas) à 1 (plus haut).</p>
+    <p class="row">
+      <span style="color:hsl(0,80%,36%);font-weight:bold">5.0</span>
+      <span style="color:hsl(30,80%,36%);font-weight:bold">12.0</span>
+      <span style="color:hsl(60,80%,36%);font-weight:bold">22.0</span>
+      <span style="color:hsl(90,80%,36%);font-weight:bold">40.0</span>
+      <span style="color:hsl(120,80%,36%);font-weight:bold">48.0</span>
+    </p>
+    <p><b>Parses Warcraft Logs</b> :
+      <span style="color:#e5cc80;font-weight:bold">100</span>
+      <span style="color:#e268a8;font-weight:bold">99</span>
+      <span style="color:#ff8000;font-weight:bold">95+</span>
+      <span style="color:#a335ee;font-weight:bold">75+</span>
+      <span style="color:#0070ff;font-weight:bold">50+</span>
+      <span style="color:#1eff00;font-weight:bold">25+</span>
+      <span style="color:#666666;font-weight:bold">&lt;25</span>
+    </p>
+    <p><b>Podium</b> : <span class="rank1">&nbsp;1er #FFE38A&nbsp;</span> <span class="rank2">&nbsp;2e #D3D7DD&nbsp;</span> <span class="rank3">&nbsp;3e #EDBE93&nbsp;</span></p>
+  </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,130 @@
+/*
+ * Charte graphique Parsimonie (thème Forever).
+ * Palette du logo : bleu canard #11678A, beige doré #C8B08A, crème #FFF5E1.
+ * Police : IBM Plex Sans (Google Fonts) pour le texte, Verdana pour les chiffres.
+ * À charger avec :
+ *   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+ * Voir charte-parsimonie.html pour les composants en situation.
+ */
+
+:root {
+  /* Palette du logo */
+  --teal: #11678a;
+  --tealDark: #0b4f6b;
+  --tealDeep: #083d53;
+  --tealLight: #1a7fa8;
+  --tan: #c8b08a;
+  --tanDark: #9c8460;
+  --cream: #fff5e1;
+
+  /* Surfaces et texte */
+  --parchment: #f4e7cc;
+  --field: #fffdf7;
+  --line: #e3d3b4;
+  --ink: #22201c;
+  --muted: #6b6255;
+
+  /* Polices */
+  --body: 'IBM Plex Sans', system-ui, sans-serif;
+  --numbers: Verdana, Arial, sans-serif;
+
+  /* États */
+  --rank1: #ffe38a;
+  --rank2: #d3d7dd;
+  --rank3: #edbe93;
+  --present: #1e7d32; --presentBg: #e6f4ea;
+  --bench: #b26a00; --benchBg: #fff2cc;
+  --absentBg: #fce8e6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--body);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--tealDark) radial-gradient(ellipse at top, #2a86ab 0%, var(--teal) 45%, var(--tealDark) 85%) fixed;
+}
+
+/* En-tête */
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 14px 18px; background: linear-gradient(#0e5d7d, var(--tealDeep)); border-bottom: 2px solid var(--tan); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); }
+header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; color: var(--tan); text-shadow: 0 1px 0 #000, 0 0 8px rgba(200, 176, 138, .35); }
+header .subtitle { color: var(--cream); opacity: .85; }
+
+/* Onglets */
+nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: var(--tealDeep); border-bottom: 1px solid var(--tanDark); position: sticky; top: 0; z-index: 2; }
+nav button { font: inherit; padding: 8px 12px; color: var(--cream); background: none; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
+nav button:hover { border-color: var(--tanDark); }
+nav button.active { font-weight: bold; color: var(--cream); background: linear-gradient(var(--tealLight), var(--teal)); border-color: var(--tan); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 12px; }
+
+/* Blocs */
+.card { margin-bottom: 12px; padding: 12px; overflow-x: auto; background: var(--cream); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 0 0 2px var(--tealDark), 0 4px 14px rgba(0, 0, 0, .35); }
+.card .card { box-shadow: none; }
+.card h2 { margin: 0 0 8px; padding-bottom: 4px; font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); }
+/* Titre de bloc avec une commande alignée à droite */
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--tan); }
+.card .card-head h2 { margin: 0; padding: 0; border: 0; }
+.card-head .combo { margin: 0; }
+
+/* Pastilles de chiffres clés */
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.stat { flex: 1 1 130px; padding: 8px; background: var(--parchment); border: 1px solid var(--tan); border-radius: 4px; }
+.stat .label { font-size: 12px; color: var(--muted); }
+.stat .value { font-family: var(--numbers); font-size: 18px; font-weight: bold; }
+a.stat.link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+a.stat.link:hover { outline: 2px solid var(--teal); }
+
+/* Tableaux */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { position: sticky; top: 0; font-weight: 600; color: var(--cream); background: linear-gradient(#167596, var(--teal)); border-bottom: 2px solid var(--tan); }
+th.sortable { cursor: pointer; user-select: none; }
+th[data-dir="asc"]::after { content: ' \25B2'; }
+th[data-dir="desc"]::after { content: ' \25BC'; }
+td.num { font-family: var(--numbers); text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
+/* Environ 12 lignes, puis le tableau défile sous son en-tête. */
+.scroll { max-height: 440px; overflow-y: auto; }
+
+/* Podium */
+.rank1 { background: var(--rank1); } .rank2 { background: var(--rank2); } .rank3 { background: var(--rank3); }
+.rank1, .rank2, .rank3 { font-weight: bold; }
+
+/* Présence */
+.P { text-align: center; color: var(--present); background: var(--presentBg); }
+.B { text-align: center; color: var(--bench); background: var(--benchBg); }
+.A { text-align: center; background: var(--absentBg); }
+
+/* Statuts d'objets (couleurs de qualité WoW lisibles sur crème) */
+.t-BIS { font-weight: bold; color: #a335ee; }
+.t-IMPACT { font-weight: bold; color: #c65f00; }
+.t-CLASS_BOUND { color: #0070dd; }
+.t-NORMAL { color: #1a8c00; }
+
+.muted { color: var(--muted); }
+
+/* Boutons */
+button.toggle, a.toggle { display: inline-block; margin: 0 8px 8px 0; padding: 6px 12px; font: inherit; font-weight: 600; text-decoration: none; vertical-align: top; color: var(--cream); background: linear-gradient(var(--tealLight), var(--teal)); border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
+button.toggle:hover, a.toggle:hover { filter: brightness(1.15); }
+
+/* Champs et listes déroulantes saisissables */
+input, select { margin: 0 8px 8px 0; padding: 6px; font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--tan); border-radius: 6px; }
+input:focus { outline: 2px solid var(--teal); outline-offset: 0; }
+.combo { display: inline-block; margin: 0 8px 8px 0; }
+.combo input { margin: 0; min-width: 220px; }
+/* Position fixe pour que le défilement horizontal du bloc ne coupe pas la liste. */
+.combo ul { display: none; position: fixed; z-index: 10; max-height: 280px; margin: 0; padding: 0; overflow-y: auto; list-style: none; background: var(--field); border: 1px solid var(--tan); border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+.combo.open ul { display: block; }
+.combo li { padding: 5px 8px; white-space: nowrap; cursor: pointer; }
+.combo li.hl { background: var(--parchment); }
+
+/* Infobulle */
+.tip { position: fixed; z-index: 20; padding: 6px 10px; font-size: 12px; pointer-events: none; background: var(--cream); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+.tip .t { margin-bottom: 4px; font-weight: bold; }
+.tip table { width: auto; }
+.tip td { padding: 1px 12px 1px 0; color: var(--muted); background: none; border: 0; }
+.tip td.v { padding-right: 0; font-family: var(--numbers); text-align: right; color: var(--ink); }
+.tip .f { margin-top: 4px; padding-top: 4px; font-family: var(--numbers); color: var(--teal); border-top: 1px solid var(--line); }

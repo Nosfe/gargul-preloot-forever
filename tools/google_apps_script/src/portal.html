@@ -353,6 +353,9 @@
         return box;
       })));
 
+      var myLoots = DATA.loots.filter(function (loot) { return loot.raider === raider.name; });
+      body.appendChild(card('Mes loots du palier', [myLoots.length ? el('div', { class: 'scroll' }, [lootTable(myLoots, false)]) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
+
       var impactRows = [];
       DATA.items.forEach(function (item) {
         var mine = item.scores.filter(function (s) { return s.name === raider.name; })[0];
@@ -378,9 +381,6 @@
           return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
         }));
       }, 'Aucun objet BiS pour ta spé.'));
-
-      var myLoots = DATA.loots.filter(function (loot) { return loot.raider === raider.name; });
-      body.appendChild(card('Mes loots du palier', [myLoots.length ? el('div', { class: 'scroll' }, [lootTable(myLoots, false)]) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
     }
     fill();
   }
