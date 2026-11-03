@@ -120,6 +120,12 @@
     'Druide Équilibre': '#4B5BA8', 'Druide Combat farouche (ours)': '#B5651D', 'Druide Combat farouche (félin)': '#B5651D', 'Druide Restauration': '#2E8B3E'
   };
   function colored(td, color) { td.style.color = color || ''; return td; }
+  // Short spec names for tight spots; specs not listed are already short.
+  var SPEC_SHORT = {
+    'Protection': 'Prot', 'Maîtrise des bêtes': 'BM', 'Précision': 'Préci', 'Assassinat': 'Assa', 'Discipline': 'Disci', 'Vindicte': 'Ret', 'Finesse': 'Sub',
+    'Élémentaire': 'Élém', 'Amélioration': 'Amélio', 'Restauration': 'Resto', 'Affliction': 'Affli', 'Démonologie': 'Démono',
+    'Destruction': 'Destru', 'Équilibre': 'Boomie', 'Combat farouche (ours)': 'Ours', 'Combat farouche (félin)': 'Feral'
+  };
   var classColor = {};
   var classFill = {};
 
@@ -404,7 +410,7 @@
       var rows = [
         ['Présence', raider.tierPresence + ' / ' + max],
         ['Parse', String(parse)],
-        ['Gain', gain.toFixed(1) + ' DPS'],
+        ['Gain', gain.toFixed(1) + ' DPS (' + (SPEC_SHORT[raider.spec] || raider.spec) + ')'],
         ['Loots Impact', String(raider.impactLootCount)]
       ];
       var tip = document.getElementById('tip');
