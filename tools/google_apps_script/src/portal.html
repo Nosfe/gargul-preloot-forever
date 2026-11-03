@@ -82,6 +82,12 @@
   /* Wowhead's quality colours are made for dark tooltips; darker common/uncommon so they read on parchment. */
   main a.item.q0 { color: #6b6b6b !important; } main a.item.q1 { color: var(--ink) !important; } main a.item.q2 { color: #1a8c00 !important; }
   #status { color: var(--cream); }
+  #tip { display: none; position: fixed; z-index: 20; pointer-events: none; background: var(--cream); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); padding: 6px 10px; font-size: 12px; }
+  #tip .t { font-weight: bold; margin-bottom: 4px; }
+  #tip table { width: auto; }
+  #tip td { padding: 1px 12px 1px 0; border: 0; background: none; color: var(--muted); }
+  #tip td.v { padding-right: 0; color: var(--ink); font-family: Verdana, Arial, sans-serif; text-align: right; }
+  #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: Verdana, Arial, sans-serif; color: var(--teal); }
 </style>
 </head>
 <body>
@@ -89,6 +95,7 @@
 <nav id="nav"></nav>
 <main>
   <div id="status">Chargement…</div>
+  <div id="tip"></div>
   <section id="perso"></section>
   <section id="classement"></section>
   <section id="roster"></section>
@@ -370,7 +377,7 @@
         var cells = [itemCell(item.itemId, item.name)];
         for (var i = 0; i < 5; i += 1) {
           var td = el('td', { class: top[i] && i < 3 ? 'rank' + (i + 1) : '', text: top[i] ? top[i].name + ' (' + score(top[i].score) + ')' : '' });
-          if (top[i]) { colorName(td, top[i].name, i); td.setAttribute('data-sort', String(top[i].score)); }
+          if (top[i]) { colorName(td, top[i].name, i); td.setAttribute('data-sort', String(top[i].score)); scoreTip(td, item, top[i]); }
           cells.push(td);
         }
         return el('tr', {}, cells);
@@ -383,6 +390,41 @@
     var raider = raiderByName(name);
     td.style.color = raider ? (classColor[raider.className] || '') : '';
     td.style.fontWeight = index < 3 ? 'bold' : 'normal';
+  }
+  // Hover breakdown of an Impact score, same formula as the workbook: presence × parse × gain ÷ (loots Impact + 1).
+  function scoreTip(td, item, entry) {
+    var raider = raiderByName(entry.name);
+    if (!raider) { return; }
+    td.style.cursor = 'help';
+    td.onmouseenter = function (event) {
+      var spec = item.specs.filter(function (s) { return s.classSpec === raider.className + ' ' + raider.spec; })[0];
+      var gain = spec && spec.gainDps !== null ? Number(spec.gainDps) : 0;
+      var parse = typeof raider.parse === 'number' && raider.parse !== 0 ? raider.parse : 1;
+      var max = raider.tierPresenceMax > 0 ? raider.tierPresenceMax : 1;
+      var rows = [
+        ['Présence', raider.tierPresence + ' / ' + max],
+        ['Parse', String(parse)],
+        ['Gain', gain.toFixed(1) + ' DPS'],
+        ['Loots Impact', String(raider.impactLootCount)]
+      ];
+      var tip = document.getElementById('tip');
+      tip.innerHTML = '';
+      var title = el('div', { class: 't', text: entry.name + ' — ' + score(entry.score) });
+      title.style.color = classColor[raider.className] || '';
+      tip.appendChild(title);
+      tip.appendChild(el('table', {}, rows.map(function (row) { return el('tr', {}, [el('td', { text: row[0] }), el('td', { class: 'v', text: row[1] })]); })));
+      tip.appendChild(el('div', { class: 'f', text: raider.tierPresence + '/' + max + ' × ' + parse + ' × ' + gain.toFixed(1) + ' ÷ ' + (raider.impactLootCount + 1) }));
+      tip.style.display = 'block';
+      td.onmousemove(event);
+    };
+    td.onmousemove = function (event) {
+      var tip = document.getElementById('tip');
+      var left = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+      var top = event.clientY + 16 + tip.offsetHeight > window.innerHeight ? event.clientY - tip.offsetHeight - 10 : event.clientY + 16;
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    };
+    td.onmouseleave = function () { document.getElementById('tip').style.display = 'none'; };
   }
 
   function renderRoster() {
