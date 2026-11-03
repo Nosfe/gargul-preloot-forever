@@ -418,7 +418,11 @@
       var title = el('div', { class: 't', text: entry.name + ' — ' + score(entry.score) });
       title.style.color = classColor[raider.className] || '';
       tip.appendChild(title);
-      tip.appendChild(el('table', {}, rows.map(function (row) { return el('tr', {}, [el('td', { text: row[0] }), el('td', { class: 'v', text: row[1] })]); })));
+      tip.appendChild(el('table', {}, rows.map(function (row) {
+        var value = el('td', { class: 'v', text: row[1] });
+        if (row[0] === 'Parse') { paintParse(value, parse); }
+        return el('tr', {}, [el('td', { text: row[0] }), value]);
+      })));
       tip.appendChild(el('div', { class: 'f', text: raider.tierPresence + '/' + max + ' × ' + parse + ' × ' + gain.toFixed(1) + ' ÷ ' + (raider.impactLootCount + 1) }));
       tip.style.display = 'block';
       td.onmousemove(event);
@@ -545,13 +549,23 @@
     }
     function fillItem(item) {
       var rows = [];
+      var gains = item.specs.filter(function (s) { return s.statut === 'IMPACT' && s.gainDps !== null; }).map(function (s) { return Number(s.gainDps); });
+      var low = Math.min.apply(null, gains);
+      var high = Math.max.apply(null, gains);
       DATA.roles.forEach(function (role) {
         role.specs.forEach(function (label) {
           var spec = item.specs.filter(function (s) { return s.classSpec === label; })[0];
           if (!spec) { return; }
-          var gain = spec.statut === 'IMPACT' && spec.gainDps !== null ? Number(spec.gainDps).toFixed(1) : '';
+          var hasGain = spec.statut === 'IMPACT' && spec.gainDps !== null;
+          var gainCell = el('td', { class: 'num', text: hasGain ? Number(spec.gainDps).toFixed(1) : '' });
+          if (hasGain) {
+            // Red (lowest) → yellow → green (highest) among this item's gains.
+            var ratio = high > low ? (Number(spec.gainDps) - low) / (high - low) : 1;
+            gainCell.style.color = 'hsl(' + Math.round(ratio * 120) + ', 80%, 36%)';
+            gainCell.style.fontWeight = 'bold';
+          }
           rows.push(el('tr', {}, [specFill(el('td', { 'data-sort': label }), label), el('td', { text: role.role }),
-            el('td', { class: 't-' + spec.statut, text: spec.statut }), el('td', { class: 'num', text: gain })]));
+            el('td', { class: 't-' + spec.statut, text: spec.statut }), gainCell]));
         });
       });
       holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
