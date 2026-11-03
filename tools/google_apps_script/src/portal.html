@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<script>var whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: false };</script>
+<script src="https://wow.zamimg.com/js/tooltips.js"></script>
+<style>
+  :root { --bg: #f4f6f9; --card: #fff; --line: #dde3ea; --head: #dce9f7; --headText: #0b4f9c; --muted: #66707c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Verdana, Arial, sans-serif; font-size: 14px; background: var(--bg); color: #1f1f1f; }
+  header { background: #0b4f9c; color: #fff; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .tier { opacity: .85; }
+  nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  nav button { border: 0; background: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font: inherit; color: var(--headText); }
+  nav button.active { background: var(--head); font-weight: bold; }
+  main { padding: 12px; max-width: 1200px; margin: 0 auto; }
+  section { display: none; }
+  section.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; overflow-x: auto; }
+  .card h2 { font-size: 15px; margin: 0 0 8px; color: var(--headText); }
+  th.sortable { cursor: pointer; user-select: none; }
+  th[data-dir="asc"]::after { content: ' \25B2'; }
+  th[data-dir="desc"]::after { content: ' \25BC'; }
+  a.item { text-decoration: none; }
+  a.stat.link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+  a.stat.link:hover { outline: 2px solid var(--head); }
+  button.toggle, a.toggle { display: inline-block; text-decoration: none; font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--head); color: var(--headText); cursor: pointer; margin: 0 8px 8px 0; vertical-align: top; }
+  a.item:hover { text-decoration: underline; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .stat { flex: 1 1 130px; background: var(--bg); border-radius: 6px; padding: 8px; }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat .value { font-size: 18px; font-weight: bold; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { background: var(--head); color: var(--headText); position: sticky; top: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .rank1 { background: #ffe38a; } .rank2 { background: #d3d7dd; } .rank3 { background: #edbe93; }
+  .rank1, .rank2, .rank3 { font-weight: bold; }
+  .muted { color: var(--muted); }
+  .P { background: #e6f4ea; color: #1e7d32; text-align: center; } .B { background: #fff2cc; color: #b26a00; text-align: center; } .A { background: #fce8e6; text-align: center; }
+  .t-BIS { color: #a335ee; font-weight: bold; } .t-IMPACT { color: #c65f00; font-weight: bold; } .t-CLASS_BOUND { color: #0070dd; } .t-NORMAL { color: #1a8c00; }
+  input, select { font: inherit; padding: 6px; border: 1px solid var(--line); border-radius: 6px; margin: 0 8px 8px 0; }
+  .combo { display: inline-block; margin: 0 8px 8px 0; }
+  .combo input { margin: 0; min-width: 220px; }
+  /* Fixed so the card's horizontal scroll does not clip the list. */
+  .combo ul { display: none; position: fixed; z-index: 10; max-height: 280px; overflow-y: auto; list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+  .combo.open ul { display: block; }
+  .combo li { padding: 5px 8px; cursor: pointer; white-space: nowrap; }
+  .combo li.hl { background: var(--head); }
+  #status { padding: 24px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header><h1>Parsimonie</h1><span class="tier" id="tier"></span></header>
+<nav id="nav"></nav>
+<main>
+  <div id="status">Chargement…</div>
+  <section id="perso"></section>
+  <section id="classement"></section>
+  <section id="roster"></section>
+  <section id="loots"></section>
+  <section id="presence"></section>
+  <section id="objets"></section>
+</main>
+<script>
+  var TABS = [['perso', 'Mon personnage'], ['classement', 'Classement Impact'], ['roster', 'Roster'], ['loots', 'Loots'], ['presence', 'Présence'], ['objets', 'Objets']];
+  var DATA = null;
+  var ROLE_LABELS = { TANK: 'Tank', HEALER: 'Heal', DPS: 'DPS' };
+  // Dominant hue of each spec's talent tree art, darkened to stay readable on white.
+  var SPEC_COLORS = {
+    'Guerrier Armes': '#8B5A2B', 'Guerrier Fureur': '#B22222', 'Guerrier Protection': '#4A6A8A',
+    'Paladin Sacré': '#B8860B', 'Paladin Protection': '#3B6EA5', 'Paladin Vindicte': '#C0392B',
+    'Chasseur Maîtrise des bêtes': '#A0522D', 'Chasseur Précision': '#2E7D6B', 'Chasseur Survie': '#4E7D2B',
+    'Voleur Assassinat': '#3C8D2F', 'Voleur Combat': '#A33B2A', 'Voleur Finesse': '#5B3A8C',
+    'Prêtre Discipline': '#7A8CA0', 'Prêtre Sacré': '#C8A02E', 'Prêtre Ombre': '#6A2C91',
+    'Chaman Élémentaire': '#2E6DB4', 'Chaman Amélioration': '#B5531B', 'Chaman Restauration': '#1F8A8A',
+    'Mage Arcanes': '#9B3FB5', 'Mage Feu': '#D2491F', 'Mage Givre': '#2A7FBF',
+    'Démoniste Affliction': '#4D8B2A', 'Démoniste Démonologie': '#6B3FA0', 'Démoniste Destruction': '#C0392B',
+    'Druide Équilibre': '#4B5BA8', 'Druide Combat farouche (ours)': '#B5651D', 'Druide Combat farouche (félin)': '#B5651D', 'Druide Restauration': '#2E8B3E'
+  };
+  function colored(td, color) { td.style.color = color || ''; return td; }
+  var classColor = {};
+  var classFill = {};
+
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (key) {
+      if (key === 'text') { node.textContent = attrs[key]; } else if (key === 'onclick' || key === 'onchange' || key === 'oninput') { node[key] = attrs[key]; } else { node.setAttribute(key, attrs[key]); }
+    });
+    (children || []).forEach(function (child) { if (child) { node.appendChild(child); } });
+    return node;
+  }
+  function frDate(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  function score(value) { return Number(value).toFixed(3); }
+  // Same bands as the Roster's WCL parse colours.
+  function parseColor(value) {
+    var band = DATA.parseColors.filter(function (b) { return (b.min === null || value >= b.min) && (b.max === null || value < b.max); })[0];
+    return band ? band.color : '';
+  }
+  function paintParse(node, value) { node.style.color = parseColor(value); node.style.fontWeight = 'bold'; return node; }
+  function raiderByName(name) { return DATA.raiders.filter(function (r) { return r.name === name; })[0]; }
+  function raiderOptions(firstLabel) {
+    var names = DATA.raiders.map(function (r) { return r.name; }).sort(function (a, b) { return a.localeCompare(b, 'fr', { sensitivity: 'base' }); });
+    return [{ value: '', text: firstLabel }].concat(names.map(function (name) { return { value: name, text: name, color: classColor[raiderByName(name).className] || '' }; }));
+  }
+  function fold(text) { return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  // Typeable dropdown: typing filters the entries, the full list still scrolls. options: [{ value, text, color }].
+  function combo(options, onchange) {
+    var input = el('input', { type: 'text', autocomplete: 'off' });
+    var list = el('ul');
+    var box = el('div', { class: 'combo' }, [input, list]);
+    var current = options[0];
+    var shown = [];
+    var active = -1;
+    function label(option) { return option.value === '' ? '' : option.text; }
+    function place() {
+      var rect = input.getBoundingClientRect();
+      list.style.left = rect.left + 'px';
+      list.style.top = (rect.bottom + 2) + 'px';
+      list.style.minWidth = rect.width + 'px';
+    }
+    function highlight() {
+      Array.prototype.forEach.call(list.children, function (li, index) { li.classList.toggle('hl', index === active); });
+      if (list.children[active]) { list.children[active].scrollIntoView({ block: 'nearest' }); }
+    }
+    function render(query) {
+      var folded = fold(query.trim());
+      list.innerHTML = '';
+      shown = options.filter(function (option) { return !folded || fold(option.text).indexOf(folded) !== -1; });
+      active = folded ? (shown.length ? 0 : -1) : shown.indexOf(current);
+      shown.forEach(function (option) {
+        var li = el('li', { text: option.text });
+        if (option.color) { li.style.color = option.color; }
+        li.onmousedown = function (event) { event.preventDefault(); pick(option); };
+        list.appendChild(li);
+      });
+      place();
+      highlight();
+    }
+    function close() {
+      box.classList.remove('open');
+      input.value = label(current);
+      input.placeholder = options[0].value === '' ? options[0].text : '';
+    }
+    function pick(option) {
+      var changed = option !== current;
+      current = option;
+      input.blur();
+      close();
+      if (changed) { onchange(); }
+    }
+    input.onfocus = function () { input.placeholder = current.text; input.value = ''; box.classList.add('open'); render(''); };
+    input.oninput = function () { box.classList.add('open'); render(input.value); };
+    input.onblur = close;
+    input.onkeydown = function (event) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (!box.classList.contains('open')) { box.classList.add('open'); render(input.value); }
+        active = Math.max(0, Math.min(shown.length - 1, active + (event.key === 'ArrowDown' ? 1 : -1)));
+        highlight();
+        event.preventDefault();
+      } else if (event.key === 'Enter') {
+        if (shown[active]) { pick(shown[active]); }
+        event.preventDefault();
+      } else if (event.key === 'Escape') {
+        input.blur();
+      }
+    };
+    window.addEventListener('scroll', function () { if (box.classList.contains('open')) { place(); } }, true);
+    window.addEventListener('resize', function () { if (box.classList.contains('open')) { place(); } });
+    Object.defineProperty(box, 'value', {
+      get: function () { return current.value; },
+      // null shows "-": no active choice on this filter.
+      set: function (value) { current = options.filter(function (option) { return option.value === value; })[0] || (value === null ? { value: null, text: '-' } : options[0]); close(); }
+    });
+    close();
+    return box;
+  }
+  function nameCell(name) {
+    var raider = raiderByName(name);
+    var td = el('td', { text: name });
+    td.style.color = raider ? (classColor[raider.className] || '') : '';
+    td.style.fontWeight = 'bold';
+    return td;
+  }
+  function table(headers, rows) {
+    return sortable(el('table', {}, [el('thead', {}, [el('tr', {}, headers.map(function (h) { return el('th', { text: h }); }))]), el('tbody', {}, rows)]));
+  }
+  // Click a header to sort its column; cells may carry data-sort when the shown text does not sort right. Empty cells stay last.
+  function sortable(node) {
+    var heads = node.tHead.rows[0].cells;
+    var original = Array.prototype.slice.call(node.tBodies[0].rows);
+    Array.prototype.forEach.call(heads, function (th, column) {
+      th.classList.add('sortable');
+      // Ascending, then descending, then back to the original order.
+      th.onclick = function () {
+        var current = th.getAttribute('data-dir');
+        var next = current === 'asc' ? 'desc' : current === 'desc' ? '' : 'asc';
+        Array.prototype.forEach.call(heads, function (other) { other.removeAttribute('data-dir'); });
+        if (next) { th.setAttribute('data-dir', next); }
+        var body = node.tBodies[0];
+        Array.prototype.slice.call(body.rows).map(function (row) {
+          var cell = row.cells[column];
+          var key = cell ? (cell.hasAttribute('data-sort') ? cell.getAttribute('data-sort') : cell.textContent.trim()) : '';
+          return { row: row, key: key, index: original.indexOf(row) };
+        }).sort(function (a, b) {
+          if (!next) { return a.index - b.index; }
+          if ((a.key === '') !== (b.key === '')) { return a.key === '' ? 1 : -1; }
+          var order = a.key !== '' && !isNaN(Number(a.key)) && !isNaN(Number(b.key)) ? Number(a.key) - Number(b.key)
+            : a.key.localeCompare(b.key, 'fr', { numeric: true, sensitivity: 'base' });
+          return (next === 'asc' ? order : -order) || a.index - b.index;
+        }).forEach(function (entry) { body.appendChild(entry.row); });
+      };
+    });
+    return node;
+  }
+  var wowheadPending = false;
+  // Wowhead colours and iconizes links once scanned; rescan after each render.
+  function refreshWowhead() {
+    if (wowheadPending) { return; }
+    wowheadPending = true;
+    setTimeout(function () {
+      wowheadPending = false;
+      var api = (window.WH && window.WH.Tooltips) || window.$WowheadPower;
+      if (api && api.refreshLinks) { api.refreshLinks(); }
+    }, 0);
+  }
+  function itemCell(itemId, name) {
+    var id = parseInt(itemId, 10);
+    var label = name || ('#' + itemId);
+    if (!(id > 0)) { return el('td', { text: label }); }
+    refreshWowhead();
+    return el('td', { 'data-sort': label }, [el('a', { class: 'item', href: 'https://www.wowhead.com/' + DATA.wowhead + '/item=' + id, target: '_blank', rel: 'noopener', text: label })]);
+  }
+  function card(title, content) { return el('div', { class: 'card' }, [title ? el('h2', { text: title }) : null].concat(content)); }
+  // Top 5 per item, raiders who already received it left out (same rule as the workbook tab).
+  function ranking(item) { return item.scores.filter(function (s) { return !s.owned; }).slice(0, 5); }
+
+  function renderNav() {
+    var nav = document.getElementById('nav');
+    TABS.forEach(function (tab, index) {
+      nav.appendChild(el('button', { text: tab[1], 'data-tab': tab[0], onclick: function () { show(tab[0]); } }));
+      if (index === 0) { show(tab[0]); }
+    });
+  }
+  function show(id) {
+    TABS.forEach(function (tab) {
+      document.getElementById(tab[0]).classList.toggle('active', tab[0] === id);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('nav button'), function (button) {
+      button.classList.toggle('active', button.getAttribute('data-tab') === id);
+    });
+  }
+
+  function renderPerso() {
+    var section = document.getElementById('perso');
+    var saved = localStorage.getItem('preloot-raider') || '';
+    var select = combo(raiderOptions('Choisis ton personnage'), function () { localStorage.setItem('preloot-raider', select.value); fill(); });
+    select.value = raiderByName(saved) ? saved : '';
+    var body = el('div');
+    var armory = el('a', { class: 'toggle', target: '_blank', rel: 'noopener', title: 'Voir sur l\'Armory Blizzard', text: 'Voir la fiche Armory' });
+    section.appendChild(card('', [select, armory, body]));
+
+    function fill() {
+      body.innerHTML = '';
+      var raider = raiderByName(select.value);
+      armory.style.display = raider && DATA.armoryCharacterUrl ? '' : 'none';
+      if (!raider) { return; }
+      armory.href = DATA.armoryCharacterUrl + encodeURIComponent(raider.name.toLowerCase());
+      var classSpec = raider.className + ' ' + raider.spec;
+      var stats = [
+        ['Classe / spé', classSpec], ['Ratio BiS', score(raider.bisRatio)], ['Présence palier', raider.tierPresence + ' / ' + raider.tierPresenceMax],
+        ['Loots BiS', raider.bisLootCount], ['Loots Impact', raider.impactLootCount],
+        ['Parse WCL', raider.parse, DATA.wclCharacterUrl && DATA.wclCharacterUrl + encodeURIComponent(raider.name), 'Voir sur Warcraft Logs']
+      ];
+      body.appendChild(el('div', { class: 'stats' }, stats.map(function (pair) {
+        var value = el('div', { class: 'value', text: String(pair[1]) });
+        var link = pair[2];
+        var box = el(link ? 'a' : 'div', { class: 'stat' + (link ? ' link' : '') }, [el('div', { class: 'label', text: pair[0] }), value]);
+        if (pair[0] === 'Parse WCL') { paintParse(value, raider.parse); }
+        if (link) {
+          box.href = link;
+          box.target = '_blank';
+          box.rel = 'noopener';
+          box.title = pair[3];
+        }
+        if (pair[0] === 'Classe / spé' && classFill[raider.className]) {
+          box.style.background = classFill[raider.className].fill;
+          box.style.color = classFill[raider.className].fillText;
+          box.firstChild.style.color = classFill[raider.className].fillText;
+        }
+        return box;
+      })));
+
+      var impactRows = [];
+      DATA.items.forEach(function (item) {
+        var mine = item.scores.filter(function (s) { return s.name === raider.name; })[0];
+        if (!mine || mine.owned) { return; }
+        var rank = item.scores.filter(function (s) { return !s.owned; }).indexOf(mine) + 1;
+        impactRows.push({ item: item, score: mine.score, rank: rank });
+      });
+      impactRows.sort(function (a, b) { return a.rank - b.rank || b.score - a.score; });
+      body.appendChild(card('Mes objets Impact', [impactRows.length ? table(['Objet', 'Mon score', 'Mon rang', '1er'], impactRows.map(function (row) {
+        var first = ranking(row.item)[0];
+        return el('tr', {}, [itemCell(row.item.itemId, row.item.name), el('td', { class: 'num', text: score(row.score) }),
+          el('td', { class: 'num' + (row.rank <= 3 ? ' rank' + row.rank : ''), text: String(row.rank) }), first ? nameCell(first.name) : el('td')]);
+      })) : el('p', { class: 'muted', text: 'Aucun objet Impact pour ta spé.' })]));
+
+      var bisRows = DATA.items.filter(function (item) {
+        return item.specs.some(function (spec) { return spec.classSpec === classSpec && spec.statut === 'BIS'; });
+      }).map(function (item) {
+        var got = DATA.loots.some(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); });
+        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
+      });
+      body.appendChild(card('Mes objets BiS', [bisRows.length ? table(['Objet', 'Emplacement', ''], bisRows) : el('p', { class: 'muted', text: 'Aucun objet BiS pour ta spé.' })]));
+
+      var myLoots = DATA.loots.filter(function (loot) { return loot.raider === raider.name; });
+      body.appendChild(card('Mes loots du palier', [myLoots.length ? lootTable(myLoots, false) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
+    }
+    fill();
+  }
+
+  function renderClassement() {
+    var section = document.getElementById('classement');
+    var itemOptions = DATA.items.filter(function (item) { return ranking(item).length; }).map(function (item) {
+      return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
+    }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
+    var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { fill(); });
+    var holder = el('div');
+    section.appendChild(card('Top 5 Impact par objet', [search, holder]));
+    function fill() {
+      holder.innerHTML = '';
+      var rows = DATA.items.filter(function (item) {
+        return ranking(item).length && (!search.value || String(item.itemId) === search.value);
+      }).map(function (item) {
+        var top = ranking(item);
+        var cells = [itemCell(item.itemId, item.name)];
+        for (var i = 0; i < 5; i += 1) {
+          var td = el('td', { class: top[i] && i < 3 ? 'rank' + (i + 1) : '', text: top[i] ? top[i].name + ' (' + score(top[i].score) + ')' : '' });
+          if (top[i]) { colorName(td, top[i].name, i); td.setAttribute('data-sort', String(top[i].score)); }
+          cells.push(td);
+        }
+        return el('tr', {}, cells);
+      });
+      holder.appendChild(rows.length ? table(['Objet', '1er', '2e', '3e', '4e', '5e'], rows) : el('p', { class: 'muted', text: 'Aucun objet Impact.' }));
+    }
+    fill();
+  }
+  function colorName(td, name, index) {
+    var raider = raiderByName(name);
+    td.style.color = raider ? (classColor[raider.className] || '') : '';
+    td.style.fontWeight = index < 3 ? 'bold' : 'normal';
+  }
+
+  function renderRoster() {
+    var section = document.getElementById('roster');
+    var columns = ['Raider', 'Groupe', 'Classe', 'Spé', 'Rôle', 'Présence', 'Loots BiS', 'Loots Impact', 'Ratio BiS', 'Parse'];
+    var raiders = DATA.raiders.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }); });
+    var rows = raiders.map(function (r) {
+      return el('tr', {}, [nameCell(r.name), el('td', { text: r.group }), colored(el('td', { text: r.className }), classColor[r.className]),
+        colored(el('td', { text: r.spec }), SPEC_COLORS[r.className + ' ' + r.spec]), el('td', { text: ROLE_LABELS[r.role] || r.role }),
+        el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax }), el('td', { class: 'num', text: String(r.bisLootCount) }),
+        el('td', { class: 'num', text: String(r.impactLootCount) }), el('td', { class: 'num', text: score(r.bisRatio) }), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
+    });
+    section.appendChild(card('Roster', [table(columns, rows)]));
+  }
+
+  // Sorted by type, not alphabetically: first click puts IMPACT on top.
+  var TREATMENT_ORDER = ['IMPACT', 'BIS', 'CLASS_BOUND', 'NORMAL'];
+  function treatmentCell(treatment) {
+    var rank = TREATMENT_ORDER.indexOf(treatment);
+    return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });
+  }
+  function lootTable(loots, withRaider) {
+    return table(['Date'].concat(withRaider ? ['Raider'] : []).concat(['Objet', 'Statut']), loots.map(function (loot) {
+      return el('tr', {}, [el('td', { 'data-sort': loot.date || '', text: frDate(loot.date) })].concat(withRaider ? [nameCell(loot.raider)] : []).concat([
+        itemCell(loot.itemId, loot.itemName), treatmentCell(loot.treatment)]));
+    }));
+  }
+  function renderLoots() {
+    var section = document.getElementById('loots');
+    var mode = 'raid';
+    var view = el('button', { class: 'toggle', text: 'Par raid', onclick: function () {
+      mode = mode === 'raid' ? 'list' : 'raid';
+      view.textContent = mode === 'raid' ? 'Par raid' : 'Liste';
+      fill();
+    } });
+    var raidById = {};
+    DATA.raids.forEach(function (raid) { raidById[raid.raidId] = raid; });
+    function raidTitle(raidId) {
+      var raid = raidById[raidId];
+      return raid ? (raid.instance || 'Raid ' + raidId) + ' du ' + frDate(raid.date) : (raidId ? 'Raid ' + raidId : 'Raid inconnu');
+    }
+    var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); });
+    var select = combo(raiderOptions('Tous les raiders'), function () { fill(); });
+    var holder = el('div');
+    section.appendChild(card('Loots du palier', [view, raidSelect, select, holder]));
+    function fill() {
+      holder.innerHTML = '';
+      var loots = DATA.loots.filter(function (loot) {
+        return (!select.value || loot.raider === select.value) && (!raidSelect.value || loot.raidId === raidSelect.value);
+      });
+      if (!loots.length) {
+        holder.appendChild(el('p', { class: 'muted', text: 'Aucun loot.' }));
+      } else if (mode === 'list') {
+        holder.appendChild(lootTable(loots, true));
+      } else {
+        // Raids newest first, then loots of an unknown raid.
+        var groups = DATA.raids.map(function (raid) { return raid.raidId; });
+        loots.forEach(function (loot) { if (groups.indexOf(loot.raidId) === -1) { groups.push(loot.raidId); } });
+        groups.forEach(function (raidId) {
+          var raidLoots = loots.filter(function (loot) { return loot.raidId === raidId; });
+          if (!raidLoots.length) { return; }
+          holder.appendChild(el('h2', { text: raidTitle(raidId) + ' (' + raidLoots.length + ')' }));
+          holder.appendChild(table(['Raider', 'Objet', 'Statut'], raidLoots.map(function (loot) {
+            return el('tr', {}, [nameCell(loot.raider), itemCell(loot.itemId, loot.itemName), treatmentCell(loot.treatment)]);
+          })));
+        });
+      }
+    }
+    fill();
+  }
+
+  function renderPresence() {
+    var section = document.getElementById('presence');
+    if (!DATA.raids.length) {
+      section.appendChild(card('Présence du palier', [el('p', { class: 'muted', text: 'Aucun raid ce palier.' })]));
+      return;
+    }
+    var raids = DATA.raids.slice().reverse();
+    var head = ['Raider', 'Total'].concat(raids.map(function (raid) { return frDate(raid.date).slice(0, 5) || raid.raidId; }));
+    var rows = DATA.raiders.map(function (r) {
+      var cells = raids.map(function (raid) {
+        var value = raid.presence[r.name];
+        return el('td', { class: value === '1' ? 'P' : value === 'B' ? 'B' : 'A', text: value === '1' ? 'P' : value || '', title: raid.instance + ' ' + frDate(raid.date) });
+      });
+      return el('tr', {}, [nameCell(r.name), el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax })].concat(cells));
+    });
+    section.appendChild(card('Présence du palier', [table(head, rows)]));
+  }
+
+  // One table per role, like the workbook's Objets tabs: an item row, then Statut and gain for each spec of the role.
+  // Picking an item instead lists every spec, of any role, that has it.
+  function renderObjets() {
+    var section = document.getElementById('objets');
+    var select = combo(DATA.roles.map(function (r) { return { value: r.role, text: 'Objets ' + r.role }; }), function () { lastRole = select.value; itemSelect.value = ''; fill(); });
+    var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
+      return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
+    }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
+    var itemSelect = combo([{ value: '', text: 'Choisir un objet' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : lastRole; fill(); });
+    var holder = el('div');
+    section.appendChild(card('Objets du palier', [itemSelect, select, holder]));
+    var firstWithItems = DATA.roles.filter(function (r) {
+      return DATA.items.some(function (item) { return item.specs.some(function (spec) { return r.specs.indexOf(spec.classSpec) !== -1; }); });
+    })[0];
+    if (firstWithItems) { select.value = firstWithItems.role; }
+    var lastRole = select.value;
+    function specFill(node, label) {
+      var className = label.split(' ')[0];
+      var entry = classFill[className];
+      node.title = label;
+      node.textContent = label.slice(className.length + 1);
+      if (entry) { node.style.background = entry.fill; node.style.color = entry.fillText; }
+      return node;
+    }
+    function fillItem(item) {
+      var rows = [];
+      DATA.roles.forEach(function (role) {
+        role.specs.forEach(function (label) {
+          var spec = item.specs.filter(function (s) { return s.classSpec === label; })[0];
+          if (!spec) { return; }
+          var gain = spec.statut === 'IMPACT' && spec.gainDps !== null ? Number(spec.gainDps).toFixed(1) : '';
+          rows.push(el('tr', {}, [specFill(el('td', { 'data-sort': label }), label), el('td', { text: role.role }),
+            el('td', { class: 't-' + spec.statut, text: spec.statut }), el('td', { class: 'num', text: gain })]));
+        });
+      });
+      holder.appendChild(table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])]));
+      holder.appendChild(el('h2', { text: rows.length + (rows.length > 1 ? ' spés' : ' spé') }));
+      holder.appendChild(table(['Spé', 'Rôle', 'Statut', 'Gain (DPS)'], rows));
+    }
+    function fill() {
+      holder.innerHTML = '';
+      var picked = DATA.items.filter(function (item) { return String(item.itemId) === itemSelect.value; })[0];
+      if (picked) { fillItem(picked); return; }
+      var role = DATA.roles.filter(function (r) { return r.role === select.value; })[0];
+      var rows = DATA.items.filter(function (item) {
+        return item.specs.some(function (spec) { return role.specs.indexOf(spec.classSpec) !== -1; });
+      }).map(function (item) {
+        var bySpec = {};
+        item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
+        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })].concat(role.specs.map(function (label) {
+          var spec = bySpec[label];
+          var gain = spec && spec.statut === 'IMPACT' && spec.gainDps !== null ? ' ' + Number(spec.gainDps).toFixed(1) : '';
+          return el('td', { class: spec ? 't-' + spec.statut : '', text: spec ? spec.statut + gain : '' });
+        })));
+      });
+      if (!rows.length) {
+        holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet.' }));
+      } else {
+        var grid = table(['Objet', 'Emplacement'].concat(role.specs), rows);
+        // Spec headers on their WoW class colour, like the Roster Classe cells; the colour names the class, so only the spec is written.
+        Array.prototype.slice.call(grid.querySelectorAll('th'), 2).forEach(function (th) { specFill(th, th.textContent); });
+        holder.appendChild(grid);
+      }
+    }
+    fill();
+  }
+
+  google.script.run
+    .withSuccessHandler(function (data) {
+      DATA = data;
+      data.classes.forEach(function (entry) { classColor[entry.name] = entry.color; classFill[entry.name] = entry; });
+      document.getElementById('status').remove();
+      document.getElementById('tier').textContent = data.tierId ? 'Palier ' + data.tierId + (data.tierStart ? ' depuis le ' + frDate(data.tierStart) : '') : '';
+      renderNav();
+      renderPerso();
+      renderClassement();
+      renderRoster();
+      renderLoots();
+      renderPresence();
+      renderObjets();
+    })
+    .withFailureHandler(function (error) {
+      document.getElementById('status').textContent = 'Chargement impossible : ' + (error && error.message ? error.message : error);
+    })
+    .getRaiderPortalData();
+</script>
+</body>
+</html>

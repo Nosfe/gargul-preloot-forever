@@ -9,10 +9,10 @@ Source of the Apps Script bound to the Google Sheets workbook **preloot-forever*
 1. Install [Node.js](https://nodejs.org/) (LTS), then clasp: `npm install -g @google/clasp`.
 2. Turn on the **Google Apps Script API** at <https://script.google.com/home/usersettings>.
 3. Run `clasp login` and sign in with the Google account that owns the workbook. The token is stored in your user profile (`.clasprc.json`, ignored by git).
-4. From this folder, upload: `clasp push --force`. It prints `Pushed 14 files`.
+4. From this folder, upload: `clasp push --force`. It prints `Pushed 17 files`.
 5. Reload the workbook. The **Preloot** menu appears; the first menu action asks for authorisation.
 
-`.claspignore` uploads only `appsscript.json` and the `.js` files. `appsscript.json` turns on the V8 runtime and the advanced **Sheets** service (v4) that every batched write uses.
+`.claspignore` uploads only `appsscript.json`, the `.js` files and `portal.html`. `appsscript.json` turns on the V8 runtime and the advanced **Sheets** service (v4) that every batched write uses, and sets the web app below.
 
 If `clasp push` hangs with no output, stop it and run it again.
 
@@ -20,7 +20,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 
 ## Menu
 
-**Preloot > Raid**
+**Parsimonie > Raid**
 
 | Item | Effect |
 | --- | --- |
@@ -29,7 +29,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Annuler | Cancels the open raid (removes its row and the protections) without importing anything. |
 | Supprimer | Deletes a raid chosen from a list of all Raids rows, after confirmation. Choosing the raid in progress also cancels it, like Annuler. |
 
-**Preloot > Configuration**
+**Parsimonie > Configuration**
 
 | Item | Effect |
 | --- | --- |
@@ -55,9 +55,19 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 
 Rows from earlier tiers stay visible in grey. Each tier change also adds an `Objets (<tier>)` archive tab.
 
+## Raider portal
+
+A read-only web page for the raiders (`webapp.js`, `portal.html`), in French: Mon personnage (pick your name: your numbers, your rank on each IMPACT item, your BiS items and loots), Classement Impact, Roster, Loots, Présence and Objets of the active tier. It shows numbers only, never Config, the WCL settings or the sheet itself. Data is cached for one minute.
+
+The web app runs as the owner and opens for anyone with the link, without a Google account (`appsscript.json` > `webapp`).
+
+- Create the deployment once: `clasp deploy --description "Portail raiders"`. It prints the deployment ID; the link is `https://script.google.com/macros/s/<deployment ID>/exec`.
+- After each `clasp push`, update the same link: `clasp deploy -i <deployment ID> --description "Portail raiders"`. Without `-i`, a new link is created.
+- To stop sharing, archive the deployment in the Apps Script editor (**Deploy > Manage deployments**).
+
 ## Tests
 
-The `tests/story-4-*.html` pages run the script against a fake Sheets API (`tests/harness.js`), with shared assertions and fixtures in `tests/helpers.js`. Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
+The `tests/story-4-*.html` and `tests/portal.html` pages run the script against a fake Sheets API (`tests/harness.js`), with shared assertions and fixtures in `tests/helpers.js`. Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
 
 Run one with headless Edge (or Chrome):
 

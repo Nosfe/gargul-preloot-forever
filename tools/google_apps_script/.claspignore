@@ -1,3 +1,4 @@
 **/**
 !appsscript.json
 !**/*.js
+!portal.html

@@ -35,16 +35,16 @@ In Gargul's loot exporter:
 
 1. Choose the **Custom** format.
 2. Untick **Include offspec items** and **Include disenchanted items**.
-3. Paste the format line from the workbook menu **Preloot > Configuration > Afficher le format d'export Gargul**.
+3. Paste the format line from the workbook menu **Parsimonie > Configuration > Afficher le format d'export Gargul**.
 
 The addon replaces that line's `@GPRAID` and `@GPTREATMENT` tokens; Gargul fills the rest.
 
 ## Raid night
 
-1. In the workbook: **Preloot > Raid > Démarrer (exporter le snapshot)**, then copy the snapshot.
+1. In the workbook: **Parsimonie > Raid > Démarrer (exporter le snapshot)**, then copy the snapshot.
 2. In game: open Gargul's Importer, click **Preloot (snapshot)**, paste, then **Importer**. Chat confirms the tier, the raid and the number of raiders. `/preloot import` opens the same paste window.
 3. Roll and award as usual in Gargul, and confirm each award's treatment in the window.
-4. After the raid, export from Gargul. In the workbook, use **Preloot > Raid > Terminer** with the Warcraft Logs report link and the export.
+4. After the raid, export from Gargul. In the workbook, use **Parsimonie > Raid > Terminer** with the Warcraft Logs report link and the export.
 
 The addon keeps nothing between sessions: import the snapshot again before every raid. A `/reload` during a raid clears both the snapshot and the treatments recorded so far:
 

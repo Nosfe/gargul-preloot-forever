@@ -174,7 +174,9 @@ var PRESENCE_STYLE = {
 var RAID_OPEN_PROTECTION_PREFIX = 'Raid ouvert';
 
 // Warning-only protections: Config tier cells (set by Nouveau palier and the raid actions) and tier archives.
-var CONFIG_PROTECTION_DESCRIPTION = 'Config : géré par Preloot (Nouveau palier, Raid)';
+var CONFIG_PROTECTION_DESCRIPTION = 'Config : géré par Parsimonie (Nouveau palier, Raid)';
+// Name before the rename, so refresh still replaces the old protection.
+var LEGACY_CONFIG_PROTECTION_DESCRIPTION = 'Config : géré par Preloot (Nouveau palier, Raid)';
 var TIER_ARCHIVE_PROTECTION_DESCRIPTION = 'Archive de palier : lecture seule';
 
 // Rows dated before Début du palier (previous tiers): greyed out, they no longer count in the scores.
@@ -197,6 +199,21 @@ function classHeaderTextHex_(className) {
 
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
+
+// Config Version Wowhead choices → wowhead.com path segment; the first one is the default.
+var WOWHEAD_VERSIONS = [
+  { label: 'Forever', path: 'forever' },
+  { label: 'Classic', path: 'classic' },
+  { label: 'TBC', path: 'tbc', armory: 'classicann' },
+  { label: 'WotLK', path: 'wotlk' },
+  { label: 'Cataclysm', path: 'cata' },
+  { label: 'MoP Classic', path: 'mop-classic' }
+];
+
+function wowheadPath_(label) {
+  var match = WOWHEAD_VERSIONS.filter(function (version) { return version.label === String(label || '').trim(); })[0];
+  return (match || WOWHEAD_VERSIONS[0]).path;
+}
 
 // _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
 // (spills over 4 columns), the Classe|Spé → Rôle table read by the Rôle formula, and the IMPACT gain table
@@ -238,7 +255,8 @@ var TABS = [
       { key: 'tierId', label: 'Palier actif (ID)', note: 'Identifiant du palier en cours, ex. forever-t1. Rempli par l\'officier en ligne 2.' },
       { key: 'bisWindowStart', label: 'Début du palier', note: 'Date de début du palier actif. Seuls les raids et loots BiS à partir de cette date comptent pour Présence palier et Ratio BiS (reset BiS à chaque nouveau palier).' },
       { key: 'openRaidId', label: 'Raid en cours', note: 'Identifiant du raid en cours, rempli par Raid > Démarrer et vidé par Raid > Terminer ou Annuler.' },
-      { key: 'wclRealm', label: 'Serveur WCL', note: 'Région et serveur des personnages sur Warcraft Logs, ex. eu/thunderstrike. Utilisé par Configuration > Mettre à jour les parses WCL.' }
+      { key: 'wclRealm', label: 'Serveur WCL', note: 'Région et serveur des personnages sur Warcraft Logs, ex. eu/thunderstrike. Utilisé par Configuration > Mettre à jour les parses WCL.' },
+      { key: 'wowheadVersion', label: 'Version Wowhead', note: 'Version du jeu pour les liens et tooltips Wowhead du portail raiders (liste). Vide = Forever.' }
     ]
   },
   {

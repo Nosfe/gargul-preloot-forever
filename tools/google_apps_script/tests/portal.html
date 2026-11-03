@@ -1,0 +1,91 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Raider portal tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="helpers.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/parses.js"></script>
+<script src="../src/webapp.js"></script>
+<script>
+  (function () {
+    try {
+      withHarness(function () {
+        seedCoreTabs_();
+        var spreadsheet = SpreadsheetApp.getActive();
+        var idOf = function (name) { return spreadsheet.getSheetByName(name).getSheetId(); };
+
+        writeCells_(idOf('Config'), 1, 0, ['t1', '2026-10-01', '', 'eu/secret-realm', 'TBC']);
+        writeCells_(idOf('Roster'), 1, 0, ['Ana', 'Raid 1', 'Mage', 'Givre', 'Caster DPS', 80, 2, 4, 0, 1, 0.5]);
+        writeCells_(idOf('Roster'), 2, 0, ['Bob', 'Raid 1', 'Mage', 'Feu', 'Caster DPS', '', 4, 4, 1, 0, 0.5]);
+        writeCells_(idOf('Roster'), 3, 0, ['Cid', 'Raid 2', 'Guerrier', 'Protection', 'Tank', 90, 3, 4, 0, 0, 0.75]);
+        // Objets Caster DPS row 4 is item 777: Mage Feu IMPACT 50 DPS, Mage Givre IMPACT 20 DPS.
+        writeCells_(idOf('Objets Caster DPS'), 3, OBJETS_FIRST_SPEC_COLUMN + 2, ['IMPACT', 50, 'IMPACT', 20]);
+        writeCells_(idOf('Objets Caster DPS'), 3, OBJETS_SLOT_COLUMN, ['Deux mains']);
+
+        var presenceHeader = TracerHarness.getRows('Présence')[0];
+        var presenceRow = function (values) {
+          var row = values.slice(0, 3);
+          presenceHeader.slice(PRESENCE_FIRST_RAIDER_COLUMN).forEach(function (name) { row.push(values[3][name] || ''); });
+          return row;
+        };
+        writeCells_(idOf('Présence'), 2, 0, presenceRow(['1', 'Karazhan', '2026-10-05', { Ana: 1, Bob: 'B' }]));
+        writeCells_(idOf('Présence'), 3, 0, presenceRow(['old', 'Molten Core', '2026-09-01', { Ana: 1, Bob: 1, Cid: 1 }]));
+
+        var awardsHeader = TracerHarness.getRows('Awards')[0];
+        var blockOf = function (name) { return awardsHeader.indexOf(name); };
+        writeCells_(idOf('Awards'), 2, blockOf('Bob'), ['', 'Bâton ancien', 777, 'NORMAL', '1']);
+        writeCells_(idOf('Awards'), 2, blockOf('Ana'), ['2026-09-01', 'Vieux', 555, 'BIS', 'old']);
+
+        var data = buildRaiderPortalData_(spreadsheet);
+        equal(Object.keys(data).join(','), 'tierId,tierStart,wowhead,wclCharacterUrl,armoryCharacterUrl,classes,parseColors,roles,raiders,items,loots,raids', 'only the portal fields are sent');
+        equal(data.wowhead + '|' + wowheadPath_('') + '|' + wowheadPath_('<script>'), 'tbc|forever|forever', 'Wowhead version from Config, Forever when blank or unknown');
+        equal(data.wclCharacterUrl + '|' + portalWclCharacterUrl_(''), 'https://fresh.warcraftlogs.com/character/eu/secret-realm/|', 'WCL character pages from Serveur WCL, none when unset');
+        equal(data.parseColors[0].min + '|' + data.parseColors[0].color, '100|#E5CC80', 'WCL parse colours like the Roster');
+        equal(data.roles.map(function (r) { return r.role; }).join(','), 'Tank,Heal,Melee DPS,Ranged DPS,Caster DPS', 'Objets grouped like the sheet tabs');
+        equal(data.roles[4].specs[2], 'Mage Givre', 'role specs in the sheet column order');
+        equal(data.armoryCharacterUrl + '|' + portalArmoryCharacterUrl_('Forever', 'eu/secret-realm'), 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/eu/armory/character/secret-realm/|', 'Armory pages for TBC, none for versions without a known Armory');
+        equal(JSON.stringify(data).split('secret-realm').length, 3, 'Serveur WCL only reaches the page inside the WCL and Armory links');
+        equal(data.tierId + '|' + data.tierStart, 't1|2026-10-01', 'active tier and its start');
+
+        var ana = data.raiders.filter(function (r) { return r.name === 'Ana'; })[0];
+        equal([ana.group, ana.className, ana.spec, ana.role, ana.tierPresence, ana.tierPresenceMax, ana.bisRatio, ana.parse].join('|'),
+          'Raid 1|Mage|Givre|DPS|2|4|0.5|80', 'raider row from Roster');
+        equal(data.raiders.length, 3, 'every valid Roster raider');
+
+        var staff = data.items.filter(function (item) { return item.itemId === 777; })[0];
+        equal(staff.name + '|' + staff.slot, 'Bâton ancien|Deux mains', 'item name and slot from Objets');
+        equal(JSON.stringify(staff.scores), JSON.stringify([{ name: 'Ana', score: 400, owned: false }, { name: 'Bob', score: 50, owned: true }]),
+          'scores highest first, same formula as the snapshot; Bob already has it');
+
+        equal(data.loots.map(function (loot) { return loot.raider + ':' + loot.itemId + ':' + loot.date; }).join(','), 'Bob:777:2026-10-05',
+          'tier loots only; a blank award date takes its raid date');
+        equal(data.raids.length + '|' + JSON.stringify(data.raids[0].presence) + '|' + data.raids[0].instance, '1|{"Ana":"1","Bob":"B"}|Karazhan',
+          'tier raids with 1 and B');
+        equal(data.classes.filter(function (c) { return c.name === 'Prêtre'; })[0].color, '#6E6E6E', 'class colours like the Présence headers');
+        var mage = data.classes.filter(function (c) { return c.name === 'Mage'; })[0];
+        equal(mage.fill + '|' + mage.fillText, '#3FC7EB|#1F1F1F', 'WoW class fill and its readable text, like the Roster Classe cells');
+      });
+
+      var manifest = loadJsonSync_('../src/appsscript.json');
+      equal(manifest.webapp.access + '|' + manifest.webapp.executeAs, 'ANYONE_ANONYMOUS|USER_DEPLOYING', 'web app open to anyone with the link, read with the owner account');
+      equal(typeof doGet, 'function', 'web app entry point');
+      var page = loadTextSync_('../src/portal.html');
+      equal(page.split('innerHTML').length, page.split("innerHTML = ''").length, 'page never injects sheet text as HTML (innerHTML only cleared)');
+      contains(page, '.getRaiderPortalData()', 'page loads its data from the script');
+
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

@@ -499,7 +499,7 @@ function buildConfigProtectionRequests_(sheetId, tab, metadataBySheetId) {
     return [];
   }
   var requests = ((metadataBySheetId[sheetId] || {}).protectedRanges || []).filter(function (range) {
-    return range.description === CONFIG_PROTECTION_DESCRIPTION;
+    return range.description === CONFIG_PROTECTION_DESCRIPTION || range.description === LEGACY_CONFIG_PROTECTION_DESCRIPTION;
   }).map(function (range) {
     return { deleteProtectedRange: { protectedRangeId: range.protectedRangeId } };
   });
@@ -672,6 +672,15 @@ function buildValidationRequestsForTab_(sheetId, tab, argSeparator) {
         fields: 'userEnteredFormat.numberFormat'
       }
     });
+    requests.push(buildDataValidationRequest_(sheetId, columnOf_(tab, 'wowheadVersion'), {
+      condition: {
+        type: 'ONE_OF_LIST',
+        values: WOWHEAD_VERSIONS.map(function (version) { return { userEnteredValue: version.label }; })
+      },
+      strict: true,
+      showCustomUi: true,
+      inputMessage: 'Version du jeu pour les liens Wowhead du portail. Vide = Forever.'
+    }));
   }
 
   if (tab.name === 'Roster') {
