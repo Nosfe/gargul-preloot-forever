@@ -82,6 +82,11 @@
   /* Wowhead's quality colours are made for dark tooltips; darker common/uncommon so they read on parchment. */
   main a.item.q0 { color: #6b6b6b !important; } main a.item.q1 { color: var(--ink) !important; } main a.item.q2 { color: #1a8c00 !important; }
   #status { color: var(--cream); }
+  /* About 12 rows, then the table scrolls under its sticky header. */
+  .scroll { max-height: 440px; overflow-y: auto; }
+  .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--tan); padding-bottom: 4px; margin-bottom: 8px; }
+  .card .card-head h2 { border: 0; margin: 0; padding: 0; }
+  .card-head .combo { margin: 0; }
   #tip { display: none; position: fixed; z-index: 20; pointer-events: none; background: var(--cream); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); padding: 6px 10px; font-size: 12px; }
   #tip .t { font-weight: bold; margin-bottom: 4px; }
   #tip table { width: auto; }
@@ -356,24 +361,44 @@
         impactRows.push({ item: item, score: mine.score, rank: rank });
       });
       impactRows.sort(function (a, b) { return a.rank - b.rank || b.score - a.score; });
-      body.appendChild(card('Mes objets Impact', [impactRows.length ? table(['Objet', 'Mon score', 'Mon rang', '1er'], impactRows.map(function (row) {
-        var first = ranking(row.item)[0];
-        return el('tr', {}, [itemCell(row.item.itemId, row.item.name), el('td', { class: 'num', text: score(row.score) }),
-          el('td', { class: 'num' + (row.rank <= 3 ? ' rank' + row.rank : ''), text: String(row.rank) }), first ? nameCell(first.name) : el('td')]);
-      })) : el('p', { class: 'muted', text: 'Aucun objet Impact pour ta spé.' })]));
+      body.appendChild(itemFilterCard('Mes objets Impact', impactRows, function (row) { return row.item; }, function (rows) {
+        return table(['Objet', 'Mon score', 'Mon rang', '1er'], rows.map(function (row) {
+          var first = ranking(row.item)[0];
+          return el('tr', {}, [itemCell(row.item.itemId, row.item.name), el('td', { class: 'num', text: score(row.score) }),
+            el('td', { class: 'num' + (row.rank <= 3 ? ' rank' + row.rank : ''), text: String(row.rank) }), first ? nameCell(first.name) : el('td')]);
+        }));
+      }, 'Aucun objet Impact pour ta spé.'));
 
-      var bisRows = DATA.items.filter(function (item) {
+      var bisItems = DATA.items.filter(function (item) {
         return item.specs.some(function (spec) { return spec.classSpec === classSpec && spec.statut === 'BIS'; });
-      }).map(function (item) {
-        var got = DATA.loots.some(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); });
-        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
       });
-      body.appendChild(card('Mes objets BiS', [bisRows.length ? table(['Objet', 'Emplacement', ''], bisRows) : el('p', { class: 'muted', text: 'Aucun objet BiS pour ta spé.' })]));
+      body.appendChild(itemFilterCard('Mes objets BiS', bisItems, function (item) { return item; }, function (items) {
+        return table(['Objet', 'Emplacement', ''], items.map(function (item) {
+          var got = DATA.loots.some(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); });
+          return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
+        }));
+      }, 'Aucun objet BiS pour ta spé.'));
 
       var myLoots = DATA.loots.filter(function (loot) { return loot.raider === raider.name; });
-      body.appendChild(card('Mes loots du palier', [myLoots.length ? lootTable(myLoots, false) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
+      body.appendChild(card('Mes loots du palier', [myLoots.length ? el('div', { class: 'scroll' }, [lootTable(myLoots, false)]) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
     }
     fill();
+  }
+  // Card with an item search dropdown above a scrollable table; itemOf maps a row to its item.
+  function itemFilterCard(title, rows, itemOf, render, emptyText) {
+    if (!rows.length) { return card(title, [el('p', { class: 'muted', text: emptyText })]); }
+    var options = rows.map(function (row) {
+      var item = itemOf(row);
+      return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
+    }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
+    var holder = el('div', { class: 'scroll' });
+    var pick = combo([{ value: '', text: 'Tous les objets' }].concat(options), function () { draw(); });
+    function draw() {
+      holder.innerHTML = '';
+      holder.appendChild(render(rows.filter(function (row) { return !pick.value || String(itemOf(row).itemId) === pick.value; })));
+    }
+    draw();
+    return card('', [el('div', { class: 'card-head' }, [el('h2', { text: title }), pick]), holder]);
   }
 
   function renderClassement() {
