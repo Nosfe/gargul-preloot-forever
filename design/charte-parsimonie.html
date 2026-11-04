@@ -7,113 +7,116 @@
 <link rel="stylesheet" href="charte-parsimonie.css">
 <style>
   .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
-  .swatch { width: 150px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #fff; }
-  .swatch div:first-child { height: 56px; }
+  .swatch { width: 150px; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
+  .swatch div:first-child { height: 48px; }
   .swatch div:last-child { padding: 6px 8px; font-size: 12px; }
-  .swatch code { font-family: var(--numbers); }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .swatch code { font-family: var(--font-numbers); }
   .demo-tip { position: static; display: inline-block; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 </style>
 </head>
 <body>
-<header><h1>Parsimonie</h1><span class="subtitle">Charte graphique</span></header>
-<nav><button class="active">Onglet actif</button><button>Onglet</button><button>Onglet</button></nav>
+<header><h1>Parsimonie</h1><button class="header-tab active">Onglet d'en-tête</button></header>
+<nav><button class="active">Onglet actif</button><button>Onglet</button><span class="spacer"></span><button>À droite</button></nav>
 <main>
 
   <div class="card">
-    <h2>Palette du logo</h2>
+    <h2>Palette</h2>
     <div class="swatches">
-      <div class="swatch"><div style="background:#11678a"></div><div><b>Bleu canard</b><br><code>#11678A</code><br>Cadre, onglet actif, boutons, en-têtes de tableau, titres</div></div>
-      <div class="swatch"><div style="background:#c8b08a"></div><div><b>Beige doré</b><br><code>#C8B08A</code><br>Titre de l'appli, liserés, bordures</div></div>
-      <div class="swatch"><div style="background:#fff5e1"></div><div><b>Crème</b><br><code>#FFF5E1</code><br>Fond des blocs, texte sur bleu</div></div>
-    </div>
-    <h2 style="margin-top:14px">Teintes dérivées</h2>
-    <div class="swatches">
-      <div class="swatch"><div style="background:#0b4f6b"></div><div>Bleu foncé <code>#0B4F6B</code><br>Fond bas, contour des blocs</div></div>
-      <div class="swatch"><div style="background:#083d53"></div><div>Bleu profond <code>#083D53</code><br>Barre d'onglets</div></div>
-      <div class="swatch"><div style="background:#1a7fa8"></div><div>Bleu clair <code>#1A7FA8</code><br>Haut des dégradés de bouton</div></div>
-      <div class="swatch"><div style="background:#9c8460"></div><div>Beige foncé <code>#9C8460</code><br>Liseré des onglets</div></div>
-      <div class="swatch"><div style="background:#f4e7cc"></div><div>Parchemin <code>#F4E7CC</code><br>Pastilles, survol de liste</div></div>
-      <div class="swatch"><div style="background:#22201c"></div><div>Encre <code>#22201C</code><br>Texte courant</div></div>
-      <div class="swatch"><div style="background:#6b6255"></div><div>Gris doux <code>#6B6255</code><br>Libellés, texte secondaire</div></div>
+      <div class="swatch"><div style="background:#0a1620"></div><div>Fond <code>#0A1620</code></div></div>
+      <div class="swatch"><div style="background:#13293a"></div><div>Bloc <code>#13293A</code></div></div>
+      <div class="swatch"><div style="background:#183247"></div><div>Pastille, champ <code>#183247</code></div></div>
+      <div class="swatch"><div style="background:#1e3d55"></div><div>Survol <code>#1E3D55</code></div></div>
+      <div class="swatch"><div style="background:#26475f"></div><div>Bordure <code>#26475F</code></div></div>
+      <div class="swatch"><div style="background:#2aa8dc"></div><div>Accent <code>#2AA8DC</code></div></div>
+      <div class="swatch"><div style="background:#1683b8"></div><div>Accent fort <code>#1683B8</code></div></div>
+      <div class="swatch"><div style="background:#f6edd2"></div><div>Crème <code>#F6EDD2</code></div></div>
+      <div class="swatch"><div style="background:#9a7432"></div><div>Or profond <code>#9A7432</code></div></div>
+      <div class="swatch"><div style="background:#ecf2f5"></div><div>Texte <code>#ECF2F5</code></div></div>
+      <div class="swatch"><div style="background:#8fa9b8"></div><div>Texte secondaire <code>#8FA9B8</code></div></div>
     </div>
   </div>
 
   <div class="card">
     <h2>Typographie</h2>
-    <p><b>IBM Plex Sans</b> pour tout le texte : titre 24px (beige doré, lueur), titres de bloc 17px (bleu canard), texte 14px, libellés 12px.</p>
-    <p><b>Verdana</b> pour les chiffres : colonnes numériques (alignées à droite), valeurs des pastilles, infobulles.</p>
-    <p>Pas de police serif. Le gras sert aux noms (couleur de classe), au podium et aux statuts BIS / IMPACT.</p>
-  </div>
-
-  <div class="card">
-    <h2>Pastilles</h2>
-    <div class="stats">
-      <div class="stat" style="background:#8788ee;color:#1f1f1f"><div class="label" style="color:#1f1f1f">Classe / spé</div><div class="value">Démoniste Affliction</div></div>
-      <div class="stat"><div class="label">Ratio BiS</div><div class="value">0.375</div></div>
-      <div class="stat"><div class="label">Présence palier</div><div class="value">3 / 4</div></div>
-      <a class="stat link" href="#"><div class="label">Parse WCL (lien)</div><div class="value" style="color:#ff8000">96</div></a>
-    </div>
+    <p><b>IBM Plex Sans</b> pour tout le texte (titre 24px, titres de bloc 17px, texte 14px, libellés 12px). <b>Verdana</b> pour les chiffres. Pas de serif.</p>
   </div>
 
   <div class="card">
     <div class="card-head">
-      <h2>Bloc avec recherche à droite</h2>
-      <div class="combo"><input type="text" placeholder="Tous les objets"></div>
+      <div class="title-group"><h2>Bloc filtrable</h2><button class="toggle">Par raid</button></div>
+      <div class="filters">
+        <div class="combo"><input type="text" placeholder="Tous les rôles"></div>
+        <div class="combo"><input type="text" placeholder="Tous les objets"></div>
+      </div>
     </div>
-    <div class="row">
-      <button class="toggle">Par raid</button>
-      <a class="toggle" href="#">Voir la fiche Armory</a>
-      <div class="combo"><input type="text" placeholder="Choisis ton personnage"></div>
+    <div class="stats">
+      <div class="stat" style="background:#8788ee;color:#1f1f1f"><div class="label" style="color:#1f1f1f">Classe / spé</div><div class="value">Démoniste Affliction</div></div>
+      <div class="stat"><div class="label">Présence palier</div><div class="value">3 / 4</div></div>
+      <a class="stat link" href="#"><div class="label">Parse WCL (lien)</div><div class="value wcl-95">96</div></a>
     </div>
     <div class="scroll">
       <table>
-        <thead><tr><th class="sortable" data-dir="asc">Raider</th><th class="sortable">Objet</th><th class="sortable">Statut</th><th class="sortable">Score</th><th>Présence</th></tr></thead>
+        <thead><tr><th class="sortable" data-dir="asc">Raider</th><th class="sortable">Objet</th><th class="sortable">Statut</th><th class="sortable">Rang</th><th>Présence</th></tr></thead>
         <tbody>
-          <tr><td style="color:#8788ee;font-weight:bold">Yajiru</td><td>Nathrezim Mindblade</td><td class="t-IMPACT">IMPACT</td><td class="num rank1">1566.000</td><td class="P">P</td></tr>
-          <tr><td style="color:#3fc7eb;font-weight:bold">Ana</td><td>Bâton ancien</td><td class="t-BIS">BIS</td><td class="num rank2">400.000</td><td class="B">B</td></tr>
-          <tr><td style="color:#f48cba;font-weight:bold">Cid</td><td>Collier de garde</td><td class="t-CLASS_BOUND">CLASS_BOUND</td><td class="num rank3">120.000</td><td class="A"></td></tr>
-          <tr><td style="color:#c69b6d;font-weight:bold">Dorn</td><td>Anneau simple</td><td class="t-NORMAL">NORMAL</td><td class="num">42.000</td><td class="P">P</td></tr>
+          <tr><td class="player c-warlock">Yajiru</td><td><a href="#">Nathrezim Mindblade</a></td><td class="t-IMPACT">IMPACT</td><td class="num medal1">1</td><td class="P">P</td></tr>
+          <tr><td class="player c-mage">Ana</td><td><a href="#">Bâton ancien</a></td><td class="t-BIS">BIS</td><td class="num medal2">2</td><td class="B">B</td></tr>
+          <tr><td class="player c-paladin">Cid</td><td><a href="#">Collier de garde</a></td><td class="t-CLASS_BOUND">CLASS_BOUND</td><td class="num medal3">3</td><td class="A"></td></tr>
+          <tr><td class="player c-warrior">Dorn</td><td><a href="#">Anneau simple</a></td><td class="t-NORMAL">NORMAL</td><td class="num">4</td><td class="P">P</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="muted">En-têtes triables : 1er clic ▲, 2e ▼, 3e ordre d'origine. Au-delà d'environ 12 lignes, le tableau défile sous son en-tête.</p>
   </div>
 
   <div class="card">
-    <h2>Infobulle</h2>
-    <div class="tip demo-tip">
-      <div class="t" style="color:#8788ee">Yajiru — 1566.000</div>
-      <table>
-        <tr><td>Présence</td><td class="v">3 / 4</td></tr>
-        <tr><td>Parse</td><td class="v" style="color:#ff8000;font-weight:bold">96</td></tr>
-        <tr><td>Gain</td><td class="v" style="color:hsl(120, 80%, 36%);font-weight:bold">24.0 DPS (Affli)</td></tr>
-        <tr><td>Loots Impact</td><td class="v">0</td></tr>
-      </table>
-      <div class="f">3/4 × 96 × 24.0 ÷ 1</div>
+    <h2>Cartes d'objet</h2>
+    <div class="item-grid">
+      <div class="item-card">
+        <div class="head"><a href="#">Nathrezim Mindblade</a><span class="slot">Une main</span></div>
+        <ol>
+          <li><span class="rk medal1">1.</span><span class="nm player c-warlock">Yajiru</span><span class="sc">1566</span></li>
+          <li><span class="rk medal2">2.</span><span class="nm player c-mage">Ana</span><span class="sc">1180</span></li>
+          <li><span class="rk medal3">3.</span><span class="nm player c-paladin">Cid</span><span class="sc">640</span></li>
+          <li><span class="rk">4.</span><span class="nm c-warrior">Dorn</span><span class="sc">310</span></li>
+        </ol>
+      </div>
+      <div class="item-card">
+        <div class="head"><a href="#">Lame au nom vraiment très long qui passe sur deux lignes</a><span class="slot">Deux mains</span></div>
+        <ol><li><span class="rk medal1">1.</span><span class="nm player c-rogue">Kael</span><span class="sc">890</span></li></ol>
+      </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Couleurs de données</h2>
-    <p><b>Échelle rouge → jaune → vert</b> (texte en gras) pour comparer des valeurs entre elles : <code>hsl(t × 120, 80%, 36%)</code>, t de 0 (plus bas) à 1 (plus haut).</p>
-    <p class="row">
-      <span style="color:hsl(0,80%,36%);font-weight:bold">5.0</span>
-      <span style="color:hsl(30,80%,36%);font-weight:bold">12.0</span>
-      <span style="color:hsl(60,80%,36%);font-weight:bold">22.0</span>
-      <span style="color:hsl(90,80%,36%);font-weight:bold">40.0</span>
-      <span style="color:hsl(120,80%,36%);font-weight:bold">48.0</span>
-    </p>
-    <p><b>Parses Warcraft Logs</b> :
-      <span style="color:#e5cc80;font-weight:bold">100</span>
-      <span style="color:#e268a8;font-weight:bold">99</span>
-      <span style="color:#ff8000;font-weight:bold">95+</span>
-      <span style="color:#a335ee;font-weight:bold">75+</span>
-      <span style="color:#0070ff;font-weight:bold">50+</span>
-      <span style="color:#1eff00;font-weight:bold">25+</span>
-      <span style="color:#666666;font-weight:bold">&lt;25</span>
-    </p>
-    <p><b>Podium</b> : <span class="rank1">&nbsp;1er #FFE38A&nbsp;</span> <span class="rank2">&nbsp;2e #D3D7DD&nbsp;</span> <span class="rank3">&nbsp;3e #EDBE93&nbsp;</span></p>
+    <h2>Tableau de détail</h2>
+    <table class="detail">
+      <thead><tr><th class="c">Rang</th><th>Raider</th><th class="c">Parse</th><th class="c">Gain (DPS)</th><th class="r">Calcul</th><th class="r">Score</th></tr></thead>
+      <tbody>
+        <tr><td class="c medal1">1</td><td class="player c-warlock">Yajiru</td><td class="c wcl-95">96</td><td class="c scale" style="--t:1">24.0</td><td class="r calc">3/4 × 96 × 24.0 ÷ 1</td><td class="r">1728</td></tr>
+        <tr><td class="c medal2">2</td><td class="player c-mage">Ana</td><td class="c wcl-75">80</td><td class="c scale" style="--t:0">20.0</td><td class="r calc">2/4 × 80 × 20.0 ÷ 2</td><td class="r">400</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Infobulle et couleurs de données</h2>
+    <div class="row">
+      <div class="tip demo-tip">
+        <div class="t c-warlock">Yajiru — 1728</div>
+        <table>
+          <tr><td>Présence</td><td class="v">3 / 4</td></tr>
+          <tr><td>Parse</td><td class="v wcl-95">96</td></tr>
+          <tr><td>Gain</td><td class="v scale" style="--t:1">24.0 DPS (Affli)</td></tr>
+          <tr><td>Loots Impact</td><td class="v">0</td></tr>
+        </table>
+        <div class="f">3/4 × 96 × 24.0 ÷ 1</div>
+      </div>
+      <div>
+        <p>Échelle : <span class="scale" style="--t:0">5</span> <span class="scale" style="--t:.25">12</span> <span class="scale" style="--t:.5">22</span> <span class="scale" style="--t:.75">40</span> <span class="scale" style="--t:1">48</span></p>
+        <p>Parses : <span class="wcl-100">100</span> <span class="wcl-99">99</span> <span class="wcl-95">95+</span> <span class="wcl-75">75+</span> <span class="wcl-50">50+</span> <span class="wcl-25">25+</span> <span class="wcl-0">&lt;25</span></p>
+        <p>Classes : <span class="player c-druid">Druide</span> <span class="player c-hunter">Chasseur</span> <span class="player c-mage">Mage</span> <span class="player c-paladin">Paladin</span> <span class="player c-priest">Prêtre</span> <span class="player c-rogue">Voleur</span> <span class="player c-shaman">Chaman</span> <span class="player c-warlock">Démoniste</span> <span class="player c-warrior">Guerrier</span></p>
+      </div>
+    </div>
   </div>
 
 </main>
