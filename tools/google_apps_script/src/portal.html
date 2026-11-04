@@ -814,8 +814,9 @@
     }
     filterItems();
     var itemSelect = combo(itemChoices, function () {
-      // Picking an item clears the role and spec context, so both lists show everything again.
-      if (itemSelect.value) {
+      // An item picked under a selected spec keeps that spec and its item list; otherwise role and spec reset so both lists show everything.
+      var keepSpec = Boolean(itemSelect.value && specSelect.value);
+      if (itemSelect.value && !keepSpec) {
         roleFilter = '';
         specFilter = '';
         saveFilter('objets-role', '');
@@ -825,12 +826,12 @@
       }
       // Back to "Tous les objets": the spec (else role) the list was filtered on comes back.
       select.value = itemSelect.value || specFilter ? null : roleFilter;
-      specSelect.value = itemSelect.value ? null : specFilter;
+      specSelect.value = itemSelect.value && !keepSpec ? null : specFilter;
       fill();
     }, 'objets-item');
     var holder = el('div');
     section.appendChild(filterCard('Objets du palier', [select, specSelect, itemSelect], [holder]));
-    if (itemSelect.value) { select.value = null; specSelect.value = null; } else if (specSelect.value) { select.value = null; }
+    if (itemSelect.value) { select.value = null; if (!specSelect.value) { specSelect.value = null; } } else if (specSelect.value) { select.value = null; }
     function specFill(node, label) {
       var className = label.split(' ')[0];
       var entry = classFill[className];
