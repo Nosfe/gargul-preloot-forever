@@ -497,25 +497,47 @@
         return impact.length ? impact.concat(bis.slice(0, Math.max(0, size - impact.length))) : bis;
       };
       var slotRows = [];
+      // One row per gear slot (two for rings and trinkets), several items comma-separated on it.
       var addRows = function (label, items, size) {
-        for (var i = 0; i < Math.max(items.length, size); i += 1) { slotRows.push({ slot: label, item: items[i] || null }); }
+        if (size === 2) {
+          slotRows.push({ slot: label, items: items.slice(0, 1) });
+          slotRows.push({ slot: label, items: items.slice(1) });
+        } else {
+          slotRows.push({ slot: label, items: items });
+        }
       };
       BIS_ARMOR_SLOTS.forEach(function (slot) { addRows(slot, pick(bySlots([slot]), slot === 'Doigt' || slot === 'Bijou' ? 2 : 1), slot === 'Doigt' || slot === 'Bijou' ? 2 : 1); });
       // A second one-hand weapon goes to the off hand (dual wield).
       var weapons = pick(bySlots(BIS_WEAPON_SLOTS), 1);
       var overflow = weapons.slice(1).filter(function (item) { return item.slot === 'Une main'; });
       addRows('Arme', weapons.filter(function (item) { return overflow.indexOf(item) === -1; }), 1);
-      addRows('Main gauche', overflow.concat(pick(bySlots(BIS_OFF_HAND_SLOTS), 1)).slice(0, Math.max(1, overflow.length)), 1);
+      addRows('Main gauche', overflow.length ? overflow : pick(bySlots(BIS_OFF_HAND_SLOTS), 1), 1);
       addRows(RELIC_CLASSES.indexOf(raider.className) !== -1 ? 'Relique' : 'Distance', pick(bySlots(['Distance', 'Relique']), 1), 1);
       var known = BIS_ARMOR_SLOTS.concat(BIS_WEAPON_SLOTS, BIS_OFF_HAND_SLOTS, ['Distance', 'Relique']);
-      bisItems.filter(function (item) { return known.indexOf(item.slot) === -1; }).forEach(function (item) { addRows(item.slot || '?', [item], 1); });
+      var others = bisItems.filter(function (item) { return known.indexOf(item.slot) === -1; });
+      others.map(function (item) { return item.slot || '?'; }).filter(function (slot, index, all) { return all.indexOf(slot) === index; }).forEach(function (slot) {
+        addRows(slot, pick(others.filter(function (item) { return (item.slot || '?') === slot; }), 1), 1);
+      });
       slotRows.forEach(function (row, index) { row.order = index; });
-      body.appendChild(itemFilterCard('BiS List', slotRows, function (row) { return row.item; }, function (rows) {
+      var separated = function (nodes) {
+        var out = [];
+        nodes.forEach(function (node, index) { if (index) { out.push(el('span', { text: ', ' })); } out.push(node); });
+        return out;
+      };
+      body.appendChild(itemFilterCard('BiS List', slotRows, function (row) { return row.items; }, function (rows) {
         return detailTable(table(['Emplacement', 'Objet', 'Looté'], rows.map(function (row) {
-          var loots = row.item ? DATA.loots.filter(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(row.item.itemId); }) : [];
-          var first = loots.map(function (loot) { return loot.date || ''; }).sort()[0];
-          return el('tr', {}, [el('td', { 'data-sort': String(row.order), text: row.slot }), row.item ? itemCell(row.item.itemId, row.item.name) : el('td', {}),
-            loots.length ? el('td', { class: 't-ALT', 'data-sort': first || '0', text: '✓' + (first ? ' ' + frDate(first) : '') }) : el('td', {})]);
+          // One mark per item, in the same order: the date of its first loot, or a dash.
+          var firsts = row.items.map(function (item) {
+            return DATA.loots.filter(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); })
+              .map(function (loot) { return loot.date || ''; }).sort()[0];
+          });
+          var looted = firsts.filter(function (date) { return date !== undefined; });
+          var lootCell = looted.length ? el('td', { 'data-sort': looted.sort()[0] || '0' }, separated(firsts.map(function (date) {
+            return date === undefined ? el('span', { class: 'muted', text: '–' }) : el('span', { class: 't-ALT', text: '✓' + (date ? ' ' + frDate(date) : '') });
+          }))) : el('td', {});
+          var itemsCell = el('td', { 'data-sort': row.items.map(function (item) { return item.name || ''; }).join(', ') },
+            separated(row.items.map(function (item) { return itemLink(item.itemId, item.name); })));
+          return el('tr', {}, [el('td', { 'data-sort': String(row.order), text: row.slot }), itemsCell, lootCell]);
         })), ['', '', 'c']);
       }, '', true));
     }
@@ -526,18 +548,27 @@
   var BIS_WEAPON_SLOTS = ['Une main', 'Deux mains', 'Main droite'];
   var BIS_OFF_HAND_SLOTS = ['Main gauche', 'Tenu en main gauche', 'Bouclier'];
   var RELIC_CLASSES = ['Paladin', 'Druide', 'Chaman'];
-  // Card with an item search dropdown above the table; the table scrolls past about 12 rows unless fullHeight. itemOf may return null (empty row).
+  // Card with an item search dropdown above the table; the table scrolls past about 12 rows unless fullHeight. itemOf returns a row's item, items or null.
   function itemFilterCard(title, rows, itemOf, render, emptyText, fullHeight) {
     if (!rows.length) { return card(title, [el('p', { class: 'muted', text: emptyText })]); }
-    var options = rows.filter(itemOf).map(function (row) {
-      var item = itemOf(row);
-      return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
-    }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
+    var itemsOf = function (row) { return [].concat(itemOf(row) || []); };
+    var seen = {};
+    var options = [];
+    rows.forEach(function (row) {
+      itemsOf(row).forEach(function (item) {
+        if (seen[item.itemId]) { return; }
+        seen[item.itemId] = true;
+        options.push({ value: String(item.itemId), text: item.name || ('#' + item.itemId) });
+      });
+    });
+    options.sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
     var holder = el('div', fullHeight ? {} : { class: 'scroll' });
     var pick = combo([{ value: '', text: 'Tous les objets' }].concat(options), function () { draw(); }, 'perso-' + title);
     function draw() {
       holder.innerHTML = '';
-      holder.appendChild(render(rows.filter(function (row) { return !pick.value || (itemOf(row) && String(itemOf(row).itemId) === pick.value); })));
+      holder.appendChild(render(rows.filter(function (row) {
+        return !pick.value || itemsOf(row).some(function (item) { return String(item.itemId) === pick.value; });
+      })));
     }
     draw();
     return card('', [el('div', { class: 'card-head' }, [el('h2', { text: title }), pick]), holder]);
