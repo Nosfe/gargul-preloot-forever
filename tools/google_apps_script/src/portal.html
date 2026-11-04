@@ -146,6 +146,14 @@
   html.dark #tip .f { color: #2aa8dc; }
   html.dark .item-card { background: #183247; border-color: #26475f; }
   html.dark #status { color: #8fa9b8; }
+  .item-grid > .card { grid-column: 1 / -1; margin-bottom: 0; }
+  td.calc { color: var(--muted); }
+  main table.detail th, main table.detail td { padding: 8px 14px; border-right: 1px solid var(--line); }
+  main table.detail th:last-child, main table.detail td:last-child { border-right: 0; }
+  main table.detail th { white-space: normal; vertical-align: bottom; line-height: 1.2; }
+  main table.detail tbody tr:nth-child(even) td { background-color: rgba(255, 255, 255, .035); }
+  main table.detail .c { text-align: center; }
+  main table.detail .r { text-align: right; }
   .medal1, .medal2, .medal3 { font-weight: bold; }
   .medal1, .item-card .rk.medal1 { color: #d8b25a; } .medal2, .item-card .rk.medal2 { color: #c3ccd4; } .medal3, .item-card .rk.medal3 { color: #cd8a4a; }
 </style>
@@ -494,6 +502,7 @@
         return (!search.value || String(item.itemId) === search.value) && (!roleSelect.value || ofRole(item, roleSelect.value));
       });
       if (!items.length) { holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet Impact.' })); return; }
+      if (search.value) { holder.appendChild(rankingDetail(items[0])); return; }
       items.forEach(function (item) {
         var rows = ranking(item).map(function (entry, index) {
           var name = el('span', { class: 'nm', text: entry.name });
@@ -511,6 +520,47 @@
     fill();
   }
   function wholeScore(value) { return String(Math.round(Number(value))); }
+  // Inputs of an Impact score, with the workbook's defaults (parse 1, gain 0, at least 1 raid).
+  function scoreParts(item, raider) {
+    var spec = item.specs.filter(function (s) { return s.classSpec === raider.className + ' ' + raider.spec; })[0];
+    return {
+      spec: spec,
+      gain: spec && spec.gainDps !== null ? Number(spec.gainDps) : 0,
+      parse: typeof raider.parse === 'number' && raider.parse !== 0 ? raider.parse : 1,
+      max: raider.tierPresenceMax > 0 ? raider.tierPresenceMax : 1
+    };
+  }
+  // Full calculation of the top 5 for one picked item.
+  function rankingDetail(item) {
+    var rows = ranking(item).map(function (entry, index) {
+      var raider = raiderByName(entry.name);
+      if (!raider) { return el('tr', {}, [el('td', { text: String(index + 1) }), el('td', { text: entry.name })]); }
+      var parts = scoreParts(item, raider);
+      var gainCell = el('td', { class: 'num', text: parts.gain.toFixed(1) });
+      if (parts.spec && parts.spec.gainDps !== null) { paintGain(gainCell, item, parts.gain); }
+      return el('tr', {}, [
+        el('td', { class: 'num' + (index < 3 ? ' medal' + (index + 1) : ''), text: String(index + 1) }),
+        nameCell(entry.name),
+        colored(el('td', { text: raider.spec }), specColor(raider.className + ' ' + raider.spec)),
+        el('td', { class: 'num', 'data-sort': String(raider.tierPresence / parts.max), text: raider.tierPresence + ' / ' + parts.max }),
+        paintParse(el('td', { class: 'num', text: String(parts.parse) }), parts.parse),
+        gainCell,
+        el('td', { class: 'num', text: String(raider.impactLootCount) }),
+        el('td', { class: 'num calc', text: raider.tierPresence + '/' + parts.max + ' × ' + parts.parse + ' × ' + parts.gain.toFixed(1) + ' ÷ ' + (raider.impactLootCount + 1) }),
+        el('td', { class: 'num', 'data-sort': String(entry.score), text: wholeScore(entry.score) })
+      ]);
+    });
+    var grid = table(['Rang', 'Raider', 'Spé', 'Présence', 'Parse', 'Gain (DPS)', 'Loots Impact', 'Calcul', 'Score'], rows);
+    grid.classList.add('detail');
+    // Raider and Spé left, the inputs centred, Calcul and Score (the result) right, headers included.
+    Array.prototype.forEach.call(grid.querySelectorAll('tr'), function (tr) {
+      Array.prototype.forEach.call(tr.cells, function (cell, index) { if (index !== 1 && index !== 2) { cell.classList.add(index >= 7 ? 'r' : 'c'); } });
+    });
+    return el('div', { class: 'card' }, [
+      el('div', { class: 'card-head' }, [el('h2', {}, [itemLink(item.itemId, item.name)]), el('span', { class: 'muted', text: item.slot || '' })]),
+      grid
+    ]);
+  }
   function colorName(td, name, index) {
     var raider = raiderByName(name);
     td.style.color = raider ? (classColor[raider.className] || '') : '';
@@ -522,10 +572,8 @@
     if (!raider) { return; }
     td.style.cursor = 'help';
     td.onmouseenter = function (event) {
-      var spec = item.specs.filter(function (s) { return s.classSpec === raider.className + ' ' + raider.spec; })[0];
-      var gain = spec && spec.gainDps !== null ? Number(spec.gainDps) : 0;
-      var parse = typeof raider.parse === 'number' && raider.parse !== 0 ? raider.parse : 1;
-      var max = raider.tierPresenceMax > 0 ? raider.tierPresenceMax : 1;
+      var parts = scoreParts(item, raider);
+      var spec = parts.spec, gain = parts.gain, parse = parts.parse, max = parts.max;
       var rows = [
         ['Présence', raider.tierPresence + ' / ' + max],
         ['Parse', String(parse)],
