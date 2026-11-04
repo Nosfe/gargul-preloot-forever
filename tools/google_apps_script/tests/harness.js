@@ -1270,7 +1270,8 @@
       },
       getUi: function () {
         return ui;
-      }
+      },
+      flush: function () {}
     };
 
     global.LockService = {

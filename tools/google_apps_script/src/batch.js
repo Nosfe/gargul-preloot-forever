@@ -25,9 +25,12 @@ function applyBatch_(buildRequests) {
       return null;
     }
 
-    return Sheets.Spreadsheets.batchUpdate(
+    var response = Sheets.Spreadsheets.batchUpdate(
       { requests: requests },
       SpreadsheetApp.getActive().getId()
     );
+    // Otherwise SpreadsheetApp may return values cached before this API write later in the same run.
+    SpreadsheetApp.flush();
+    return response;
   });
 }

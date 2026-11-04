@@ -63,6 +63,15 @@
         equal(JSON.stringify(rows('Awards')).indexOf('test-'), -1, 'no test loot left in Awards');
         equal(PropertiesService.getDocumentProperties().getProperty(TEST_DATA_PROPERTY), null, 'record cleared');
         equal(clearTestData_(), 'Aucune donn\u00e9e de test \u00e0 effacer.', 'nothing to clear twice');
+
+        // Without the raider columns (refresh not visible), the fill stops instead of writing no loot.
+        var realRefresh = refreshWorkbook_;
+        refreshWorkbook_ = function () {};
+        var stopped = '';
+        try { fillTestData_(); } catch (error) { stopped = error.message; } finally { refreshWorkbook_ = realRefresh; }
+        contains(stopped, 'n\'ont pas \u00e9t\u00e9 cr\u00e9\u00e9es', 'missing raider columns stop the fill');
+        equal(clearTestData_(), 'Donn\u00e9es de test effac\u00e9es.', 'a stopped fill can be cleared');
+        equal(names().join(','), 'Ana,Bob,Cid', 'clear after a stopped fill leaves the real raiders');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';

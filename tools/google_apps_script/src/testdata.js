@@ -123,21 +123,11 @@ function clearTestData_() {
   }
   var record = JSON.parse(stored);
 
-  // One batch per raid: each one reads row positions after the previous deletion.
-  (record.raids || []).forEach(function (raidId) {
-    try {
-      applyBatch_(function () {
-        return buildDeleteRaidRequests_(SpreadsheetApp.getActive(), raidId).requests;
-      });
-    } catch (error) {
-      if (error.message.indexOf('introuvable') === -1) {
-        throw error;
-      }
-    }
-  });
-
+  // One read, one batch: row deletions first, then the raider columns (row deletions never move columns).
   applyBatch_(function () {
-    return buildTestClearRequests_(SpreadsheetApp.getActive(), record);
+    var spreadsheet = SpreadsheetApp.getActive();
+    return buildTestRaidDeleteRequests_(spreadsheet, record.raids || [])
+      .concat(buildTestClearRequests_(spreadsheet, record));
   });
 
   refreshWorkbook_();
@@ -278,6 +268,15 @@ function buildTestRaidRowsRequests_(spreadsheet, raids) {
   var awardsRows = awardsSheet.getDataRange().getValues();
   var requests = [];
 
+  var awardNames = readAwardsBlockNames_(awardsRows).map(function (name) { return normalizeCellString_(name).trim(); });
+  var missing = TEST_RAIDERS.filter(function (name) {
+    return awardNames.indexOf(name) === -1 || presenceHeader.map(function (value) { return normalizeCellString_(value).trim(); }).indexOf(name) === -1;
+  });
+  if (missing.length) {
+    throw new Error('Les colonnes Présence/Awards des raiders de test n\'ont pas été créées (' + missing.join(', ') +
+      '). Données de test > Effacer, puis Remplir à nouveau.');
+  }
+
   raids.forEach(function (raid, raidIndex) {
     var values = [
       { userEnteredValue: { stringValue: raid.raidId } },
@@ -324,6 +323,56 @@ function buildTestRaidRowsRequests_(spreadsheet, raids) {
   });
 
   return { requests: requests, awardCount: awardCount };
+}
+
+// Rows of the test raids in Raids, Présence (and archive) and every Awards block (and archive), bottom to top.
+function buildTestRaidDeleteRequests_(spreadsheet, raidIds) {
+  var isTestRaid = function (value) {
+    return raidIds.indexOf(normalizeCellString_(value).trim()) !== -1;
+  };
+  var matching = function (rows, firstIndex, column) {
+    var indexes = [];
+    for (var rowIndex = firstIndex; rowIndex < rows.length; rowIndex += 1) {
+      if (isTestRaid((rows[rowIndex] || [])[column])) {
+        indexes.push(rowIndex);
+      }
+    }
+    return indexes;
+  };
+  var requests = [];
+
+  var raidsSheet = snapshotSheet_(spreadsheet, 'Raids');
+  requests = requests.concat(buildDeleteRowRequests_(raidsSheet.getSheetId(),
+    matching(raidsSheet.getDataRange().getValues(), 1, columnOf_(tabByName_('Raids'), 'raidId'))));
+
+  [GRID_TABS.presence.name, ARCHIVE_TABS.presence.name].forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+    if (sheet) {
+      requests = requests.concat(buildDeleteRowRequests_(sheet.getSheetId(),
+        matching(sheet.getDataRange().getValues(), PRESENCE_FIRST_RAID_ROW - 1, PRESENCE_RAID_ID_COLUMN)));
+    }
+  });
+
+  [GRID_TABS.awards.name, ARCHIVE_TABS.awards.name].forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+    if (!sheet) {
+      return;
+    }
+    var rows = sheet.getDataRange().getValues();
+    var width = (rows[0] || []).length;
+    for (var start = 0; start < width; start += AWARDS_BLOCK_WIDTH) {
+      matching(rows, AWARDS_FIRST_ROW - 1, start + AWARDS_RAID_ID_OFFSET).reverse().forEach(function (rowIndex) {
+        requests.push({
+          deleteRange: {
+            range: { sheetId: sheet.getSheetId(), startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: start, endColumnIndex: start + AWARDS_BLOCK_WIDTH },
+            shiftDimension: 'ROWS'
+          }
+        });
+      });
+    }
+  });
+
+  return requests;
 }
 
 // Test raider columns (Présence, Awards and their archives), test Roster rows and the added Objets rows; right to left, bottom to top.
