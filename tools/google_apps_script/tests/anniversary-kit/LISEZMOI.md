@@ -17,12 +17,12 @@ Pour coller : ouvrir le fichier, Ctrl+A, Ctrl+C, cliquer la cellule indiquée, C
 ## Déroulé
 
 1. **Classeur**
-   - Configuration > Rafraîchir le classeur.
+   - Configuration > Rafraîchir le classeur (convertit aussi les anciennes valeurs : NORMAL en ALT, anciens emplacements d'arme en Arme / Main gauche).
    - Configuration > Nouveau palier (ex. `anniversary-test`, date du jour).
    - Config : *Version Wowhead* = `TBC` (liens Wowhead et Armory du portail) et *Serveur WCL* = région/serveur, ex. `eu/thunderstrike`.
    - Coller les fichiers du kit. Les classes tournent : Yajiru est Démoniste Affliction, corriger sa ligne si besoin.
 2. **Un objet à soi** : pour voir l'Impact sur soi, ajouter dans l'onglet Objets de son rôle une ligne avec l'ID d'un objet de ses sacs (Wowhead), `IMPACT` et un gain en DPS brut sur sa spé. L'onglet **Classement Impact** montre alors les 5 meilleurs scores Impact de chaque objet ; ce sont ces scores que Gargul affichera.
-3. **Portail raiders** (lien partagé, données rafraîchies en 1 minute) : choisir son personnage dans Mon personnage, vérifier ses loots et ses rangs Impact, le lien Warcraft Logs (pastille Parse) et le bouton Armory ; dans Classement Impact, choisir son objet pour voir le détail du calcul et comparer avec le classeur ; survoler un objet pour l'infobulle Wowhead.
+3. **Portail raiders** (lien partagé, données rafraîchies en 1 minute) : choisir son personnage dans Mon personnage, vérifier ses loots et ses rangs Impact, l'infobulle du Ratio BiS (calcul), la BiS List (une ligne par emplacement, objets IMPACT prioritaires, coche Looté avec la date), le lien Warcraft Logs (pastille Parse) et le bouton Armory ; dans Classement Impact, choisir son objet pour voir le détail du calcul et comparer avec le classeur ; survoler un objet pour l'infobulle Wowhead. Pour un portail bien rempli sans vraies données : Données de test > Remplir (puis Effacer).
 4. **Addon**
    - Copier `Gargul_Preloot/Gargul_Preloot` dans `Interface/AddOns` du client Anniversary (normalement `World of Warcraft\_anniversary_\`).
    - Supprimer l'ancienne 1.1.0.
@@ -31,7 +31,7 @@ Pour coller : ouvrir le fichier, Ctrl+A, Ctrl+C, cliquer la cellule indiquée, C
    - Raid > Démarrer, copier le Base64, puis bouton Preloot dans l'Importer de Gargul (ou `/preloot import`).
    - Lancer des rolls Gargul sur des objets de ses sacs, attribuer, choisir le traitement.
 7. **Export**
-   - Gargul Export loot (Custom), coller dans Raid > Terminer, puis **Prévisualiser le loot** (fonctionne sans log WCL).
+   - Gargul Export loot (Custom), coller dans Raid > Terminer, puis **Prévisualiser le loot** (fonctionne sans log WCL). Le Traitement affiché vient des onglets Objets ; la valeur de Gargul est indiquée entre parenthèses si elle diffère.
    - Pour aller jusqu'au bout de Terminer : un lien de rapport WCL Anniversary (`fresh.warcraftlogs.com/reports/…`) et Configuration > Identifiants WCL renseignés.
    - Après Terminer, recharger le portail (1 minute) : les loots du raid apparaissent dans Loots et Mon personnage, et l'objet reçu sort du Classement Impact du gagnant.
 8. **Après le test** : Configuration > Réinitialiser tout le classeur.

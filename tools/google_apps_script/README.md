@@ -25,7 +25,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Item | Effect |
 | --- | --- |
 | Démarrer (exporter le snapshot) | Opens the next raid (Raids row, Config's *Raid en cours*, warning-only protection of score inputs). Shows the Base64 snapshot to paste into the addon. Run it again during the same raid to export again with the same raid ID. |
-| Terminer | Ends the open raid in one batch. It takes a Warcraft Logs report link (attendance: a raider present for more than 25% of the boss fights gets credit) and Gargul's Custom export. A preview lists the awards with a Traitement dropdown, and the rejected lines with the reason. Only lines whose `raidId` is the open raid are imported. |
+| Terminer | Ends the open raid in one batch. It takes a Warcraft Logs report link (attendance: a raider present for more than 25% of the boss fights gets credit) and Gargul's Custom export. A preview lists the awards with their Traitement (see Awards below; Gargul's value is shown in brackets when it differs) and the rejected lines with the reason. Only lines whose `raidId` is the open raid are imported. |
 | Annuler | Cancels the open raid (removes its row and the protections) without importing anything. |
 | Supprimer | Deletes a raid chosen from a list of all Raids rows, after confirmation. Choosing the raid in progress also cancels it, like Annuler. |
 
@@ -44,7 +44,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 
 | Item | Effect |
 | --- | --- |
-| Remplir (aperçu du portail) | Adds TBC test data next to the real data, to preview the raider portal: 20 fictional raiders (every role), Karazhan, Gruul and Magtheridon items in each Objets tab (IDs already listed are skipped), 6 raids `test-1` to `test-6` dated within the tier, with presence and 18 loots. What was added is recorded in the document properties. Refused while a raid is open, if a test name is already in Roster, or if test data is already there. While present, the test raids count in every raider's tier presence. |
+| Remplir (aperçu du portail) | Adds test data next to the real data, to preview the raider portal: 20 fictional raiders (every role); the ZA-phase BiS lists of wowtbc.gg (191 items, written in `testdata.js`), each item added only to the Objets tabs of a role whose spec lists it (IDs already listed are skipped), BIS for those specs and IMPACT with a gain for about one in three (never for tanks); 6 raids `test-1` to `test-6` dated within the tier, with presence and 24 loots taken from the winners' lists (one ALT per raid). What was added is recorded in the document properties. Refused while a raid is open, if a test name is already in Roster, or if test data is already there. While present, the test raids count in every raider's tier presence. |
 | Effacer | Removes exactly what was recorded: the test raids (like Raid > Supprimer), the test raiders (Roster rows and their Présence and Awards columns) and the item rows added by the fill, then refreshes the workbook. |
 
 ## Tabs
@@ -54,8 +54,8 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Roster | One row per character: raid group, class, spec, role, parse, tier presence, loot counts and BiS Ratio. |
 | Classement Impact | Formulas only: one row per item with an IMPACT Statut, and the 5 raiders with the best Impact score for it, as "Name (score)" in the raider's class colour; the top 3 in bold on a gold, silver and bronze fill. A raider who already received the item (Awards) is left out. Raid > Démarrer sends Gargul the scores of every raider. |
 | Présence | One row per raid, one column per raider (`1` present, `B` bench). |
-| Awards | One block per raider: date, item, item ID, Traitement and the raid ID (hidden). |
-| Objets Tank / Heal / Melee DPS / Ranged DPS / Caster DPS | Items of the tier, with a Statut (BIS, IMPACT, CLASS_BOUND, ALT) and a Gain (DPS) per spec: the raw DPS the item adds for that spec. |
+| Awards | One block per raider: date, item, item ID, Traitement and the raid ID (hidden). The Objets tabs decide the Traitement, on Raid > Terminer and whenever a row is typed or changed by hand: the winner's spec Statut for the item; without one, CLASS_BOUND is kept and anything else becomes ALT; an off-spec (OS) loot is ALT. |
+| Objets Tank / Heal / Melee DPS / Ranged DPS / Caster DPS | Items of the tier, with an Emplacement (Tête … Pieds, Doigt, Bijou, Arme, Main gauche, Distance, Relique, as on wowtbc.gg) and a Statut (BIS, IMPACT, CLASS_BOUND, ALT) and a Gain (DPS) per spec: the raw DPS the item adds for that spec. A refresh rewrites older values: NORMAL as ALT, the detailed weapon slots as Arme or Main gauche. |
 | Raids | Raid ID, instance, date, report codes, import time, tier. |
 | Config | Active tier, tier start, open raid, WCL server. |
 | Présence (archive), Awards (archive), _Listes | Archives and the lists behind dropdowns. |
@@ -64,7 +64,7 @@ Rows from earlier tiers stay visible in grey. Each tier change also adds an `Obj
 
 ## Raider portal
 
-A read-only web page for the raiders (`webapp.js`, `portal.html`), in French and dark-themed: Mon personnage (pick your name: your numbers, your loots, your rank on each IMPACT item, your BiS items), Classement Impact (top 5 per item as cards, the full calculation when one item is picked), Roster, Objets, Loots and Présence of the active tier. Items link to Wowhead (Config *Version Wowhead*); the parse links to the character on Warcraft Logs and, for TBC, an Armory link is shown (both built from Config *Serveur WCL*, the only Config value that reaches the page). Filter choices are remembered per browser. Data is cached for one minute.
+A read-only web page for the raiders (`webapp.js`, `portal.html`), in French and dark-themed: Mon personnage (pick your name: your numbers with the BiS ratio calculation on hover, your loots, your rank on each IMPACT item, and the BiS List: one row per gear slot like wowtbc.gg, BIS and IMPACT items comma-separated, an IMPACT item replacing the BIS ones of its slot, with a Looté mark and date per item), Classement Impact (top 5 per item as cards, the full calculation when one item is picked), Roster, Objets, Loots and Présence of the active tier. Items link to Wowhead (Config *Version Wowhead*); the parse links to the character on Warcraft Logs and, for TBC, an Armory link is shown (both built from Config *Serveur WCL*, the only Config value that reaches the page). Filter choices are remembered per browser. Data is cached for one minute.
 
 The web app runs as the owner and opens for anyone with the link, without a Google account (`appsscript.json` > `webapp`).
 
@@ -74,7 +74,7 @@ The web app runs as the owner and opens for anyone with the link, without a Goog
 
 ## Tests
 
-The `tests/story-4-*.html` and `tests/portal.html` pages run the script against a fake Sheets API (`tests/harness.js`), with shared assertions and fixtures in `tests/helpers.js`. Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
+The `tests/story-4-*.html`, `tests/portal.html` and `tests/test-data.html` pages run the script against a fake Sheets API (`tests/harness.js`), with shared assertions and fixtures in `tests/helpers.js`. Each page prints `PASS: <n> assertions` or `FAIL: …` in its DOM.
 
 Run one with headless Edge (or Chrome):
 
