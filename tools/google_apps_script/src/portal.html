@@ -99,7 +99,8 @@
   header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
   header .perso-tab.active { background: linear-gradient(#1a7fa8, var(--teal)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
   nav .spacer { flex: 1; }
-  .card-head .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .card-head .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .card-head .filters .combo, .card-head .filters .toggle { margin: 0; }
   .item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
   .item-card { padding: 8px 10px; background: #fffdf7; border: 1px solid var(--tan); border-radius: 4px; }
   .item-card .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
@@ -371,6 +372,10 @@
     return el('td', { 'data-sort': name || ('#' + itemId) }, [itemLink(itemId, name)]);
   }
   function card(title, content) { return el('div', { class: 'card' }, [title ? el('h2', { text: title }) : null].concat(content)); }
+  // Card whose filters sit on the title line, right-aligned (the norm for every tab).
+  function filterCard(title, filters, content) {
+    return el('div', { class: 'card' }, [el('div', { class: 'card-head' }, [el('h2', { text: title }), el('div', { class: 'filters' }, filters)])].concat(content));
+  }
   // Top 5 per item, raiders who already received it left out (same rule as the workbook tab).
   function ranking(item) { return item.scores.filter(function (s) { return !s.owned; }).slice(0, 5); }
 
@@ -647,7 +652,7 @@
     var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); });
     var select = combo(raiderOptions('Tous les raiders'), function () { fill(); });
     var holder = el('div');
-    section.appendChild(card('Loots du palier', [view, raidSelect, select, holder]));
+    section.appendChild(filterCard('Loots du palier', [view, raidSelect, select], [holder]));
     function fill() {
       holder.innerHTML = '';
       var loots = DATA.loots.filter(function (loot) {
@@ -701,7 +706,7 @@
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
     var itemSelect = combo([{ value: '', text: 'Choisir un objet' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : lastRole; fill(); });
     var holder = el('div');
-    section.appendChild(card('Objets du palier', [itemSelect, select, holder]));
+    section.appendChild(filterCard('Objets du palier', [itemSelect, select], [holder]));
     var firstWithItems = DATA.roles.filter(function (r) {
       return DATA.items.some(function (item) { return item.specs.some(function (spec) { return r.specs.indexOf(spec.classSpec) !== -1; }); });
     })[0];
