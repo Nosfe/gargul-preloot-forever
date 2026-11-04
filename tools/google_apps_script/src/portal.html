@@ -99,7 +99,8 @@
   .topbar { position: sticky; top: 0; z-index: 15; }
   .topbar nav { position: static; }
   header .brand { display: flex; align-items: baseline; gap: 14px; }
-  header .rules { font-size: 12px; color: var(--muted); text-decoration: none; border-bottom: 1px dotted currentColor; }
+  header .rules { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; }
+  header .rules .arrow { font-size: 12px; }
   header .rules:hover, header .rules:focus { color: var(--cream); }
   header .perso-tab { font: inherit; font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
   header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
@@ -129,8 +130,9 @@
   html.dark a { color: #2aa8dc; }
   html.dark header { background: linear-gradient(#0f3550, #0a2133); border-bottom: 1px solid #9a7432; }
   html.dark header h1 { color: #f6edd2; text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
-  html.dark header .rules { color: #8fa9b8; }
-  html.dark header .rules:hover, html.dark header .rules:focus { color: #2aa8dc; }
+  html.dark header .rules { color: #8fa9b8; background: #183247; border-color: #26475f; }
+  html.dark header .rules .arrow { color: #2aa8dc; }
+  html.dark header .rules:hover, html.dark header .rules:focus { color: #ecf2f5; background: #1e3d55; }
   html.dark nav { background: #0a2133; border-bottom: 1px solid #26475f; }
   html.dark nav button, html.dark header .perso-tab { color: #8fa9b8; border-color: transparent; }
   html.dark header .perso-tab { border-color: #26475f; }
@@ -172,7 +174,7 @@
 </head>
 <body>
 <div class="topbar">
-<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="https://tinyurl.com/parsimonie-assign" target="_blank" rel="noopener" title="Ouvrir les attributions raid">Attributions raid ↗</a></div><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
+<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="https://tinyurl.com/parsimonie-assign" target="_blank" rel="noopener" title="Ouvrir les attributions raid">Attributions raid <span class="arrow">↗</span></a></div><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
 <nav id="nav"></nav>
 </div>
 <main>
