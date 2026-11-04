@@ -34,9 +34,10 @@
   .stat { flex: 1 1 130px; background: var(--bg); border-radius: 6px; padding: 8px; }
   .stat .label { color: var(--muted); font-size: 12px; }
   .stat .value { font-size: 18px; font-weight: bold; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-  th { background: var(--head); color: var(--headText); position: sticky; top: 0; }
+  /* Table rules stay inside main: Wowhead's tooltips are tables appended to body. */
+  main table { border-collapse: collapse; width: 100%; }
+  main th, main td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  main th { background: var(--head); color: var(--headText); position: sticky; top: 0; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .rank1 { background: #ffe38a; } .rank2 { background: #d3d7dd; } .rank3 { background: #edbe93; }
   .rank1, .rank2, .rank3 { font-weight: bold; }
@@ -68,9 +69,9 @@
   .card { background: var(--card); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 0 0 2px var(--tealDark), 0 4px 14px rgba(0, 0, 0, .35); }
   .card .card { box-shadow: none; }
   .card h2 { font-family: var(--body); font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); padding-bottom: 4px; }
-  th { background: linear-gradient(#167596, var(--teal)); color: var(--cream); font-weight: 600; border-bottom: 2px solid var(--tan); }
+  main th { background: linear-gradient(#167596, var(--teal)); color: var(--cream); font-weight: 600; border-bottom: 2px solid var(--tan); }
   td.num, .stat .value { font-family: Verdana, Arial, sans-serif; }
-  tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
+  main tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
   .stat { background: #f4e7cc; border: 1px solid var(--tan); border-radius: 4px; }
   a.stat.link:hover { outline: 2px solid var(--teal); }
   input, select { background: #fffdf7; border-color: var(--tan); color: var(--ink); }
@@ -101,8 +102,9 @@
   .card-head .filters { display: flex; flex-wrap: wrap; gap: 8px; }
   .item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
   .item-card { padding: 8px 10px; background: #fffdf7; border: 1px solid var(--tan); border-radius: 4px; }
-  .item-card .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
-  /* Same title height on every card: the name takes up to two lines, the slot sits on the bottom line. */
+  .item-card .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
+  .item-card .head .slot { align-self: flex-end; }
+  /* Same title height on every card: the name starts at the top (up to two lines), the slot sits on the bottom line. */
   .item-card .head { height: calc(2 * 1.3em + 4px); line-height: 1.3; }
   .item-card .head > :first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .item-card .slot { font-size: 12px; font-weight: normal; color: var(--muted); white-space: nowrap; }
@@ -127,8 +129,8 @@
   html.dark .card .card { background: transparent; }
   html.dark .card h2 { color: #2aa8dc; border-bottom-color: #26475f; }
   html.dark .card-head { border-bottom-color: #26475f; }
-  html.dark th { color: #fff; background: #1683b8; border-bottom: 0; }
-  html.dark tbody tr:hover td { background-image: none; background-color: #1e3d55; }
+  html.dark main th { color: #fff; background: #1683b8; border-bottom: 0; }
+  html.dark main tbody tr:hover td { background-image: none; background-color: #1e3d55; }
   html.dark .stat { background: #183247; border-color: #26475f; }
   html.dark input, html.dark select { color: #ecf2f5; background: #183247; border-color: #26475f; }
   html.dark input::placeholder { color: #5f7b8c; }
