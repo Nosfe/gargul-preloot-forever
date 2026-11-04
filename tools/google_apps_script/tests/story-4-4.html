@@ -322,6 +322,8 @@
         var roster = TracerHarness.getRows('Roster');
         equal(roster[1][parseColumn] + '|' + roster[2][parseColumn], '75|92.8', 'parse = rounded (best + median) / 2');
         equal(String(roster[3][parseColumn]), '', 'unknown character keeps its parse');
+        equal(PropertiesService.getDocumentProperties().getProperty(WCL_PARSE_DETAILS_PROPERTY),
+          '{"Ana":{"best":80,"median":70,"value":75},"Bob":{"best":95.6,"median":90,"value":92.8}}', 'best and median kept for the portal, not in the sheet');
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Sans classement WCL (inchangés) : Cid', 'summary lists characters without rankings');
         var request = TracerHarness.getFetchLog()[1];
         var query = JSON.parse(request.params.payload).query;

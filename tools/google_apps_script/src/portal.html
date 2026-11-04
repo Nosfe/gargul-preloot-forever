@@ -309,7 +309,7 @@
         var value = el('div', { class: 'value', text: String(pair[1]) });
         var link = pair[2];
         var box = el(link ? 'a' : 'div', { class: 'stat' + (link ? ' link' : '') }, [el('div', { class: 'label', text: pair[0] }), value]);
-        if (pair[0] === 'Parse WCL') { paintParse(value, raider.parse); }
+        if (pair[0] === 'Parse WCL') { paintParse(value, raider.parse); parseTip(box, raider); }
         if (pair[0] === 'Ratio BiS') { ratioTip(box, raider); }
         if (link) {
           box.href = link;
@@ -580,7 +580,7 @@
         nameCell(entry.name),
         colored(el('td', { text: raider.spec }), specColor(raider.className + ' ' + raider.spec)),
         el('td', { class: 'num', 'data-sort': String(raider.tierPresence / parts.max), text: raider.tierPresence + ' / ' + parts.max }),
-        paintParse(el('td', { class: 'num', text: String(parts.parse) }), parts.parse),
+        parseTip(paintParse(el('td', { class: 'num', text: String(parts.parse) }), parts.parse), raider),
         gainCell,
         el('td', { class: 'num', text: String(raider.impactLootCount) }),
         el('td', { class: 'num calc', text: raider.tierPresence + '/' + parts.max + ' × ' + parts.parse + ' × ' + parts.gain.toFixed(1) + ' ÷ ' + (raider.impactLootCount + 1) }),
@@ -641,6 +641,20 @@
       tip.appendChild(el('div', { class: 'f', text: '(' + raider.tierPresence + '/' + max + ') ÷ ' + (raider.bisLootCount + 1) + ' = ' + score(raider.bisRatio) }));
     });
   }
+  // Best and median of the last WCL update, averaged into the parse; nothing when unknown.
+  function parseTip(node, raider) {
+    if (typeof raider.parseBest !== 'number' || typeof raider.parseMedian !== 'number') { return node; }
+    hoverTip(node, function (tip) {
+      var title = el('div', { class: 't', text: raider.name });
+      title.style.color = classColor[raider.className] || '';
+      tip.appendChild(title);
+      tip.appendChild(el('table', {}, [['Meilleur', raider.parseBest], ['Médiane', raider.parseMedian]].map(function (row) {
+        return el('tr', {}, [el('td', { text: row[0] }), paintParse(el('td', { class: 'v', text: String(row[1]) }), row[1])]);
+      })));
+      tip.appendChild(el('div', { class: 'f', text: '(' + raider.parseBest + ' + ' + raider.parseMedian + ') ÷ 2 = ' + raider.parse }));
+    });
+    return node;
+  }
   function ratioCell(raider) {
     var td = el('td', { class: 'num', text: score(raider.bisRatio) });
     ratioTip(td, raider);
@@ -674,7 +688,7 @@
       return el('tr', {}, [nameCell(r.name), el('td', { text: r.group }), colored(el('td', { text: r.className }), classColor[r.className]),
         colored(el('td', { text: r.spec }), specColor(r.className + ' ' + r.spec)), el('td', { text: ROLE_LABELS[r.role] || r.role }),
         el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax }), el('td', { class: 'num', text: String(r.bisLootCount) }),
-        el('td', { class: 'num', text: String(r.impactLootCount) }), ratioCell(r), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
+        el('td', { class: 'num', text: String(r.impactLootCount) }), ratioCell(r), parseTip(paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse), r)]);
     });
     section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }

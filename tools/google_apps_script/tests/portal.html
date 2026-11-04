@@ -43,6 +43,8 @@
         writeCells_(idOf('Awards'), 2, blockOf('Bob'), ['', 'Bâton ancien', 777, 'ALT', '1']);
         writeCells_(idOf('Awards'), 2, blockOf('Ana'), ['2026-09-01', 'Vieux', 555, 'BIS', 'old']);
 
+        PropertiesService.getDocumentProperties().setProperty(WCL_PARSE_DETAILS_PROPERTY,
+          JSON.stringify({ Ana: { best: 85, median: 75, value: 80 }, Cid: { best: 99, median: 70, value: 84.5 } }));
         var data = buildRaiderPortalData_(spreadsheet);
         equal(Object.keys(data).join(','), 'tierId,tierStart,wowhead,wclCharacterUrl,armoryCharacterUrl,classes,parseColors,roles,raiders,items,loots,raids', 'only the portal fields are sent');
         equal(data.wowhead + '|' + wowheadPath_('') + '|' + wowheadPath_('<script>'), 'tbc|forever|forever', 'Wowhead version from Config, Forever when blank or unknown');
@@ -58,6 +60,9 @@
         equal([ana.group, ana.className, ana.spec, ana.role, ana.tierPresence, ana.tierPresenceMax, ana.bisRatio, ana.parse].join('|'),
           'Raid 1|Mage|Givre|DPS|2|4|0.5|80', 'raider row from Roster');
         equal(data.raiders.length, 3, 'every valid Roster raider');
+        var cid = data.raiders.filter(function (r) { return r.name === 'Cid'; })[0];
+        equal([ana.parseBest, ana.parseMedian, cid.parseBest, cid.parseMedian].join('|'), '85|75||',
+          'WCL best and median sent only while the parse is still the one they gave');
 
         var staff = data.items.filter(function (item) { return item.itemId === 777; })[0];
         equal(staff.name + '|' + staff.slot, 'Bâton ancien|Deux mains', 'item name and slot from Objets');

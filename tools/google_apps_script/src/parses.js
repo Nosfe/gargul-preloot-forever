@@ -1,6 +1,8 @@
 // Character rankings for Fresh realms live on the Fresh API host; the token from WCL_TOKEN_URL works there too.
 var WCL_CHARACTER_API_URL = 'https://fresh.warcraftlogs.com/api/v2/client';
 var WCL_PARSE_BATCH_SIZE = 25;
+// Document property: { raider: { best, median, value } } from the last update, shown by the portal.
+var WCL_PARSE_DETAILS_PROPERTY = 'wclParseDetails';
 
 // Menu action: fills Parse WCL moyen for Roster with (best + median performance average) / 2.
 function updateWclParses() {
@@ -8,6 +10,7 @@ function updateWclParses() {
 
   try {
     var summary = '';
+    var details = {};
     applyBatch_(function () {
       var spreadsheet = SpreadsheetApp.getActive();
       var configRow = requireCurrentLayout_(snapshotSheet_(spreadsheet, 'Config').getDataRange().getValues(), 'Config')[1] || [];
@@ -30,11 +33,25 @@ function updateWclParses() {
 
       var built = buildParseUpdateRequests_(targets, results);
       summary = built.summary;
+      details = built.details;
       return built.requests;
     });
+    var stored = wclParseDetails_();
+    Object.keys(details).forEach(function (name) { stored[name] = details[name]; });
+    PropertiesService.getDocumentProperties().setProperty(WCL_PARSE_DETAILS_PROPERTY, JSON.stringify(stored));
     ui.alert(summary);
   } catch (error) {
     ui.alert('Mise à jour des parses WCL impossible :\n' + error.message);
+  }
+}
+
+function wclParseDetails_() {
+  var stored = PropertiesService.getDocumentProperties().getProperty(WCL_PARSE_DETAILS_PROPERTY);
+  try {
+    var parsed = JSON.parse(stored || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    return {};
   }
 }
 
@@ -101,6 +118,7 @@ function fetchCharacterParses_(token, realm, targets) {
 function buildParseUpdateRequests_(targets, results) {
   var requests = [];
   var skipped = [];
+  var details = {};
   targets.forEach(function (target, index) {
     var rankings = results[index] || {};
     var best = rankings.bestPerformanceAverage;
@@ -110,6 +128,7 @@ function buildParseUpdateRequests_(targets, results) {
       return;
     }
     var value = Math.min(100, Math.max(1, Math.round(((best + median) / 2) * 10) / 10));
+    details[target.name] = { best: Math.round(best * 10) / 10, median: Math.round(median * 10) / 10, value: value };
     requests.push({
       updateCells: {
         start: { sheetId: target.sheetId, rowIndex: target.rowIndex, columnIndex: target.columnIndex },
@@ -121,6 +140,7 @@ function buildParseUpdateRequests_(targets, results) {
 
   return {
     requests: requests,
+    details: details,
     summary: 'Parses mis à jour : ' + requests.length + '.' +
       (skipped.length ? '\nSans classement WCL (inchangés) : ' + skipped.join(', ') + '.' : '')
   };

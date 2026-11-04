@@ -53,6 +53,7 @@ function buildRaiderPortalData_(spreadsheet) {
     }
   });
 
+  var parseDetails = wclParseDetails_();
   var raids = portalRaids_(presenceRows, tierStart);
   var raidDateById = Object.create(null);
   portalRaids_(presenceRows, '').forEach(function (raid) {
@@ -94,6 +95,9 @@ function buildRaiderPortalData_(spreadsheet) {
     }),
     raiders: raiders.map(function (raider) {
       var className = raider.classSpec.split(' ')[0];
+      // A parse typed by hand after the WCL update no longer matches its best and median.
+      var detail = Object.prototype.hasOwnProperty.call(parseDetails, raider.raiderKey) ? parseDetails[raider.raiderKey] : null;
+      var fresh = detail && detail.value === raider.dpsParse;
       return {
         name: raider.raiderKey,
         group: groupByName[raider.raiderKey] || '',
@@ -105,7 +109,9 @@ function buildRaiderPortalData_(spreadsheet) {
         bisLootCount: raider.bisLootCount,
         impactLootCount: raider.impactLootCount,
         bisRatio: raider.bisRatio,
-        parse: raider.dpsParse
+        parse: raider.dpsParse,
+        parseBest: fresh ? detail.best : null,
+        parseMedian: fresh ? detail.median : null
       };
     }),
     items: items.map(function (item) {
