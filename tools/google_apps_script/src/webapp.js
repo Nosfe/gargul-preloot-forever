@@ -5,7 +5,7 @@ var PORTAL_CACHE_SECONDS = 60;
 // Web app entry point.
 function doGet() {
   return HtmlService.createTemplateFromFile('portal').evaluate()
-    .setTitle('Parsimonie : portail raiders')
+    .setTitle('Parsimonie - Preloot')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
