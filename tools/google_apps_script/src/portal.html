@@ -154,9 +154,10 @@
   main table.detail th, main table.detail td { padding: 8px 14px; border-right: 1px solid var(--line); }
   main table.detail th:last-child, main table.detail td:last-child { border-right: 0; }
   main table.detail th { white-space: normal; vertical-align: bottom; line-height: 1.2; }
-  main table.detail tbody tr:nth-child(even) td { background-color: rgba(255, 255, 255, .035); }
+  main table.detail tbody tr:nth-child(even) td:not(.P):not(.B):not(.A) { background-color: rgba(255, 255, 255, .035); }
   main table.detail .c { text-align: center; }
   main table.detail .r { text-align: right; }
+  main table.detail .fit { width: 1%; }
   .medal1, .medal2, .medal3 { font-weight: bold; }
   .medal1, .item-card .rk.medal1 { color: #d8b25a; } .medal2, .item-card .rk.medal2 { color: #c3ccd4; } .medal3, .item-card .rk.medal3 { color: #cd8a4a; }
 </style>
@@ -195,6 +196,17 @@
     'Druide Équilibre': '#4B5BA8', 'Druide Combat farouche (ours)': '#B5651D', 'Druide Combat farouche (félin)': '#B5651D', 'Druide Restauration': '#2E8B3E'
   };
   function colored(td, color) { td.style.color = color || ''; return td; }
+  // Ranking-detail look; aligns[i] is the class of column i on every row, headers included ('c', 'r', 'fit' or '').
+  function detailTable(grid, aligns) {
+    grid.classList.add('detail');
+    Array.prototype.forEach.call(grid.querySelectorAll('tr'), function (tr) {
+      Array.prototype.forEach.call(tr.cells, function (cell, index) {
+        var align = aligns[Math.min(index, aligns.length - 1)];
+        if (align) { cell.classList.add(align); }
+      });
+    });
+    return grid;
+  }
   // On the dark theme the talent-tree colours are lifted halfway to white to stay readable.
   function specColor(key) {
     var hex = SPEC_COLORS[key];
@@ -634,7 +646,7 @@
         el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax }), el('td', { class: 'num', text: String(r.bisLootCount) }),
         el('td', { class: 'num', text: String(r.impactLootCount) }), el('td', { class: 'num', text: score(r.bisRatio) }), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
     });
-    section.appendChild(card('Roster', [table(columns, rows)]));
+    section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }
 
   // Sorted by type, not alphabetically: first click puts IMPACT on top.
@@ -710,7 +722,7 @@
       });
       return el('tr', {}, [nameCell(r.name), el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax })].concat(cells));
     });
-    section.appendChild(card('Présence du palier', [table(head, rows)]));
+    section.appendChild(card('Présence du palier', [detailTable(table(head, rows), ['', 'c'])]));
   }
 
   // One table per role, like the workbook's Objets tabs: an item row, then Statut and gain for each spec of the role.
@@ -747,7 +759,7 @@
         });
       });
       holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
-      holder.appendChild(card(rows.length + (rows.length > 1 ? ' spés' : ' spé'), [table(['Spé', 'Rôle', 'Statut', 'Gain (DPS)'], rows)]));
+      holder.appendChild(card(rows.length + (rows.length > 1 ? ' spés' : ' spé'), [detailTable(table(['Spé', 'Rôle', 'Statut', 'Gain (DPS)'], rows), ['fit', '', '', 'r'])]));
     }
     function fill() {
       holder.innerHTML = '';
