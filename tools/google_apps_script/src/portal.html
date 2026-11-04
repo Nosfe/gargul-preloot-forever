@@ -840,13 +840,11 @@
     section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }
 
-  // Sorted like the workbook, not alphabetically; the Objets tab puts IMPACT first.
-  var TREATMENT_ORDER = ['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'];
-  var OBJETS_STATUT_ORDER = ['IMPACT', 'BIS', 'CLASS_BOUND', 'ALT'];
-  function treatmentCell(treatment, order) {
-    var ranks = order || TREATMENT_ORDER;
-    var rank = ranks.indexOf(treatment);
-    return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? ranks.length : rank), text: treatment });
+  // Sorted IMPACT, BIS, CLASS_BOUND, ALT everywhere, not alphabetically.
+  var TREATMENT_ORDER = ['IMPACT', 'BIS', 'CLASS_BOUND', 'ALT'];
+  function treatmentCell(treatment) {
+    var rank = TREATMENT_ORDER.indexOf(treatment);
+    return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });
   }
   // raider (optional): a tier token is shown as "token → set piece"; the loot keeps its Statut.
   function lootTable(loots, withRaider, raider) {
@@ -933,14 +931,28 @@
   // Picking an item instead lists every spec, of any role, that has it.
   function renderObjets() {
     var section = document.getElementById('objets');
-    var select = combo(roleOptions(), function () { itemSelect.value = ''; fill(); }, 'objets-role');
+    var select = combo(roleOptions(), function () { itemSelect.value = ''; specSelect.value = ''; fill(); }, 'objets-role');
+    var specOptions = [];
+    DATA.roles.forEach(function (role) {
+      role.specs.forEach(function (label) { specOptions.push({ value: label, text: label, color: classColor[label.split(' ')[0]] }); });
+    });
+    // Role, spec and item are exclusive: the filters not in use show "-".
+    var specSelect = combo([{ value: '', text: 'Toutes les spés' }].concat(specOptions), function () {
+      itemSelect.value = '';
+      select.value = specSelect.value ? null : '';
+      fill();
+    }, 'objets-spec');
     var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var itemSelect = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : ''; fill(); }, 'objets-item');
+    var itemSelect = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () {
+      select.value = itemSelect.value ? null : '';
+      specSelect.value = itemSelect.value ? null : '';
+      fill();
+    }, 'objets-item');
     var holder = el('div');
-    section.appendChild(filterCard('Objets du palier', [select, itemSelect], [holder]));
-    if (itemSelect.value) { select.value = null; }
+    section.appendChild(filterCard('Objets du palier', [select, specSelect, itemSelect], [holder]));
+    if (itemSelect.value) { select.value = null; specSelect.value = null; } else if (specSelect.value) { select.value = null; }
     function specFill(node, label) {
       var className = label.split(' ')[0];
       var entry = classFill[className];
@@ -959,7 +971,7 @@
           var gainCell = el('td', { class: 'num', text: hasGain ? Number(spec.gainDps).toFixed(1) : '' });
           if (hasGain) { paintGain(gainCell, item, Number(spec.gainDps)); }
           rows.push(el('tr', {}, [specFill(el('td', { 'data-sort': label }), label), el('td', { text: role.role }),
-            treatmentCell(spec.statut, OBJETS_STATUT_ORDER), gainCell]));
+            treatmentCell(spec.statut), gainCell]));
         });
       });
       holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
@@ -969,6 +981,7 @@
       holder.innerHTML = '';
       var picked = DATA.items.filter(function (item) { return String(item.itemId) === itemSelect.value; })[0];
       if (picked) { fillItem(picked); return; }
+      if (specSelect.value) { fillSpec(specSelect.value); return; }
       if (!select.value) {
         // Tous les rôles: one table per role that has items.
         var grids = DATA.roles.map(function (role) { var grid = roleGrid(role); return grid ? card(role.role, [grid]) : null; }).filter(Boolean);
@@ -978,6 +991,22 @@
       }
       var grid = roleGrid(DATA.roles.filter(function (r) { return r.role === select.value; })[0]);
       holder.appendChild(grid || el('p', { class: 'muted', text: 'Aucun objet.' }));
+    }
+    // One spec: every item it has a Statut for, in BiS List slot order.
+    function fillSpec(label) {
+      var items = DATA.items.filter(function (item) { return item.specs.some(function (s) { return s.classSpec === label; }); })
+        .sort(function (a, b) { return slotOrder(a.slot) - slotOrder(b.slot) || (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' }); });
+      if (!items.length) { holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet.' })); return; }
+      var rows = items.map(function (item) {
+        var spec = item.specs.filter(function (s) { return s.classSpec === label; })[0];
+        var hasGain = spec.statut === 'IMPACT' && spec.gainDps !== null;
+        var gainCell = el('td', { class: 'num', text: hasGain ? Number(spec.gainDps).toFixed(1) : '' });
+        if (hasGain) { paintGain(gainCell, item, Number(spec.gainDps)); }
+        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { 'data-sort': String(slotOrder(item.slot)), text: item.slot }), treatmentCell(spec.statut), gainCell]);
+      });
+      var title = el('h2', { text: label + ' (' + items.length + ')' });
+      title.style.color = classColor[label.split(' ')[0]] || '';
+      holder.appendChild(el('div', { class: 'card' }, [title, detailTable(table(['Objet', 'Emplacement', 'Statut', 'Gain (DPS)'], rows), ['', '', '', 'r'])]));
     }
     function roleGrid(role) {
       var rows = DATA.items.filter(function (item) {
@@ -989,7 +1018,7 @@
         item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
         return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { 'data-sort': String(slotOrder(item.slot)), text: item.slot })].concat(role.specs.map(function (label) {
           var spec = bySpec[label];
-          return spec ? treatmentCell(spec.statut, OBJETS_STATUT_ORDER) : el('td', {});
+          return spec ? treatmentCell(spec.statut) : el('td', {});
         })));
       });
       if (!rows.length) { return null; }

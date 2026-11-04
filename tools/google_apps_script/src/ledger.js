@@ -1,6 +1,6 @@
 // Allowed award treatments from Gargul custom export and End raid dropdown.
 // CLASS_BOUND counts like ALT (neither BiS nor Impact loot); it only colours the row differently.
-var AWARD_TREATMENTS = ['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'];
+var AWARD_TREATMENTS = ['IMPACT', 'BIS', 'CLASS_BOUND', 'ALT'];
 
 // Line to paste into Gargul's Custom export format; @GPRAID/@GPTREATMENT are filled by the companion.
 var GARGUL_EXPORT_TEMPLATE = '{"checksum":"@CHECKSUM","winner":"@WINNER","itemID":@ID,"itemName":"@ITEM","rollType":"@ROLLTYPE","os":@OS,"date":"@DATE","time":"@TIME","raidId":"@GPRAID","treatment":"@GPTREATMENT"},';
@@ -375,7 +375,7 @@ function parseInteger_(value) {
 	return null;
 }
 
-// True for BIS, IMPACT, CLASS_BOUND or ALT.
+// True for IMPACT, BIS, CLASS_BOUND or ALT.
 function isKnownTreatment_(value) {
 	return AWARD_TREATMENTS.indexOf(normalizeCellString_(value).trim()) !== -1;
 }

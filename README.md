@@ -12,7 +12,7 @@ The workbook and its Apps Script live in [tools/google_apps_script](tools/google
 - **Two columns after Gargul's own:**
   - **Ratio BiS**: (tier presence / raids in the tier) / (BiS loots + 1).
   - **Impact**: the workbook's score for the rolled item and the roller: (tier presence / raids in the tier) × parse × the item's gain in DPS for the roller's spec / (Impact loots + 1). It is shown only when that spec's Statut for the item is IMPACT, and never for tanks. It stays as exported until the next snapshot.
-- **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and ALT. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked ALT. The window drives the live values and the chat line; on import the workbook takes the Traitement from its Objets tabs.
+- **Treatment per award:** each Gargul award opens a small window with IMPACT, BIS, CLASS_BOUND and ALT. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked ALT. The window drives the live values and the chat line; on import the workbook takes the Traitement from its Objets tabs.
   - Click a button, or **Fermer** (Close) to keep the marked one.
   - `/preloot` lists every award of the raid, so a treatment can be changed later.
 - **Live values:** BIS awards count immediately, so Ratio BiS is up to date for the next roll. ALT and CLASS_BOUND count for nothing.

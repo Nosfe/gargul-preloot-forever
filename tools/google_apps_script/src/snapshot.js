@@ -241,7 +241,7 @@ function buildSnapshotItems_(itemStates) {
           return;
         }
 
-        if (['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'].indexOf(statutCell) === -1) {
+        if (['IMPACT', 'BIS', 'CLASS_BOUND', 'ALT'].indexOf(statutCell) === -1) {
           errors.push(where + (rowIndex + 1) + ': statut invalide pour ' + spec.label + '.');
           return;
         }

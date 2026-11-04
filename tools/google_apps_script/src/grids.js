@@ -799,15 +799,15 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
       condition: {
         type: 'ONE_OF_LIST',
         values: [
-          { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
+          { userEnteredValue: 'BIS' },
           { userEnteredValue: 'CLASS_BOUND' },
           { userEnteredValue: 'ALT' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou ALT.'
+      inputMessage: 'Traitement : IMPACT, BIS, CLASS_BOUND ou ALT.'
     }));
 
     // Whole award row tinted by its Traitement with WoW rarity: ALT uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
@@ -1254,15 +1254,15 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
       condition: {
         type: 'ONE_OF_LIST',
         values: [
-          { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
+          { userEnteredValue: 'BIS' },
           { userEnteredValue: 'CLASS_BOUND' },
           { userEnteredValue: 'ALT' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Statut : BIS, IMPACT, CLASS_BOUND ou ALT.'
+      inputMessage: 'Statut : IMPACT, BIS, CLASS_BOUND ou ALT.'
     }));
   });
 

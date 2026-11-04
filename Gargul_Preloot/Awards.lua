@@ -3,7 +3,7 @@ local _, GP = ...
 local Awards = {}
 GP.Awards = Awards
 
-Awards.TREATMENTS = { "BIS", "IMPACT", "CLASS_BOUND", "ALT" }
+Awards.TREATMENTS = { "IMPACT", "BIS", "CLASS_BOUND", "ALT" }
 
 local DISENCHANT_WINNER = "||de||"
 
