@@ -793,7 +793,7 @@
       })));
     }
     filterSpecs();
-    // A spec picked inside a role keeps the role; an item picked inside a spec keeps the spec (and its role).
+    // A narrower pick keeps the wider ones: spec inside a role, item inside a spec or a role.
     var specSelect = combo(specChoices, function () {
       specFilter = specSelect.value;
       itemSelect.value = '';
@@ -814,13 +814,6 @@
     }
     filterItems();
     var itemSelect = combo(itemChoices, function () {
-      // An item picked without a spec resets the role, so both lists show everything.
-      if (itemSelect.value && !specFilter) {
-        roleFilter = '';
-        saveFilter('objets-role', '');
-        filterSpecs();
-        filterItems();
-      }
       showFilters();
       fill();
     }, 'objets-item');
