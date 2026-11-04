@@ -467,7 +467,8 @@ function buildArchiveMoveRequests_(grid, archive, layout, activeNames) {
   var archiveSheetId = archive.state.exists ? archive.state.sheetId : archive.tab.sheetId;
   var archiveEnd = first + archive.names.length * width;
   var gridEnd = first + grid.names.length * width;
-  var archiveColumns = Math.max(26, archiveEnd + archiveIndexes.length * width, archive.state.exists ? Number(archive.state.maxColumns || 0) : 0);
+  // The + 1 keeps a column on each tab: Sheets refuses to delete every column.
+  var archiveColumns = Math.max(26, archiveEnd + archiveIndexes.length * width + 1, archive.state.exists ? Number(archive.state.maxColumns || 0) : 0);
 
   if (archive.state.exists) {
     requests.push(buildColumnCountRequest_(archiveSheetId, archiveColumns));
@@ -482,7 +483,7 @@ function buildArchiveMoveRequests_(grid, archive, layout, activeNames) {
       }
     });
   }
-  requests.push(buildColumnCountRequest_(grid.sheetId, Math.max(26, gridEnd + restoreIndexes.length * width, Number(grid.maxColumns || 0))));
+  requests.push(buildColumnCountRequest_(grid.sheetId, Math.max(26, gridEnd + restoreIndexes.length * width + 1, Number(grid.maxColumns || 0))));
 
   if (first > 0 && archiveIndexes.length) {
     requests.push(buildCopyColumnsRequest_(grid.sheetId, 0, archiveSheetId, 0, first));

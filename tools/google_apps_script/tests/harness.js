@@ -583,6 +583,9 @@
     if (end > (sheet.meta.columnCount || 26)) {
       throw new Error('deleteDimension beyond grid in ' + sheet.title + ': column ' + end);
     }
+    if (deleteCount >= Number(sheet.meta.columnCount || 26)) {
+      throw new Error('Vous ne pouvez pas supprimer toutes les colonnes de la feuille (' + sheet.title + ').');
+    }
     sheet.meta.columnCount = Number(sheet.meta.columnCount || 26) - deleteCount;
     // Like Sheets: a rule whose ranges all sit in the deleted columns disappears; later ranges shift left.
     sheet.meta.conditionalFormatRules = sheet.meta.conditionalFormatRules.map(function (rule) {

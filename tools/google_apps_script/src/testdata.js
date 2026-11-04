@@ -399,12 +399,17 @@ function buildTestClearRequests_(spreadsheet, record) {
       return;
     }
     var names = readAwardsBlockNames_(sheet.getDataRange().getValues());
+    var deletes = [];
     for (var index = names.length - 1; index >= 0; index -= 1) {
       if (raiders.indexOf(normalizeCellString_(names[index]).trim()) !== -1) {
-        var start = index * AWARDS_BLOCK_WIDTH;
-        requests.push({ deleteDimension: { range: { sheetId: sheet.getSheetId(), dimension: 'COLUMNS', startIndex: start, endIndex: start + AWARDS_BLOCK_WIDTH } } });
+        deletes.push(buildDeleteColumnsRequest_(sheet.getSheetId(), index * AWARDS_BLOCK_WIDTH, AWARDS_BLOCK_WIDTH));
       }
     }
+    // Sheets refuses to delete every column: keep one spare when only test blocks are left.
+    if (deletes.length * AWARDS_BLOCK_WIDTH >= sheet.getMaxColumns()) {
+      requests.push(buildColumnCountRequest_(sheet.getSheetId(), deletes.length * AWARDS_BLOCK_WIDTH + 1));
+    }
+    requests = requests.concat(deletes);
   });
 
   var rosterSheet = snapshotSheet_(spreadsheet, 'Roster');

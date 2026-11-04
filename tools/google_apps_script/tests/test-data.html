@@ -72,6 +72,35 @@
         contains(stopped, 'n\'ont pas \u00e9t\u00e9 cr\u00e9\u00e9es', 'missing raider columns stop the fill');
         equal(clearTestData_(), 'Donn\u00e9es de test effac\u00e9es.', 'a stopped fill can be cleared');
         equal(names().join(','), 'Ana,Bob,Cid', 'clear after a stopped fill leaves the real raiders');
+
+        // Test names blanked in Roster then refreshed: the archives hold only test blocks, exactly as wide as them.
+        var awardsArchive = ARCHIVE_TABS.awards.name;
+        var archiveOnlyTests = function () {
+          var rosterRows = rows('Roster');
+          var blanked = [];
+          rosterRows.forEach(function (row, index) {
+            if (TEST_RAIDERS.indexOf(row[0]) !== -1) {
+              blanked.push([index, row[0]]);
+              writeCells_(idOf('Roster'), index, 0, ['']);
+            }
+          });
+          refreshWorkbook_();
+          applyBatch_(function () { return [buildColumnCountRequest_(idOf(awardsArchive), TEST_RAIDERS.length * AWARDS_BLOCK_WIDTH)]; });
+          return blanked;
+        };
+        fillTestData_();
+        var blanked = archiveOnlyTests();
+        equal(readAwardsBlockNames_(rows(awardsArchive)).filter(Boolean).length, 20, 'test blocks archived');
+        blanked.forEach(function (entry) { writeCells_(idOf('Roster'), entry[0], 0, [entry[1]]); });
+        refreshWorkbook_();
+        equal(readAwardsBlockNames_(rows(awardsArchive)).filter(Boolean).length, 0, 'refresh restores every archived block');
+        equal(clearTestData_(), 'Donn\u00e9es de test effac\u00e9es.', 'clear after a restore');
+
+        fillTestData_();
+        archiveOnlyTests();
+        equal(clearTestData_(), 'Donn\u00e9es de test effac\u00e9es.', 'clear when the archive holds only test blocks');
+        equal(readAwardsBlockNames_(rows(awardsArchive)).filter(Boolean).length, 0, 'archived test blocks removed');
+        equal(names().join(','), 'Ana,Bob,Cid', 'real raiders kept');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
