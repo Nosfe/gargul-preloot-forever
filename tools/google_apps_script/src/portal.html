@@ -494,7 +494,7 @@
     var itemOptions = ranked.map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var roleSelect = combo([{ value: '', text: 'Tous les types' }].concat(DATA.roles.map(function (r) { return { value: r.role, text: r.role }; })), function () { fill(); });
+    var roleSelect = combo(roleOptions(), function () { fill(); });
     var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { fill(); });
     var holder = el('div', { class: 'item-grid' });
     section.appendChild(card('', [el('div', { class: 'card-head' }, [el('h2', { text: 'Top 5 Impact par objet' }), el('div', { class: 'filters' }, [roleSelect, search])]), holder]));
@@ -527,6 +527,7 @@
     fill();
   }
   function wholeScore(value) { return String(Math.round(Number(value))); }
+  function roleOptions() { return [{ value: '', text: 'Tous les rôles' }].concat(DATA.roles.map(function (r) { return { value: r.role, text: r.role }; })); }
   // Inputs of an Impact score, with the workbook's defaults (parse 1, gain 0, at least 1 raid).
   function scoreParts(item, raider) {
     var spec = item.specs.filter(function (s) { return s.classSpec === raider.className + ' ' + raider.spec; })[0];
@@ -705,7 +706,7 @@
   // Picking an item instead lists every spec, of any role, that has it.
   function renderObjets() {
     var section = document.getElementById('objets');
-    var select = combo(DATA.roles.map(function (r) { return { value: r.role, text: 'Objets ' + r.role }; }), function () { lastRole = select.value; itemSelect.value = ''; fill(); });
+    var select = combo(roleOptions(), function () { lastRole = select.value; itemSelect.value = ''; fill(); });
     var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
@@ -745,7 +746,17 @@
       holder.innerHTML = '';
       var picked = DATA.items.filter(function (item) { return String(item.itemId) === itemSelect.value; })[0];
       if (picked) { fillItem(picked); return; }
-      var role = DATA.roles.filter(function (r) { return r.role === select.value; })[0];
+      if (!select.value) {
+        // Tous les rôles: one table per role that has items.
+        var grids = DATA.roles.map(function (role) { var grid = roleGrid(role); return grid ? card(role.role, [grid]) : null; }).filter(Boolean);
+        if (!grids.length) { holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet.' })); }
+        grids.forEach(function (node) { holder.appendChild(node); });
+        return;
+      }
+      var grid = roleGrid(DATA.roles.filter(function (r) { return r.role === select.value; })[0]);
+      holder.appendChild(grid || el('p', { class: 'muted', text: 'Aucun objet.' }));
+    }
+    function roleGrid(role) {
       var rows = DATA.items.filter(function (item) {
         return item.specs.some(function (spec) { return role.specs.indexOf(spec.classSpec) !== -1; });
       }).map(function (item) {
@@ -756,14 +767,11 @@
           return el('td', { class: spec ? 't-' + spec.statut : '', text: spec ? spec.statut : '' });
         })));
       });
-      if (!rows.length) {
-        holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet.' }));
-      } else {
-        var grid = table(['Objet', 'Emplacement'].concat(role.specs), rows);
-        // Spec headers on their WoW class colour, like the Roster Classe cells; the colour names the class, so only the spec is written.
-        Array.prototype.slice.call(grid.querySelectorAll('th'), 2).forEach(function (th) { specFill(th, th.textContent); });
-        holder.appendChild(grid);
-      }
+      if (!rows.length) { return null; }
+      var grid = table(['Objet', 'Emplacement'].concat(role.specs), rows);
+      // Spec headers on their WoW class colour, like the Roster Classe cells; the colour names the class, so only the spec is written.
+      Array.prototype.slice.call(grid.querySelectorAll('th'), 2).forEach(function (th) { specFill(th, th.textContent); });
+      return grid;
     }
     fill();
   }
