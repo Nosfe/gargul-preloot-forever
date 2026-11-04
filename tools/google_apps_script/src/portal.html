@@ -101,6 +101,8 @@
   nav .spacer { flex: 1; }
   .card-head .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .card-head .filters .combo, .card-head .filters .toggle { margin: 0; }
+  .card-head .title-group { display: flex; align-items: center; gap: 12px; }
+  .card-head .title-group .toggle { margin: 0; }
   .item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
   .item-card { padding: 8px 10px; background: #fffdf7; border: 1px solid var(--tan); border-radius: 4px; }
   .item-card .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
@@ -652,7 +654,10 @@
     var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); });
     var select = combo(raiderOptions('Tous les raiders'), function () { fill(); });
     var holder = el('div');
-    section.appendChild(filterCard('Loots du palier', [raidSelect, select], [view, holder]));
+    section.appendChild(el('div', { class: 'card' }, [
+      el('div', { class: 'card-head' }, [el('div', { class: 'title-group' }, [el('h2', { text: 'Loots du palier' }), view]), el('div', { class: 'filters' }, [raidSelect, select])]),
+      holder
+    ]));
     function fill() {
       holder.innerHTML = '';
       var loots = DATA.loots.filter(function (loot) {
