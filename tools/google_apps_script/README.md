@@ -57,7 +57,7 @@ Rows from earlier tiers stay visible in grey. Each tier change also adds an `Obj
 
 ## Raider portal
 
-A read-only web page for the raiders (`webapp.js`, `portal.html`), in French: Mon personnage (pick your name: your numbers, your rank on each IMPACT item, your BiS items and loots), Classement Impact, Roster, Loots, Présence and Objets of the active tier. It shows numbers only, never Config, the WCL settings or the sheet itself. Data is cached for one minute.
+A read-only web page for the raiders (`webapp.js`, `portal.html`), in French and dark-themed: Mon personnage (pick your name: your numbers, your loots, your rank on each IMPACT item, your BiS items), Classement Impact (top 5 per item as cards, the full calculation when one item is picked), Roster, Objets, Loots and Présence of the active tier. Items link to Wowhead (Config *Version Wowhead*); the parse links to the character on Warcraft Logs and, for TBC, an Armory link is shown (both built from Config *Serveur WCL*, the only Config value that reaches the page). Filter choices are remembered per browser. Data is cached for one minute.
 
 The web app runs as the owner and opens for anyone with the link, without a Google account (`appsscript.json` > `webapp`).
 
