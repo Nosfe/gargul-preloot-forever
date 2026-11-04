@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Charte graphique Parsimonie</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="charte-parsimonie.css">
 <style>
   .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -16,8 +16,10 @@
 </style>
 </head>
 <body>
-<header><h1>Parsimonie</h1><button class="header-tab active">Onglet d'en-tête</button></header>
+<div class="topbar">
+<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="#">Lien discret <span class="arrow">↗</span></a></div><button class="header-tab active">Onglet d'en-tête</button></header>
 <nav><button class="active">Onglet actif</button><button>Onglet</button><span class="spacer"></span><button>À droite</button></nav>
+</div>
 <main>
 
   <div class="card">
@@ -39,7 +41,7 @@
 
   <div class="card">
     <h2>Typographie</h2>
-    <p><b>IBM Plex Sans</b> pour tout le texte (titre 24px, titres de bloc 17px, texte 14px, libellés 12px). <b>Verdana</b> pour les chiffres. Pas de serif.</p>
+    <p><b style="font-family: var(--font-display)">Cinzel</b> pour le logo (32px), les onglets, les titres de bloc (17px) et les libellés des pastilles. <b>IBM Plex Sans</b> pour le texte (14px, libellés 12px) et les chiffres.</p>
   </div>
 
   <div class="card">

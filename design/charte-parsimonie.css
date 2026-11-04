@@ -2,7 +2,7 @@
    Parsimonie : feuille de style complète et réutilisable (thème sombre Forever).
    --------------------------------------------------------------------------
    Utilisation :
-     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
      <link rel="stylesheet" href="charte-parsimonie.css">
    Toutes les couleurs passent par les variables de :root (bloc 1).
    Le comportement JavaScript (tri, listes saisissables, infobulle) n'est pas inclus.
@@ -72,9 +72,10 @@
   --wcl-25: #1eff00;
   --wcl-0: #666666;
 
-  /* Typographie : pas de serif, Verdana pour les chiffres */
+  /* Typographie : Cinzel pour le logo, les onglets, les titres de bloc et les libellés des pastilles ; IBM Plex Sans pour le texte et les chiffres */
   --font-body: 'IBM Plex Sans', system-ui, sans-serif;
-  --font-numbers: Verdana, Arial, sans-serif;
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-numbers: var(--font-body);
 
   --radius: 6px;
   --radius-sm: 4px;
@@ -102,13 +103,23 @@ section.active { display: block; }
 
 /* 3. En-tête et onglets --------------------------------------------------- */
 header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 14px 18px; background: linear-gradient(var(--header-from), var(--header-to)); border-bottom: 1px solid var(--gold-deep); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); }
-header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; color: var(--cream); text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
+header h1 { margin: 0; font-family: var(--font-display); font-size: 32px; letter-spacing: 1.5px; color: var(--cream); text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
 
 nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: var(--header-to); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
 nav .spacer { flex: 1; } /* pousse les onglets suivants à droite */
 
+/* En-tête et onglets réunis dans .topbar restent visibles au défilement. */
+.topbar { position: sticky; top: 0; z-index: 15; }
+.topbar nav { position: static; }
+
+/* Logo et lien discret à côté (ex. « Attributions raid ↗ »). */
+header .brand { display: flex; align-items: center; gap: 14px; }
+header .rules { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; text-decoration: none; color: var(--fg-muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+header .rules .arrow { font-size: 12px; color: var(--accent); }
+header .rules:hover, header .rules:focus { color: var(--fg); background: var(--surface-3); text-decoration: none; }
+
 /* Onglet (barre de navigation) et onglet d'en-tête (ex. « Mon personnage ») */
-nav button, header .header-tab { font: inherit; padding: 8px 12px; color: var(--fg-muted); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
+nav button, header .header-tab { font: inherit; font-family: var(--font-display); padding: 8px 12px; color: var(--fg-muted); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
 header .header-tab { font-weight: 600; padding: 7px 14px; border-color: var(--line); }
 nav button:hover, header .header-tab:hover { color: var(--fg); background: var(--surface-3); }
 nav button.active, header .header-tab.active { font-weight: bold; color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
@@ -116,7 +127,7 @@ nav button.active, header .header-tab.active { font-weight: bold; color: var(--a
 /* 4. Blocs ---------------------------------------------------------------- */
 .card { margin-bottom: 12px; padding: 12px; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .card .card { background: transparent; box-shadow: none; }
-.card h2 { margin: 0 0 8px; padding-bottom: 4px; font-size: 17px; color: var(--accent); border-bottom: 1px solid var(--line); }
+.card h2 { margin: 0 0 8px; padding-bottom: 4px; font-family: var(--font-display); font-size: 17px; color: var(--accent); border-bottom: 1px solid var(--line); }
 
 /* Ligne de titre : titre (+ bouton) à gauche, filtres alignés à droite. C'est la norme pour tout bloc filtrable. */
 .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
@@ -128,7 +139,7 @@ nav button.active, header .header-tab.active { font-weight: bold; color: var(--a
 /* 5. Pastilles ------------------------------------------------------------ */
 .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .stat { flex: 1 1 130px; padding: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.stat .label { font-size: 12px; color: var(--fg-muted); }
+.stat .label { font-family: var(--font-display); font-size: 12px; color: var(--fg-muted); }
 .stat .value { font-family: var(--font-numbers); font-size: 18px; font-weight: bold; }
 a.stat.link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
 a.stat.link:hover { outline: 2px solid var(--accent); }
@@ -149,7 +160,8 @@ td.num { font-family: var(--font-numbers); text-align: right; font-variant-numer
 main table.detail th, main table.detail td { padding: 8px 14px; border-right: 1px solid var(--line); }
 main table.detail th:last-child, main table.detail td:last-child { border-right: 0; }
 main table.detail th { white-space: normal; vertical-align: bottom; line-height: 1.2; }
-main table.detail tbody tr:nth-child(even) td { background-color: rgba(255, 255, 255, .035); }
+main table.detail tbody tr:nth-child(even) td:not(.P):not(.B):not(.A) { background-color: rgba(255, 255, 255, .035); }
+main table.detail .fit { width: 1%; } /* colonne ajustée à son contenu */
 main table.detail .c { text-align: center; }
 main table.detail .r { text-align: right; }
 td.calc { color: var(--fg-muted); }
