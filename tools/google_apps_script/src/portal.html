@@ -472,7 +472,7 @@
         impactRows.push({ item: item, score: mine.score, rank: rank });
       });
       impactRows.sort(function (a, b) { return a.rank - b.rank || b.score - a.score; });
-      body.appendChild(itemFilterCard('Mes objets Impact', impactRows, function (row) { return row.item; }, function (rows) {
+      body.appendChild(itemFilterCard('Items à impact du palier', impactRows, function (row) { return row.item; }, function (rows) {
         return table(['Objet', 'Mon score', 'Mon rang', '1er'], rows.map(function (row) {
           var first = ranking(row.item)[0];
           return el('tr', {}, [itemCell(row.item.itemId, row.item.name), el('td', { class: 'num', text: score(row.score) }),
@@ -483,7 +483,7 @@
       var bisItems = DATA.items.filter(function (item) {
         return item.specs.some(function (spec) { return spec.classSpec === classSpec && spec.statut === 'BIS'; });
       });
-      body.appendChild(itemFilterCard('Mes objets BiS', bisItems, function (item) { return item; }, function (items) {
+      body.appendChild(itemFilterCard('BiS List', bisItems, function (item) { return item; }, function (items) {
         return table(['Objet', 'Emplacement', ''], items.map(function (item) {
           var got = DATA.loots.some(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); });
           return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
