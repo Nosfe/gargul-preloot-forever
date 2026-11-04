@@ -494,8 +494,10 @@
     var itemOptions = ranked.map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var roleSelect = combo(roleOptions(), function () { fill(); });
-    var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { fill(); });
+    // Role and item are exclusive, as in Objets: picking an item shows "-" for the role.
+    var lastRole = '';
+    var roleSelect = combo(roleOptions(), function () { lastRole = roleSelect.value; search.value = ''; fill(); });
+    var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { roleSelect.value = search.value ? null : lastRole; fill(); });
     var holder = el('div', { class: 'item-grid' });
     section.appendChild(card('', [el('div', { class: 'card-head' }, [el('h2', { text: 'Top 5 Impact par objet' }), el('div', { class: 'filters' }, [roleSelect, search])]), holder]));
     // An item belongs to a type when one of that role's specs has it as IMPACT.
@@ -712,7 +714,7 @@
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
     var itemSelect = combo([{ value: '', text: 'Choisir un objet' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : lastRole; fill(); });
     var holder = el('div');
-    section.appendChild(filterCard('Objets du palier', [itemSelect, select], [holder]));
+    section.appendChild(filterCard('Objets du palier', [select, itemSelect], [holder]));
     var firstWithItems = DATA.roles.filter(function (r) {
       return DATA.items.some(function (item) { return item.specs.some(function (spec) { return r.specs.indexOf(spec.classSpec) !== -1; }); });
     })[0];
