@@ -463,7 +463,7 @@
       })));
 
       var myLoots = DATA.loots.filter(function (loot) { return loot.raider === raider.name; });
-      body.appendChild(card('Mes loots du palier', [myLoots.length ? el('div', { class: 'scroll' }, [lootTable(myLoots, false)]) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
+      body.appendChild(card('Mes loots du palier', [myLoots.length ? el('div', { class: 'scroll' }, [lootTable(myLoots, false, raider)]) : el('p', { class: 'muted', text: 'Aucun loot ce palier.' })]));
 
       var impactRows = [];
       DATA.items.forEach(function (item) {
@@ -528,14 +528,23 @@
       };
       body.appendChild(itemFilterCard('BiS List', slotRows, function (row) { return row.items; }, function (rows) {
         return detailTable(table(['Emplacement', 'Objet', 'Looté'], rows.map(function (row) {
-          // One mark per item, in the same order: the date of its first loot, or a dash.
+          // One mark per item, in the same order: the date of its first loot (a tier token counts for its set piece), or a dash.
           var firsts = row.items.map(function (item) {
-            return DATA.loots.filter(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); })
-              .map(function (loot) { return loot.date || ''; }).sort()[0];
+            return DATA.loots.filter(function (loot) {
+              if (loot.raider !== raider.name) { return false; }
+              var piece = tokenPiece(loot.itemId, raider);
+              return String(loot.itemId) === String(item.itemId) || (piece && String(piece.itemId) === String(item.itemId));
+            }).sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); })[0];
           });
-          var looted = firsts.filter(function (date) { return date !== undefined; });
-          var lootCell = looted.length ? el('td', { 'data-sort': looted.sort()[0] || '0' }, separated(firsts.map(function (date) {
-            return date === undefined ? el('span', { class: 'muted', text: '–' }) : el('span', { class: 't-ALT', text: '✓' + (date ? ' ' + frDate(date) : '') });
+          var looted = firsts.filter(Boolean);
+          var lootCell = looted.length ? el('td', { 'data-sort': looted.map(function (loot) { return loot.date || ''; }).sort()[0] || '0' }, separated(firsts.map(function (loot) {
+            if (!loot) { return el('span', { class: 'muted', text: '–' }); }
+            var mark = el('span', { class: 't-ALT', text: '✓' + (loot.date ? ' ' + frDate(loot.date) : '') });
+            if (TOKEN_PIECES[loot.itemId]) {
+              mark.title = 'Via ' + (loot.itemName || 'jeton');
+              return el('span', {}, [mark, el('span', { class: 'muted', text: ' (jeton)' })]);
+            }
+            return mark;
           }))) : el('td', {});
           var itemsCell = el('td', { 'data-sort': row.items.map(function (item) { return item.name || ''; }).join(', ') },
             separated(row.items.map(function (item) { return itemLink(item.itemId, item.name); })));
@@ -545,6 +554,63 @@
     }
     fill();
   }
+  // TBC tier tokens (T4 to T6 and Sunwell) and the set pieces each one buys: [item ID, name, class] (from Wowhead, PvP pieces left out).
+  var TOKEN_PIECES = {
+    29760: [[29028, "Cyclone Headdress", "Chaman"], [29035, "Cyclone Faceguard", "Chaman"], [29040, "Cyclone Helm", "Chaman"], [29044, "Netherblade Facemask", "Voleur"], [29061, "Justicar Diadem", "Paladin"], [29068, "Justicar Faceguard", "Paladin"], [29073, "Justicar Crown", "Paladin"]], // Helm of the Fallen Champion
+    29763: [[29031, "Cyclone Shoulderpads", "Chaman"], [29037, "Cyclone Shoulderguards", "Chaman"], [29043, "Cyclone Shoulderplates", "Chaman"], [29047, "Netherblade Shoulderpads", "Voleur"], [29064, "Justicar Pauldrons", "Paladin"], [29070, "Justicar Shoulderguards", "Paladin"], [29075, "Justicar Shoulderplates", "Paladin"]], // Pauldrons of the Fallen Champion
+    29754: [[29029, "Cyclone Hauberk", "Chaman"], [29033, "Cyclone Chestguard", "Chaman"], [29038, "Cyclone Breastplate", "Chaman"], [29045, "Netherblade Chestpiece", "Voleur"], [29062, "Justicar Chestpiece", "Paladin"], [29066, "Justicar Chestguard", "Paladin"], [29071, "Justicar Breastplate", "Paladin"]], // Chestguard of the Fallen Champion
+    29757: [[29032, "Cyclone Gloves", "Chaman"], [29034, "Cyclone Handguards", "Chaman"], [29039, "Cyclone Gauntlets", "Chaman"], [29048, "Netherblade Gloves", "Voleur"], [29065, "Justicar Gloves", "Paladin"], [29067, "Justicar Handguards", "Paladin"], [29072, "Justicar Gauntlets", "Paladin"]], // Gloves of the Fallen Champion
+    29766: [[29030, "Cyclone Kilt", "Chaman"], [29036, "Cyclone Legguards", "Chaman"], [29042, "Cyclone War-Kilt", "Chaman"], [29046, "Netherblade Breeches", "Voleur"], [29063, "Justicar Leggings", "Paladin"], [29069, "Justicar Legguards", "Paladin"], [29074, "Justicar Greaves", "Paladin"]], // Leggings of the Fallen Champion
+    29761: [[29011, "Warbringer Greathelm", "Guerrier"], [29021, "Warbringer Battle-Helm", "Guerrier"], [29049, "Light-Collar of the Incarnate", "Prêtre"], [29058, "Soul-Collar of the Incarnate", "Prêtre"], [29086, "Crown of Malorne", "Druide"], [29093, "Antlers of Malorne", "Druide"], [29098, "Stag-Helm of Malorne", "Druide"]], // Helm of the Fallen Defender
+    29764: [[29016, "Warbringer Shoulderguards", "Guerrier"], [29023, "Warbringer Shoulderplates", "Guerrier"], [29054, "Light-Mantle of the Incarnate", "Prêtre"], [29060, "Soul-Mantle of the Incarnate", "Prêtre"], [29089, "Shoulderguards of Malorne", "Druide"], [29095, "Pauldrons of Malorne", "Druide"], [29100, "Mantle of Malorne", "Druide"]], // Pauldrons of the Fallen Defender
+    29753: [[29012, "Warbringer Chestguard", "Guerrier"], [29019, "Warbringer Breastplate", "Guerrier"], [29050, "Robes of the Incarnate", "Prêtre"], [29056, "Shroud of the Incarnate", "Prêtre"], [29087, "Chestguard of Malorne", "Druide"], [29091, "Chestpiece of Malorne", "Druide"], [29096, "Breastplate of Malorne", "Druide"]], // Chestguard of the Fallen Defender
+    29758: [[29017, "Warbringer Handguards", "Guerrier"], [29020, "Warbringer Gauntlets", "Guerrier"], [29055, "Handwraps of the Incarnate", "Prêtre"], [29057, "Gloves of the Incarnate", "Prêtre"], [29090, "Handguards of Malorne", "Druide"], [29092, "Gloves of Malorne", "Druide"], [29097, "Gauntlets of Malorne", "Druide"]], // Gloves of the Fallen Defender
+    29767: [[29015, "Warbringer Legguards", "Guerrier"], [29022, "Warbringer Greaves", "Guerrier"], [29053, "Trousers of the Incarnate", "Prêtre"], [29059, "Leggings of the Incarnate", "Prêtre"], [29088, "Legguards of Malorne", "Druide"], [29094, "Britches of Malorne", "Druide"], [29099, "Greaves of Malorne", "Druide"]], // Leggings of the Fallen Defender
+    29759: [[28963, "Voidheart Crown", "Démoniste"], [29076, "Collar of the Aldor", "Mage"], [29081, "Demon Stalker Greathelm", "Chasseur"]], // Helm of the Fallen Hero
+    29762: [[28967, "Voidheart Mantle", "Démoniste"], [29079, "Pauldrons of the Aldor", "Mage"], [29084, "Demon Stalker Shoulderguards", "Chasseur"]], // Pauldrons of the Fallen Hero
+    29755: [[28964, "Voidheart Robe", "Démoniste"], [29077, "Vestments of the Aldor", "Mage"], [29082, "Demon Stalker Harness", "Chasseur"]], // Chestguard of the Fallen Hero
+    29756: [[28968, "Voidheart Gloves", "Démoniste"], [29080, "Gloves of the Aldor", "Mage"], [29085, "Demon Stalker Gauntlets", "Chasseur"]], // Gloves of the Fallen Hero
+    29765: [[28966, "Voidheart Leggings", "Démoniste"], [29078, "Legwraps of the Aldor", "Mage"], [29083, "Demon Stalker Greaves", "Chasseur"]], // Leggings of the Fallen Hero
+    30242: [[30125, "Crystalforge Faceguard", "Paladin"], [30131, "Crystalforge War-Helm", "Paladin"], [30136, "Crystalforge Greathelm", "Paladin"], [30146, "Deathmantle Helm", "Voleur"], [30166, "Cataclysm Headguard", "Chaman"], [30171, "Cataclysm Headpiece", "Chaman"], [30190, "Cataclysm Helm", "Chaman"]], // Helm of the Vanquished Champion
+    30248: [[30127, "Crystalforge Shoulderguards", "Paladin"], [30133, "Crystalforge Shoulderbraces", "Paladin"], [30138, "Crystalforge Pauldrons", "Paladin"], [30149, "Deathmantle Shoulderpads", "Voleur"], [30168, "Cataclysm Shoulderguards", "Chaman"], [30173, "Cataclysm Shoulderpads", "Chaman"], [30194, "Cataclysm Shoulderplates", "Chaman"]], // Pauldrons of the Vanquished Champion
+    30236: [[30123, "Crystalforge Chestguard", "Paladin"], [30129, "Crystalforge Breastplate", "Paladin"], [30134, "Crystalforge Chestpiece", "Paladin"], [30144, "Deathmantle Chestguard", "Voleur"], [30164, "Cataclysm Chestguard", "Chaman"], [30169, "Cataclysm Chestpiece", "Chaman"], [30185, "Cataclysm Chestplate", "Chaman"]], // Chestguard of the Vanquished Champion
+    30239: [[30124, "Crystalforge Handguards", "Paladin"], [30130, "Crystalforge Gauntlets", "Paladin"], [30135, "Crystalforge Gloves", "Paladin"], [30145, "Deathmantle Handguards", "Voleur"], [30165, "Cataclysm Gloves", "Chaman"], [30170, "Cataclysm Handgrips", "Chaman"], [30189, "Cataclysm Gauntlets", "Chaman"]], // Gloves of the Vanquished Champion
+    30245: [[30126, "Crystalforge Legguards", "Paladin"], [30132, "Crystalforge Greaves", "Paladin"], [30137, "Crystalforge Leggings", "Paladin"], [30148, "Deathmantle Legguards", "Voleur"], [30167, "Cataclysm Legguards", "Chaman"], [30172, "Cataclysm Leggings", "Chaman"], [30192, "Cataclysm Legplates", "Chaman"]], // Leggings of the Vanquished Champion
+    30243: [[30115, "Destroyer Greathelm", "Guerrier"], [30120, "Destroyer Battle-Helm", "Guerrier"], [30152, "Cowl of the Avatar", "Prêtre"], [30161, "Hood of the Avatar", "Prêtre"], [30219, "Nordrassil Headguard", "Druide"], [30228, "Nordrassil Headdress", "Druide"], [30233, "Nordrassil Headpiece", "Druide"]], // Helm of the Vanquished Defender
+    30249: [[30117, "Destroyer Shoulderguards", "Guerrier"], [30122, "Destroyer Shoulderblades", "Guerrier"], [30154, "Mantle of the Avatar", "Prêtre"], [30163, "Wings of the Avatar", "Prêtre"], [30221, "Nordrassil Life-Mantle", "Druide"], [30230, "Nordrassil Feral-Mantle", "Druide"], [30235, "Nordrassil Wrath-Mantle", "Druide"]], // Pauldrons of the Vanquished Defender
+    30237: [[30113, "Destroyer Chestguard", "Guerrier"], [30118, "Destroyer Breastplate", "Guerrier"], [30150, "Vestments of the Avatar", "Prêtre"], [30159, "Shroud of the Avatar", "Prêtre"], [30216, "Nordrassil Chestguard", "Druide"], [30222, "Nordrassil Chestplate", "Druide"], [30231, "Nordrassil Chestpiece", "Druide"]], // Chestguard of the Vanquished Defender
+    30240: [[30114, "Destroyer Handguards", "Guerrier"], [30119, "Destroyer Gauntlets", "Guerrier"], [30151, "Gloves of the Avatar", "Prêtre"], [30160, "Handguards of the Avatar", "Prêtre"], [30217, "Nordrassil Gloves", "Druide"], [30223, "Nordrassil Handgrips", "Druide"], [30232, "Nordrassil Gauntlets", "Druide"]], // Gloves of the Vanquished Defender
+    30246: [[30116, "Destroyer Legguards", "Guerrier"], [30121, "Destroyer Greaves", "Guerrier"], [30153, "Breeches of the Avatar", "Prêtre"], [30162, "Leggings of the Avatar", "Prêtre"], [30220, "Nordrassil Life-Kilt", "Druide"], [30229, "Nordrassil Feral-Kilt", "Druide"], [30234, "Nordrassil Wrath-Kilt", "Druide"]], // Leggings of the Vanquished Defender
+    30244: [[30141, "Rift Stalker Helm", "Chasseur"], [30206, "Cowl of Tirisfal", "Mage"], [30212, "Hood of the Corruptor", "Démoniste"]], // Helm of the Vanquished Hero
+    30250: [[30143, "Rift Stalker Mantle", "Chasseur"], [30210, "Mantle of Tirisfal", "Mage"], [30215, "Mantle of the Corruptor", "Démoniste"]], // Pauldrons of the Vanquished Hero
+    30238: [[30139, "Rift Stalker Hauberk", "Chasseur"], [30196, "Robes of Tirisfal", "Mage"], [30214, "Robe of the Corruptor", "Démoniste"]], // Chestguard of the Vanquished Hero
+    30241: [[30140, "Rift Stalker Gauntlets", "Chasseur"], [30205, "Gloves of Tirisfal", "Mage"], [30211, "Gloves of the Corruptor", "Démoniste"]], // Gloves of the Vanquished Hero
+    30247: [[30142, "Rift Stalker Leggings", "Chasseur"], [30207, "Leggings of Tirisfal", "Mage"], [30213, "Leggings of the Corruptor", "Démoniste"]], // Leggings of the Vanquished Hero
+    31097: [[30987, "Lightbringer Faceguard", "Paladin"], [30988, "Lightbringer Greathelm", "Paladin"], [30989, "Lightbringer War-Helm", "Paladin"], [31051, "Hood of the Malefic", "Démoniste"], [31063, "Cowl of Absolution", "Prêtre"], [31064, "Hood of Absolution", "Prêtre"]], // Helm of the Forgotten Conqueror
+    31101: [[30996, "Lightbringer Pauldrons", "Paladin"], [30997, "Lightbringer Shoulderbraces", "Paladin"], [30998, "Lightbringer Shoulderguards", "Paladin"], [31054, "Mantle of the Malefic", "Démoniste"], [31069, "Mantle of Absolution", "Prêtre"], [31070, "Shoulderpads of Absolution", "Prêtre"]], // Pauldrons of the Forgotten Conqueror
+    31089: [[30990, "Lightbringer Breastplate", "Paladin"], [30991, "Lightbringer Chestguard", "Paladin"], [30992, "Lightbringer Chestpiece", "Paladin"], [31052, "Robe of the Malefic", "Démoniste"], [31065, "Shroud of Absolution", "Prêtre"], [31066, "Vestments of Absolution", "Prêtre"]], // Chestguard of the Forgotten Conqueror
+    31092: [[30982, "Lightbringer Gauntlets", "Paladin"], [30983, "Lightbringer Gloves", "Paladin"], [30985, "Lightbringer Handguards", "Paladin"], [31050, "Gloves of the Malefic", "Démoniste"], [31060, "Gloves of Absolution", "Prêtre"], [31061, "Handguards of Absolution", "Prêtre"]], // Gloves of the Forgotten Conqueror
+    31098: [[30993, "Lightbringer Greaves", "Paladin"], [30994, "Lightbringer Leggings", "Paladin"], [30995, "Lightbringer Legguards", "Paladin"], [31053, "Leggings of the Malefic", "Démoniste"], [31067, "Leggings of Absolution", "Prêtre"], [31068, "Breeches of Absolution", "Prêtre"]], // Leggings of the Forgotten Conqueror
+    34848: [[34431, "Lightbringer Bands", "Paladin"], [34432, "Lightbringer Bracers", "Paladin"], [34433, "Lightbringer Wristguards", "Paladin"], [34434, "Bracers of Absolution", "Prêtre"], [34435, "Cuffs of Absolution", "Prêtre"], [34436, "Bracers of the Malefic", "Démoniste"]], // Bracers of the Forgotten Conqueror
+    34853: [[34485, "Lightbringer Girdle", "Paladin"], [34487, "Lightbringer Belt", "Paladin"], [34488, "Lightbringer Waistguard", "Paladin"], [34527, "Belt of Absolution", "Prêtre"], [34528, "Cord of Absolution", "Prêtre"], [34541, "Belt of the Malefic", "Démoniste"]], // Belt of the Forgotten Conqueror
+    34856: [[34559, "Lightbringer Treads", "Paladin"], [34560, "Lightbringer Stompers", "Paladin"], [34561, "Lightbringer Boots", "Paladin"], [34562, "Boots of Absolution", "Prêtre"], [34563, "Treads of Absolution", "Prêtre"], [34564, "Boots of the Malefic", "Démoniste"]], // Boots of the Forgotten Conqueror
+    31095: [[30972, "Onslaught Battle-Helm", "Guerrier"], [30974, "Onslaught Greathelm", "Guerrier"], [31003, "Gronnstalker\u0027s Helmet", "Chasseur"], [31012, "Skyshatter Helmet", "Chaman"], [31014, "Skyshatter Headguard", "Chaman"], [31015, "Skyshatter Cover", "Chaman"]], // Helm of the Forgotten Protector
+    31103: [[30979, "Onslaught Shoulderblades", "Guerrier"], [30980, "Onslaught Shoulderguards", "Guerrier"], [31006, "Gronnstalker\u0027s Spaulders", "Chasseur"], [31022, "Skyshatter Shoulderpads", "Chaman"], [31023, "Skyshatter Mantle", "Chaman"], [31024, "Skyshatter Pauldrons", "Chaman"]], // Pauldrons of the Forgotten Protector
+    31091: [[30975, "Onslaught Breastplate", "Guerrier"], [30976, "Onslaught Chestguard", "Guerrier"], [31004, "Gronnstalker\u0027s Chestguard", "Chasseur"], [31016, "Skyshatter Chestguard", "Chaman"], [31017, "Skyshatter Breastplate", "Chaman"], [31018, "Skyshatter Tunic", "Chaman"]], // Chestguard of the Forgotten Protector
+    31094: [[30969, "Onslaught Gauntlets", "Guerrier"], [30970, "Onslaught Handguards", "Guerrier"], [31001, "Gronnstalker\u0027s Gloves", "Chasseur"], [31007, "Skyshatter Gloves", "Chaman"], [31008, "Skyshatter Gauntlets", "Chaman"], [31011, "Skyshatter Grips", "Chaman"]], // Gloves of the Forgotten Protector
+    31100: [[30977, "Onslaught Greaves", "Guerrier"], [30978, "Onslaught Legguards", "Guerrier"], [31005, "Gronnstalker\u0027s Leggings", "Chasseur"], [31019, "Skyshatter Leggings", "Chaman"], [31020, "Skyshatter Legguards", "Chaman"], [31021, "Skyshatter Pants", "Chaman"]], // Leggings of the Forgotten Protector
+    34851: [[34437, "Skyshatter Bands", "Chaman"], [34438, "Skyshatter Bracers", "Chaman"], [34439, "Skyshatter Wristguards", "Chaman"], [34441, "Onslaught Bracers", "Guerrier"], [34442, "Onslaught Wristguards", "Guerrier"], [34443, "Gronnstalker\u0027s Bracers", "Chasseur"]], // Bracers of the Forgotten Protector
+    34854: [[34542, "Skyshatter Cord", "Chaman"], [34543, "Skyshatter Belt", "Chaman"], [34545, "Skyshatter Girdle", "Chaman"], [34546, "Onslaught Belt", "Guerrier"], [34547, "Onslaught Waistguard", "Guerrier"], [34549, "Gronnstalker\u0027s Belt", "Chasseur"]], // Belt of the Forgotten Protector
+    34857: [[34565, "Skyshatter Boots", "Chaman"], [34566, "Skyshatter Treads", "Chaman"], [34567, "Skyshatter Greaves", "Chaman"], [34568, "Onslaught Boots", "Guerrier"], [34569, "Onslaught Treads", "Guerrier"], [34570, "Gronnstalker\u0027s Boots", "Chasseur"]], // Boots of the Forgotten Protector
+    31096: [[31027, "Slayer\u0027s Helm", "Voleur"], [31037, "Thunderheart Helmet", "Druide"], [31039, "Thunderheart Cover", "Druide"], [31040, "Thunderheart Headguard", "Druide"], [31056, "Cowl of the Tempest", "Mage"]], // Helm of the Forgotten Vanquisher
+    31102: [[31030, "Slayer\u0027s Shoulderpads", "Voleur"], [31047, "Thunderheart Spaulders", "Druide"], [31048, "Thunderheart Pauldrons", "Druide"], [31049, "Thunderheart Shoulderpads", "Druide"], [31059, "Mantle of the Tempest", "Mage"]], // Pauldrons of the Forgotten Vanquisher
+    31090: [[31028, "Slayer\u0027s Chestguard", "Voleur"], [31041, "Thunderheart Tunic", "Druide"], [31042, "Thunderheart Chestguard", "Druide"], [31043, "Thunderheart Vest", "Druide"], [31057, "Robes of the Tempest", "Mage"]], // Chestguard of the Forgotten Vanquisher
+    31093: [[31026, "Slayer\u0027s Handguards", "Voleur"], [31032, "Thunderheart Gloves", "Druide"], [31034, "Thunderheart Gauntlets", "Druide"], [31035, "Thunderheart Handguards", "Druide"], [31055, "Gloves of the Tempest", "Mage"]], // Gloves of the Forgotten Vanquisher
+    31099: [[31029, "Slayer\u0027s Legguards", "Voleur"], [31044, "Thunderheart Leggings", "Druide"], [31045, "Thunderheart Legguards", "Druide"], [31046, "Thunderheart Pants", "Druide"], [31058, "Leggings of the Tempest", "Mage"]], // Leggings of the Forgotten Vanquisher
+    34852: [[34444, "Thunderheart Wristguards", "Druide"], [34445, "Thunderheart Bracers", "Druide"], [34446, "Thunderheart Bands", "Druide"], [34447, "Bracers of the Tempest", "Mage"], [34448, "Slayer\u0027s Bracers", "Voleur"]], // Bracers of the Forgotten Vanquisher
+    34855: [[34554, "Thunderheart Belt", "Druide"], [34555, "Thunderheart Cord", "Druide"], [34556, "Thunderheart Waistguard", "Druide"], [34557, "Belt of the Tempest", "Mage"], [34558, "Slayer\u0027s Belt", "Voleur"]], // Belt of the Forgotten Vanquisher
+    34858: [[34571, "Thunderheart Boots", "Druide"], [34572, "Thunderheart Footwraps", "Druide"], [34573, "Thunderheart Treads", "Druide"], [34574, "Boots of the Tempest", "Mage"], [34575, "Slayer\u0027s Boots", "Voleur"]], // Boots of the Forgotten Vanquisher
+  };
   // BiS List rows, like wowtbc.gg: armour, two rings, two trinkets, then Arme, Main gauche (shields included) and Distance or Relique.
   var BIS_ARMOR_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds', 'Doigt', 'Bijou'];
   // The older detailed slots still count until the workbook is refreshed.
@@ -747,11 +813,30 @@
     var rank = TREATMENT_ORDER.indexOf(treatment);
     return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });
   }
-  function lootTable(loots, withRaider) {
+  // raider (optional): a tier token is shown as "token → set piece"; the loot keeps its Statut.
+  function lootTable(loots, withRaider, raider) {
     return table(['Date'].concat(withRaider ? ['Raider'] : []).concat(['Objet', 'Statut']), loots.map(function (loot) {
+      var piece = raider ? tokenPiece(loot.itemId, raider) : null;
+      var objet = piece
+        ? el('td', { 'data-sort': loot.itemName || '' }, [itemLink(loot.itemId, loot.itemName), el('span', { class: 'muted', text: ' → ' }), itemLink(piece.itemId, piece.name)])
+        : itemCell(loot.itemId, loot.itemName);
       return el('tr', {}, [el('td', { 'data-sort': loot.date || '', text: frDate(loot.date) })].concat(withRaider ? [nameCell(loot.raider)] : []).concat([
-        itemCell(loot.itemId, loot.itemName), treatmentCell(loot.treatment)]));
+        objet, treatmentCell(loot.treatment)]));
     }));
+  }
+  // The set piece a tier token becomes for this raider: the one in their BiS List, else the only one for their class; null otherwise.
+  function tokenPiece(itemId, raider) {
+    var pieces = (TOKEN_PIECES[itemId] || []).filter(function (piece) { return piece[2] === raider.className; });
+    var classSpec = raider.className + ' ' + raider.spec;
+    var wanted = pieces.filter(function (piece) {
+      return DATA.items.some(function (item) {
+        return String(item.itemId) === String(piece[0]) && item.specs.some(function (spec) {
+          return spec.classSpec === classSpec && (spec.statut === 'BIS' || spec.statut === 'IMPACT');
+        });
+      });
+    });
+    var pick = wanted[0] || (pieces.length === 1 ? pieces[0] : null);
+    return pick ? { itemId: pick[0], name: pick[1] } : null;
   }
   function renderLoots() {
     var section = document.getElementById('loots');
