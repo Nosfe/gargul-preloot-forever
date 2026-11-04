@@ -644,6 +644,12 @@
   var BIS_WEAPON_SLOTS = ['Arme', 'Une main', 'Deux mains', 'Main droite'];
   var BIS_OFF_HAND_SLOTS = ['Main gauche', 'Tenu en main gauche', 'Bouclier'];
   var RELIC_CLASSES = ['Paladin', 'Druide', 'Chaman'];
+  // Rank of a slot in the BiS List order (armour, rings, trinkets, Arme, Main gauche, Distance, Relique); unknown slots last.
+  function slotOrder(slot) {
+    var order = BIS_ARMOR_SLOTS.concat(['Arme', 'Main gauche', 'Distance', 'Relique']);
+    var rank = order.indexOf(BIS_WEAPON_SLOTS.indexOf(slot) !== -1 ? 'Arme' : BIS_OFF_HAND_SLOTS.indexOf(slot) !== -1 ? 'Main gauche' : slot);
+    return rank === -1 ? order.length : rank;
+  }
   // Card with an item search dropdown above the table; the table scrolls past about 12 rows unless fullHeight. itemOf returns a row's item, items or null.
   function itemFilterCard(title, rows, itemOf, render, emptyText, fullHeight) {
     if (!rows.length) { return card(title, [el('p', { class: 'muted', text: emptyText })]); }
@@ -974,10 +980,12 @@
     function roleGrid(role) {
       var rows = DATA.items.filter(function (item) {
         return item.specs.some(function (spec) { return role.specs.indexOf(spec.classSpec) !== -1; });
+      }).sort(function (a, b) {
+        return slotOrder(a.slot) - slotOrder(b.slot) || (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
       }).map(function (item) {
         var bySpec = {};
         item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
-        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })].concat(role.specs.map(function (label) {
+        return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { 'data-sort': String(slotOrder(item.slot)), text: item.slot })].concat(role.specs.map(function (label) {
           var spec = bySpec[label];
           return spec ? treatmentCell(spec.statut) : el('td', {});
         })));
