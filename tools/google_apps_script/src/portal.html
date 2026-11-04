@@ -649,8 +649,8 @@
     section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }
 
-  // Sorted by type, not alphabetically: first click puts IMPACT on top.
-  var TREATMENT_ORDER = ['IMPACT', 'BIS', 'CLASS_BOUND', 'NORMAL'];
+  // Sorted like the workbook, not alphabetically.
+  var TREATMENT_ORDER = ['BIS', 'IMPACT', 'CLASS_BOUND', 'NORMAL'];
   function treatmentCell(treatment) {
     var rank = TREATMENT_ORDER.indexOf(treatment);
     return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });
@@ -755,7 +755,7 @@
           var gainCell = el('td', { class: 'num', text: hasGain ? Number(spec.gainDps).toFixed(1) : '' });
           if (hasGain) { paintGain(gainCell, item, Number(spec.gainDps)); }
           rows.push(el('tr', {}, [specFill(el('td', { 'data-sort': label }), label), el('td', { text: role.role }),
-            el('td', { class: 't-' + spec.statut, text: spec.statut }), gainCell]));
+            treatmentCell(spec.statut), gainCell]));
         });
       });
       holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
@@ -783,7 +783,7 @@
         item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
         return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })].concat(role.specs.map(function (label) {
           var spec = bySpec[label];
-          return el('td', { class: spec ? 't-' + spec.statut : '', text: spec ? spec.statut : '' });
+          return spec ? treatmentCell(spec.statut) : el('td', {});
         })));
       });
       if (!rows.length) { return null; }
