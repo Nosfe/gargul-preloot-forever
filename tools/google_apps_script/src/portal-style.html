@@ -2,7 +2,7 @@
 <style>
   :root { --bg: #f4f6f9; --card: #fff; --line: #dde3ea; --head: #dce9f7; --headText: #0b4f9c; --muted: #66707c; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Verdana, Arial, sans-serif; font-size: 14px; background: var(--bg); color: #1f1f1f; }
+  body { margin: 0; font-family: var(--body); font-size: 14px; background: var(--bg); color: #1f1f1f; }
   header { background: #0b4f9c; color: #fff; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
   header h1 { font-size: 18px; margin: 0; }
   header .tier { opacity: .85; }
@@ -49,20 +49,22 @@
   /* Forever theme from the logo palette: teal frame, tan trim, cream cards so class and quality colours stay readable. */
   :root { --tan: #c8b08a; --teal: #11678a; --cream: #fff5e1; --tealDark: #0b4f6b; --tanDark: #9c8460;
     --bg: #f4e7cc; --card: var(--cream); --line: #e3d3b4; --head: var(--teal); --headText: var(--cream); --muted: #6b6255; --gold: var(--tan); --ink: #22201c; --blue: var(--teal); --navy: var(--tealDark);
-    --body: 'IBM Plex Sans', system-ui, sans-serif; }
+    --body: 'IBM Plex Sans', system-ui, sans-serif; --display: 'Cinzel', Georgia, serif; }
   body { font-family: var(--body); color: var(--ink); background: #0b4f6b radial-gradient(ellipse at top, #2a86ab 0%, #11678a 45%, #0b4f6b 85%) fixed; }
   header { background: linear-gradient(#0e5d7d, #083d53); border-bottom: 2px solid var(--tan); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); padding: 14px 18px; }
-  header h1 { font-family: var(--body); font-size: 32px; letter-spacing: 1.5px; color: var(--tan); text-shadow: 0 1px 0 #000, 0 0 8px rgba(200, 176, 138, .35); }
+  header h1 { font-family: var(--display); font-size: 32px; letter-spacing: 1.5px; color: var(--tan); text-shadow: 0 1px 0 #000, 0 0 8px rgba(200, 176, 138, .35); }
   header .tier { color: var(--cream); opacity: .85; }
   nav { background: #083d53; border-bottom: 1px solid var(--tanDark); }
-  nav button { color: var(--cream); font-family: var(--body); border: 1px solid transparent; border-radius: 4px; }
+  nav button { color: var(--cream); font-family: var(--display); border: 1px solid transparent; border-radius: 4px; }
   nav button:hover { border-color: var(--tanDark); }
   nav button.active { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border-color: var(--tan); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
   .card { background: var(--card); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 0 0 2px var(--tealDark), 0 4px 14px rgba(0, 0, 0, .35); }
   .card .card { box-shadow: none; }
-  .card h2 { font-family: var(--body); font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); padding-bottom: 4px; }
+  .card h2 { font-family: var(--display); font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); padding-bottom: 4px; }
   main th { background: linear-gradient(#167596, var(--teal)); color: var(--cream); font-weight: 600; border-bottom: 2px solid var(--tan); }
-  td.num, .stat .value { font-family: Verdana, Arial, sans-serif; }
+  td.num, .stat .value { font-family: var(--body); font-variant-numeric: tabular-nums; }
+  /* Cinzel for the logo, page tabs, zone titles and the home tiles; IBM Plex Sans for text and numbers. */
+  .stat .label { font-family: var(--display); }
   main tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
   .stat { background: #f4e7cc; border: 1px solid var(--tan); border-radius: 4px; }
   a.stat.link:hover { outline: 2px solid var(--teal); }
@@ -84,8 +86,8 @@
   #tip .t { font-weight: bold; margin-bottom: 4px; }
   #tip table { width: auto; }
   #tip td { padding: 1px 12px 1px 0; border: 0; background: none; color: var(--muted); }
-  #tip td.v { padding-right: 0; color: var(--ink); font-family: Verdana, Arial, sans-serif; text-align: right; }
-  #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: Verdana, Arial, sans-serif; color: var(--teal); }
+  #tip td.v { padding-right: 0; color: var(--ink); font-family: var(--body); text-align: right; }
+  #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: var(--body); color: var(--teal); }
   header { align-items: center; justify-content: space-between; }
   /* Header and tabs stay visible while the page scrolls. */
   .topbar { position: sticky; top: 0; z-index: 15; }
@@ -94,7 +96,7 @@
   header .rules { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; }
   header .rules .arrow { font-size: 12px; }
   header .rules:hover, header .rules:focus { color: var(--cream); }
-  header .perso-tab { font: inherit; font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
+  header .perso-tab { font: inherit; font-family: var(--display); font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
   header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
   header .perso-tab.active { background: linear-gradient(#1a7fa8, var(--teal)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
   nav .spacer { flex: 1; }
@@ -114,7 +116,7 @@
   .item-card li { display: flex; gap: 6px; padding: 2px 0; cursor: help; }
   .item-card .rk { width: 1.6em; color: var(--muted); }
   .item-card .nm { flex: 1; }
-  .item-card .sc { font-family: Verdana, Arial, sans-serif; font-size: 12px; align-self: center; }
+  .item-card .sc { font-family: var(--body); font-size: 12px; align-self: center; }
 
   /* Dark theme (forever.css palette), only when <html class="dark">. */
   html.dark { color-scheme: dark; --ink: #ecf2f5; --muted: #8fa9b8; --line: #26475f; }
