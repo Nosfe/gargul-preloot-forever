@@ -482,24 +482,33 @@
 
       var bisItems = DATA.items.filter(function (item) {
         return item.specs.some(function (spec) { return spec.classSpec === classSpec && spec.statut === 'BIS'; });
+      }).sort(function (a, b) {
+        return slotRank(a.slot) - slotRank(b.slot) || (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
       });
       body.appendChild(itemFilterCard('BiS List', bisItems, function (item) { return item; }, function (items) {
         return table(['Objet', 'Emplacement', ''], items.map(function (item) {
           var got = DATA.loots.some(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(item.itemId); });
-          return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
+          return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { 'data-sort': String(slotRank(item.slot)), text: item.slot }), el('td', { text: got ? 'obtenu' : '', class: got ? 't-NORMAL' : '' })]);
         }));
-      }, 'Aucun objet BiS pour ta spé.'));
+      }, 'Aucun objet BiS pour ta spé.', true));
     }
     fill();
   }
-  // Card with an item search dropdown above a scrollable table; itemOf maps a row to its item.
-  function itemFilterCard(title, rows, itemOf, render, emptyText) {
+  // Character sheet order, same list as the workbook's ITEM_SLOTS; unknown slots go last.
+  var SLOT_ORDER = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
+    'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier', 'Distance', 'Relique'];
+  function slotRank(slot) {
+    var rank = SLOT_ORDER.indexOf(slot);
+    return rank === -1 ? SLOT_ORDER.length : rank;
+  }
+  // Card with an item search dropdown above the table; the table scrolls past about 12 rows unless fullHeight.
+  function itemFilterCard(title, rows, itemOf, render, emptyText, fullHeight) {
     if (!rows.length) { return card(title, [el('p', { class: 'muted', text: emptyText })]); }
     var options = rows.map(function (row) {
       var item = itemOf(row);
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var holder = el('div', { class: 'scroll' });
+    var holder = el('div', fullHeight ? {} : { class: 'scroll' });
     var pick = combo([{ value: '', text: 'Tous les objets' }].concat(options), function () { draw(); }, 'perso-' + title);
     function draw() {
       holder.innerHTML = '';
