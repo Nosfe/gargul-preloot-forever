@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
 <base target="_top">
 <meta charset="utf-8">
@@ -80,7 +80,7 @@
   button.toggle, a.toggle { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border: 1px solid var(--tan); border-radius: 4px; font-weight: 600; }
   button.toggle:hover, a.toggle:hover { filter: brightness(1.15); }
   /* Wowhead's quality colours are made for dark tooltips; darker common/uncommon so they read on parchment. */
-  main a.item.q0 { color: #6b6b6b !important; } main a.item.q1 { color: var(--ink) !important; } main a.item.q2 { color: #1a8c00 !important; }
+  html:not(.dark) main a.item.q0 { color: #6b6b6b !important; } html:not(.dark) main a.item.q1 { color: var(--ink) !important; } html:not(.dark) main a.item.q2 { color: #1a8c00 !important; }
   #status { color: var(--cream); }
   /* About 12 rows, then the table scrolls under its sticky header. */
   .scroll { max-height: 440px; overflow-y: auto; }
@@ -93,10 +93,58 @@
   #tip td { padding: 1px 12px 1px 0; border: 0; background: none; color: var(--muted); }
   #tip td.v { padding-right: 0; color: var(--ink); font-family: Verdana, Arial, sans-serif; text-align: right; }
   #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: Verdana, Arial, sans-serif; color: var(--teal); }
+  header { align-items: center; justify-content: space-between; }
+  header .perso-tab { font: inherit; font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
+  header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
+  header .perso-tab.active { background: linear-gradient(#1a7fa8, var(--teal)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
+  nav .spacer { flex: 1; }
+  .card-head .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .item-card { padding: 8px 10px; background: #fffdf7; border: 1px solid var(--tan); border-radius: 4px; }
+  .item-card .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
+  .item-card .slot { font-size: 12px; font-weight: normal; color: var(--muted); white-space: nowrap; }
+  .item-card ol { margin: 0; padding: 0; list-style: none; }
+  .item-card li { display: flex; gap: 6px; padding: 2px 0; cursor: help; }
+  .item-card .rk { width: 1.6em; color: var(--muted); }
+  .item-card .nm { flex: 1; }
+  .item-card .sc { font-family: Verdana, Arial, sans-serif; }
+
+  /* Dark theme (forever.css palette), only when <html class="dark">. */
+  html.dark { color-scheme: dark; --ink: #ecf2f5; --muted: #8fa9b8; --line: #26475f; }
+  html.dark body { color: #ecf2f5; background: #0a1620 radial-gradient(120% 600px at 50% 0, #0e2232 0%, #0a1620 70%) no-repeat fixed; }
+  html.dark a { color: #2aa8dc; }
+  html.dark header { background: linear-gradient(#0f3550, #0a2133); border-bottom: 1px solid #9a7432; }
+  html.dark header h1 { color: #f6edd2; text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
+  html.dark nav { background: #0a2133; border-bottom: 1px solid #26475f; }
+  html.dark nav button, html.dark header .perso-tab { color: #8fa9b8; border-color: transparent; }
+  html.dark header .perso-tab { border-color: #26475f; }
+  html.dark nav button:hover, html.dark header .perso-tab:hover { color: #ecf2f5; background: #1e3d55; }
+  html.dark nav button.active, html.dark header .perso-tab.active { color: #04131c; background: #2aa8dc; border-color: #2aa8dc; box-shadow: none; }
+  html.dark .card { background: #13293a; border-color: #26475f; border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+  html.dark .card .card { background: transparent; }
+  html.dark .card h2 { color: #2aa8dc; border-bottom-color: #26475f; }
+  html.dark .card-head { border-bottom-color: #26475f; }
+  html.dark th { color: #fff; background: #1683b8; border-bottom: 0; }
+  html.dark tbody tr:hover td { background-image: none; background-color: #1e3d55; }
+  html.dark .stat { background: #183247; border-color: #26475f; }
+  html.dark input, html.dark select { color: #ecf2f5; background: #183247; border-color: #26475f; }
+  html.dark input::placeholder { color: #5f7b8c; }
+  html.dark input:focus { outline-color: #2aa8dc; }
+  html.dark .combo ul { background: #183247; border-color: #26475f; }
+  html.dark .combo li.hl { background: #1e3d55; }
+  html.dark button.toggle, html.dark a.toggle { color: #04131c; background: #2aa8dc; border-color: #2aa8dc; }
+  html.dark button.toggle:hover, html.dark a.toggle:hover { filter: none; color: #fff; background: #1683b8; }
+  html.dark .t-BIS { color: #b569f5; } html.dark .t-IMPACT { color: #ff8000; } html.dark .t-CLASS_BOUND { color: #3d8bff; } html.dark .t-NORMAL { color: #1eff00; }
+  html.dark .P { color: #6fcf7f; background: rgba(111, 207, 127, .15); } html.dark .B { color: #e5a83b; background: rgba(229, 168, 59, .15); } html.dark .A { background: rgba(224, 96, 90, .12); }
+  html.dark .rank1 { background: rgba(216, 178, 90, .3); } html.dark .rank2 { background: rgba(200, 210, 220, .18); } html.dark .rank3 { background: rgba(205, 127, 50, .28); }
+  html.dark #tip { background: #183247; border-color: #26475f; }
+  html.dark #tip .f { color: #2aa8dc; }
+  html.dark .item-card { background: #183247; border-color: #26475f; }
+  html.dark #status { color: #8fa9b8; }
 </style>
 </head>
 <body>
-<header><h1>Parsimonie</h1><span class="tier" id="tier"></span></header>
+<header><h1>Parsimonie</h1><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
 <nav id="nav"></nav>
 <main>
   <div id="status">Chargement…</div>
@@ -109,7 +157,11 @@
   <section id="objets"></section>
 </main>
 <script>
-  var TABS = [['perso', 'Mon personnage'], ['classement', 'Classement Impact'], ['roster', 'Roster'], ['loots', 'Loots'], ['presence', 'Présence'], ['objets', 'Objets']];
+  var TABS = [['perso', 'Mon personnage'], ['roster', 'Roster'], ['classement', 'Classement Impact'], ['objets', 'Objets'], ['loots', 'Loots'], ['presence', 'Présence']];
+  // Nav tabs pushed to the right end of the bar; Mon personnage lives in the header.
+  var NAV_RIGHT = ['loots', 'presence'];
+  // Dark theme switch: add class="dark" on <html>.
+  var DARK = document.documentElement.classList.contains('dark');
   var DATA = null;
   var ROLE_LABELS = { TANK: 'Tank', HEALER: 'Heal', DPS: 'DPS' };
   // Dominant hue of each spec's talent tree art, darkened to stay readable on white.
@@ -125,6 +177,13 @@
     'Druide Équilibre': '#4B5BA8', 'Druide Combat farouche (ours)': '#B5651D', 'Druide Combat farouche (félin)': '#B5651D', 'Druide Restauration': '#2E8B3E'
   };
   function colored(td, color) { td.style.color = color || ''; return td; }
+  // On the dark theme the talent-tree colours are lifted halfway to white to stay readable.
+  function specColor(key) {
+    var hex = SPEC_COLORS[key];
+    if (!hex || !DARK) { return hex; }
+    var channels = [1, 3, 5].map(function (i) { return Math.round((parseInt(hex.slice(i, i + 2), 16) + 255) / 2); });
+    return 'rgb(' + channels.join(', ') + ')';
+  }
   // Short spec names for tight spots; specs not listed are already short.
   var SPEC_SHORT = {
     'Protection': 'Prot', 'Maîtrise des bêtes': 'BM', 'Précision': 'Préci', 'Assassinat': 'Assa', 'Discipline': 'Disci', 'Vindicte': 'Ret', 'Finesse': 'Sub',
@@ -156,7 +215,7 @@
     var low = Math.min.apply(null, gains);
     var high = Math.max.apply(null, gains);
     var ratio = high > low ? (value - low) / (high - low) : 1;
-    node.style.color = 'hsl(' + Math.round(ratio * 120) + ', 80%, 36%)';
+    node.style.color = 'hsl(' + Math.round(ratio * 120) + ', 80%, ' + (DARK ? 60 : 36) + '%)';
     node.style.fontWeight = 'bold';
     return node;
   }
@@ -286,12 +345,15 @@
       if (api && api.refreshLinks) { api.refreshLinks(); }
     }, 0);
   }
-  function itemCell(itemId, name) {
+  function itemLink(itemId, name) {
     var id = parseInt(itemId, 10);
     var label = name || ('#' + itemId);
-    if (!(id > 0)) { return el('td', { text: label }); }
+    if (!(id > 0)) { return el('span', { text: label }); }
     refreshWowhead();
-    return el('td', { 'data-sort': label }, [el('a', { class: 'item', href: 'https://www.wowhead.com/' + DATA.wowhead + '/item=' + id, target: '_blank', rel: 'noopener', text: label })]);
+    return el('a', { class: 'item', href: 'https://www.wowhead.com/' + DATA.wowhead + '/item=' + id, target: '_blank', rel: 'noopener', text: label });
+  }
+  function itemCell(itemId, name) {
+    return el('td', { 'data-sort': name || ('#' + itemId) }, [itemLink(itemId, name)]);
   }
   function card(title, content) { return el('div', { class: 'card' }, [title ? el('h2', { text: title }) : null].concat(content)); }
   // Top 5 per item, raiders who already received it left out (same rule as the workbook tab).
@@ -299,16 +361,19 @@
 
   function renderNav() {
     var nav = document.getElementById('nav');
-    TABS.forEach(function (tab, index) {
-      nav.appendChild(el('button', { text: tab[1], 'data-tab': tab[0], onclick: function () { show(tab[0]); } }));
-      if (index === 0) { show(tab[0]); }
-    });
+    var tabButton = function (tab) { return el('button', { text: tab[1], 'data-tab': tab[0], onclick: function () { show(tab[0]); } }); };
+    var navTabs = TABS.filter(function (tab) { return tab[0] !== 'perso'; });
+    navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) === -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
+    nav.appendChild(el('span', { class: 'spacer' }));
+    navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) !== -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
+    document.querySelector('header .perso-tab').onclick = function () { show('perso'); };
+    show('perso');
   }
   function show(id) {
     TABS.forEach(function (tab) {
       document.getElementById(tab[0]).classList.toggle('active', tab[0] === id);
     });
-    Array.prototype.forEach.call(document.querySelectorAll('nav button'), function (button) {
+    Array.prototype.forEach.call(document.querySelectorAll('button[data-tab]'), function (button) {
       button.classList.toggle('active', button.getAttribute('data-tab') === id);
     });
   }
@@ -403,30 +468,42 @@
 
   function renderClassement() {
     var section = document.getElementById('classement');
-    var itemOptions = DATA.items.filter(function (item) { return ranking(item).length; }).map(function (item) {
+    var ranked = DATA.items.filter(function (item) { return ranking(item).length; });
+    var itemOptions = ranked.map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
+    var roleSelect = combo([{ value: '', text: 'Tous les types' }].concat(DATA.roles.map(function (r) { return { value: r.role, text: r.role }; })), function () { fill(); });
     var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { fill(); });
-    var holder = el('div');
-    section.appendChild(card('Top 5 Impact par objet', [search, holder]));
+    var holder = el('div', { class: 'item-grid' });
+    section.appendChild(card('', [el('div', { class: 'card-head' }, [el('h2', { text: 'Top 5 Impact par objet' }), el('div', { class: 'filters' }, [roleSelect, search])]), holder]));
+    // An item belongs to a type when one of that role's specs has it as IMPACT.
+    function ofRole(item, roleName) {
+      var role = DATA.roles.filter(function (r) { return r.role === roleName; })[0];
+      return item.specs.some(function (spec) { return spec.statut === 'IMPACT' && role.specs.indexOf(spec.classSpec) !== -1; });
+    }
     function fill() {
       holder.innerHTML = '';
-      var rows = DATA.items.filter(function (item) {
-        return ranking(item).length && (!search.value || String(item.itemId) === search.value);
-      }).map(function (item) {
-        var top = ranking(item);
-        var cells = [itemCell(item.itemId, item.name)];
-        for (var i = 0; i < 5; i += 1) {
-          var td = el('td', { class: top[i] && i < 3 ? 'rank' + (i + 1) : '', text: top[i] ? top[i].name + ' (' + score(top[i].score) + ')' : '' });
-          if (top[i]) { colorName(td, top[i].name, i); td.setAttribute('data-sort', String(top[i].score)); scoreTip(td, item, top[i]); }
-          cells.push(td);
-        }
-        return el('tr', {}, cells);
+      var items = ranked.filter(function (item) {
+        return (!search.value || String(item.itemId) === search.value) && (!roleSelect.value || ofRole(item, roleSelect.value));
       });
-      holder.appendChild(rows.length ? table(['Objet', '1er', '2e', '3e', '4e', '5e'], rows) : el('p', { class: 'muted', text: 'Aucun objet Impact.' }));
+      if (!items.length) { holder.appendChild(el('p', { class: 'muted', text: 'Aucun objet Impact.' })); return; }
+      items.forEach(function (item) {
+        var rows = ranking(item).map(function (entry, index) {
+          var name = el('span', { class: 'nm', text: entry.name });
+          colorName(name, entry.name, index);
+          var row = el('li', {}, [el('span', { class: 'rk', text: (index + 1) + '.' }), name, el('span', { class: 'sc', text: wholeScore(entry.score) })]);
+          scoreTip(row, item, entry);
+          return row;
+        });
+        holder.appendChild(el('div', { class: 'item-card' }, [
+          el('div', { class: 'head' }, [itemLink(item.itemId, item.name), el('span', { class: 'slot', text: item.slot || '' })]),
+          el('ol', {}, rows)
+        ]));
+      });
     }
     fill();
   }
+  function wholeScore(value) { return String(Math.round(Number(value))); }
   function colorName(td, name, index) {
     var raider = raiderByName(name);
     td.style.color = raider ? (classColor[raider.className] || '') : '';
@@ -450,7 +527,7 @@
       ];
       var tip = document.getElementById('tip');
       tip.innerHTML = '';
-      var title = el('div', { class: 't', text: entry.name + ' — ' + score(entry.score) });
+      var title = el('div', { class: 't', text: entry.name + ' — ' + wholeScore(entry.score) });
       title.style.color = classColor[raider.className] || '';
       tip.appendChild(title);
       tip.appendChild(el('table', {}, rows.map(function (row) {
@@ -479,7 +556,7 @@
     var raiders = DATA.raiders.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }); });
     var rows = raiders.map(function (r) {
       return el('tr', {}, [nameCell(r.name), el('td', { text: r.group }), colored(el('td', { text: r.className }), classColor[r.className]),
-        colored(el('td', { text: r.spec }), SPEC_COLORS[r.className + ' ' + r.spec]), el('td', { text: ROLE_LABELS[r.role] || r.role }),
+        colored(el('td', { text: r.spec }), specColor(r.className + ' ' + r.spec)), el('td', { text: ROLE_LABELS[r.role] || r.role }),
         el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax }), el('td', { class: 'num', text: String(r.bisLootCount) }),
         el('td', { class: 'num', text: String(r.impactLootCount) }), el('td', { class: 'num', text: score(r.bisRatio) }), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
     });
@@ -629,9 +706,9 @@
   google.script.run
     .withSuccessHandler(function (data) {
       DATA = data;
-      data.classes.forEach(function (entry) { classColor[entry.name] = entry.color; classFill[entry.name] = entry; });
+      // The dark theme takes the raw WoW class colours; the light one the readable header variants.
+      data.classes.forEach(function (entry) { classColor[entry.name] = DARK ? entry.fill : entry.color; classFill[entry.name] = entry; });
       document.getElementById('status').remove();
-      document.getElementById('tier').textContent = data.tierId ? 'Palier ' + data.tierId + (data.tierStart ? ' depuis le ' + frDate(data.tierStart) : '') : '';
       renderNav();
       renderPerso();
       renderClassement();
