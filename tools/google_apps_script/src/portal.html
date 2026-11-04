@@ -259,7 +259,7 @@
     nav.appendChild(el('span', { class: 'spacer' }));
     navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) !== -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
     tabLink(document.querySelector('header .perso-tab'), 'perso');
-    show('perso');
+    show('roster');
     if (window.google && google.script.url) {
       google.script.url.getLocation(function (location) {
         var wanted = location.parameter && location.parameter.tab;
