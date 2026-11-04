@@ -447,6 +447,7 @@
         var link = pair[2];
         var box = el(link ? 'a' : 'div', { class: 'stat' + (link ? ' link' : '') }, [el('div', { class: 'label', text: pair[0] }), value]);
         if (pair[0] === 'Parse WCL') { paintParse(value, raider.parse); }
+        if (pair[0] === 'Ratio BiS') { ratioTip(box, raider); }
         if (link) {
           box.href = link;
           box.target = '_blank';
@@ -668,8 +669,7 @@
   function scoreTip(td, item, entry) {
     var raider = raiderByName(entry.name);
     if (!raider) { return; }
-    td.style.cursor = 'help';
-    td.onmouseenter = function (event) {
+    hoverTip(td, function (tip) {
       var parts = scoreParts(item, raider);
       var spec = parts.spec, gain = parts.gain, parse = parts.parse, max = parts.max;
       var rows = [
@@ -678,8 +678,6 @@
         ['Gain', gain.toFixed(1) + ' DPS (' + (SPEC_SHORT[raider.spec] || raider.spec) + ')'],
         ['Loots Impact', String(raider.impactLootCount)]
       ];
-      var tip = document.getElementById('tip');
-      tip.innerHTML = '';
       var title = el('div', { class: 't', text: entry.name + ' — ' + wholeScore(entry.score) });
       title.style.color = classColor[raider.className] || '';
       tip.appendChild(title);
@@ -690,17 +688,44 @@
         return el('tr', {}, [el('td', { text: row[0] }), value]);
       })));
       tip.appendChild(el('div', { class: 'f', text: raider.tierPresence + '/' + max + ' × ' + parse + ' × ' + gain.toFixed(1) + ' ÷ ' + (raider.impactLootCount + 1) }));
+    });
+  }
+  // Hover breakdown of the BiS ratio, same formula as the workbook: (presence / raids of the tier) ÷ (loots BiS + 1).
+  function ratioTip(node, raider) {
+    hoverTip(node, function (tip) {
+      var max = raider.tierPresenceMax > 0 ? raider.tierPresenceMax : 1;
+      var title = el('div', { class: 't', text: raider.name + ' — Ratio BiS ' + score(raider.bisRatio) });
+      title.style.color = classColor[raider.className] || '';
+      tip.appendChild(title);
+      tip.appendChild(el('table', {}, [['Présence', raider.tierPresence + ' / ' + max], ['Loots BiS', String(raider.bisLootCount)]].map(function (row) {
+        return el('tr', {}, [el('td', { text: row[0] }), el('td', { class: 'v', text: row[1] })]);
+      })));
+      tip.appendChild(el('div', { class: 'f', text: '(' + raider.tierPresence + '/' + max + ') ÷ ' + (raider.bisLootCount + 1) + ' = ' + score(raider.bisRatio) }));
+    });
+  }
+  function ratioCell(raider) {
+    var td = el('td', { class: 'num', text: score(raider.bisRatio) });
+    ratioTip(td, raider);
+    return td;
+  }
+  // Shows #tip next to the pointer while over node; fill(tip) writes its content.
+  function hoverTip(node, fill) {
+    node.style.cursor = 'help';
+    node.onmouseenter = function (event) {
+      var tip = document.getElementById('tip');
+      tip.innerHTML = '';
+      fill(tip);
       tip.style.display = 'block';
-      td.onmousemove(event);
+      node.onmousemove(event);
     };
-    td.onmousemove = function (event) {
+    node.onmousemove = function (event) {
       var tip = document.getElementById('tip');
       var left = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
       var top = event.clientY + 16 + tip.offsetHeight > window.innerHeight ? event.clientY - tip.offsetHeight - 10 : event.clientY + 16;
       tip.style.left = left + 'px';
       tip.style.top = top + 'px';
     };
-    td.onmouseleave = function () { document.getElementById('tip').style.display = 'none'; };
+    node.onmouseleave = function () { document.getElementById('tip').style.display = 'none'; };
   }
 
   function renderRoster() {
@@ -711,7 +736,7 @@
       return el('tr', {}, [nameCell(r.name), el('td', { text: r.group }), colored(el('td', { text: r.className }), classColor[r.className]),
         colored(el('td', { text: r.spec }), specColor(r.className + ' ' + r.spec)), el('td', { text: ROLE_LABELS[r.role] || r.role }),
         el('td', { class: 'num', 'data-sort': String(r.tierPresence), text: r.tierPresence + ' / ' + r.tierPresenceMax }), el('td', { class: 'num', text: String(r.bisLootCount) }),
-        el('td', { class: 'num', text: String(r.impactLootCount) }), el('td', { class: 'num', text: score(r.bisRatio) }), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
+        el('td', { class: 'num', text: String(r.impactLootCount) }), ratioCell(r), paintParse(el('td', { class: 'num', text: String(r.parse) }), r.parse)]);
     });
     section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }

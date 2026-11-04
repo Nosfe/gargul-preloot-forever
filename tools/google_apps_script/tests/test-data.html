@@ -30,7 +30,7 @@
         writeCells_(idOf('Config'), 1, 0, ['t1', '2026-10-01', '', 'eu/realm', 'TBC']);
         // A real raid and a real item already listed: both must survive the clear.
         writeCells_(idOf('Raids'), 1, 0, ['77', 'Karazhan', '2026-10-02']);
-        writeCells_(idOf('Objets Caster DPS'), 5, 0, [28770, 'Nathrezim Mindblade (r\u00e9el)']);
+        writeCells_(idOf('Objets Caster DPS'), 5, 0, [33829, 'Hex Shrunken Head (r\u00e9el)']);
         var casterBefore = rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean).join(',');
 
         // NORMAL was renamed ALT: a refresh rewrites old cells, older exports are read as ALT.
@@ -47,8 +47,11 @@
         equal(names().length, 23, 'test raiders added below the real ones');
         equal(names().slice(0, 3).join(','), 'Ana,Bob,Cid', 'real raiders untouched');
         var caster = rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean);
-        equal(caster.filter(function (id) { return id === 28770; }).length, 1, 'an item already listed is not added twice');
-        equal(caster.length, 3 + TEST_ITEMS.length - 1, 'other test items added to the tab');
+        equal(caster.filter(function (id) { return id === 33829; }).length, 1, 'an item already listed is not added twice');
+        var casterSpecs = SPEC_COLUMNS.filter(function (spec) { return spec.role === 'Caster DPS'; });
+        var casterItems = TEST_ITEMS.filter(function (item) { return casterSpecs.some(function (spec) { return testStatut_(item, spec); }); });
+        equal(caster.length, 3 + casterItems.length - 1, 'test items listed by a Caster spec added to the tab');
+        truthy(TEST_ITEMS.length > casterItems.length, 'items of other roles only are not added to the Caster tab');
         var presence = rows('Pr\u00e9sence');
         equal(presence.filter(function (row) { return /^test-/.test(String(row[0])); }).length, 6, 'six test raids in Pr\u00e9sence');
         truthy(presence[0].indexOf('Aelwynn') !== -1, 'refresh added the test raider columns');
@@ -57,7 +60,8 @@
         equal(stored.raids.length + '|' + stored.raiders.length, '6|20', 'what was added is recorded');
 
         var data = buildRaiderPortalData_(spreadsheet);
-        equal(data.loots.length, 18, 'portal sees the test loots');
+        equal(data.loots.length, 24, 'portal sees the test loots');
+        equal(data.loots.filter(function (loot) { return loot.treatment === 'ALT'; }).length, 6, 'one ALT loot per raid');
         truthy(data.raids.length >= 6, 'portal sees the test raids');
 
         var refused = '';
