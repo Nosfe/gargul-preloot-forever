@@ -694,7 +694,7 @@
   function ratioTip(node, raider) {
     hoverTip(node, function (tip) {
       var max = raider.tierPresenceMax > 0 ? raider.tierPresenceMax : 1;
-      var title = el('div', { class: 't', text: raider.name + ' — Ratio BiS ' + score(raider.bisRatio) });
+      var title = el('div', { class: 't', text: raider.name });
       title.style.color = classColor[raider.className] || '';
       tip.appendChild(title);
       tip.appendChild(el('table', {}, [['Présence', raider.tierPresence + ' / ' + max], ['Loots BiS', String(raider.bisLootCount)]].map(function (row) {
