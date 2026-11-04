@@ -840,11 +840,13 @@
     section.appendChild(card('Roster', [detailTable(table(columns, rows), ['', 'c', '', '', '', 'c', 'c', 'c', 'c', 'c'])]));
   }
 
-  // Sorted like the workbook, not alphabetically.
+  // Sorted like the workbook, not alphabetically; the Objets tab puts IMPACT first.
   var TREATMENT_ORDER = ['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'];
-  function treatmentCell(treatment) {
-    var rank = TREATMENT_ORDER.indexOf(treatment);
-    return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });
+  var OBJETS_STATUT_ORDER = ['IMPACT', 'BIS', 'CLASS_BOUND', 'ALT'];
+  function treatmentCell(treatment, order) {
+    var ranks = order || TREATMENT_ORDER;
+    var rank = ranks.indexOf(treatment);
+    return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? ranks.length : rank), text: treatment });
   }
   // raider (optional): a tier token is shown as "token → set piece"; the loot keeps its Statut.
   function lootTable(loots, withRaider, raider) {
@@ -957,7 +959,7 @@
           var gainCell = el('td', { class: 'num', text: hasGain ? Number(spec.gainDps).toFixed(1) : '' });
           if (hasGain) { paintGain(gainCell, item, Number(spec.gainDps)); }
           rows.push(el('tr', {}, [specFill(el('td', { 'data-sort': label }), label), el('td', { text: role.role }),
-            treatmentCell(spec.statut), gainCell]));
+            treatmentCell(spec.statut, OBJETS_STATUT_ORDER), gainCell]));
         });
       });
       holder.appendChild(card('Objet', [table(['Objet', 'Emplacement'], [el('tr', {}, [itemCell(item.itemId, item.name), el('td', { text: item.slot })])])]));
@@ -987,7 +989,7 @@
         item.specs.forEach(function (spec) { bySpec[spec.classSpec] = spec; });
         return el('tr', {}, [itemCell(item.itemId, item.name), el('td', { 'data-sort': String(slotOrder(item.slot)), text: item.slot })].concat(role.specs.map(function (label) {
           var spec = bySpec[label];
-          return spec ? treatmentCell(spec.statut) : el('td', {});
+          return spec ? treatmentCell(spec.statut, OBJETS_STATUT_ORDER) : el('td', {});
         })));
       });
       if (!rows.length) { return null; }
