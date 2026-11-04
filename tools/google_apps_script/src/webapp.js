@@ -17,6 +17,8 @@ function getRaiderPortalData() {
     return JSON.parse(cached);
   }
   var data = buildRaiderPortalData_(SpreadsheetApp.getActive());
+  // Lets a tab open in a new browser tab (?tab=).
+  data.url = ScriptApp.getService().getUrl();
   try {
     cache.put(PORTAL_CACHE_KEY, JSON.stringify(data), PORTAL_CACHE_SECONDS);
   } catch (error) {

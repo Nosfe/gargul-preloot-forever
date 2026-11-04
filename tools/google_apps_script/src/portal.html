@@ -404,13 +404,27 @@
 
   function renderNav() {
     var nav = document.getElementById('nav');
-    var tabButton = function (tab) { return el('button', { text: tab[1], 'data-tab': tab[0], onclick: function () { show(tab[0]); } }); };
+    var tabButton = function (tab) { return tabLink(el('button', { text: tab[1], 'data-tab': tab[0] }), tab[0]); };
     var navTabs = TABS.filter(function (tab) { return tab[0] !== 'perso'; });
     navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) === -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
     nav.appendChild(el('span', { class: 'spacer' }));
     navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) !== -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
-    document.querySelector('header .perso-tab').onclick = function () { show('perso'); };
+    tabLink(document.querySelector('header .perso-tab'), 'perso');
     show('perso');
+    if (window.google && google.script.url) {
+      google.script.url.getLocation(function (location) {
+        var wanted = location.parameter && location.parameter.tab;
+        if (TABS.some(function (tab) { return tab[0] === wanted; })) { show(wanted); }
+      });
+    }
+  }
+  // Click shows the tab here; middle-click or Ctrl/Cmd-click opens it in a new browser tab.
+  function tabLink(button, id) {
+    var openNew = function () { if (DATA.url) { window.open(DATA.url + '?tab=' + encodeURIComponent(id), '_blank', 'noopener'); } };
+    button.onclick = function (event) { if (event.ctrlKey || event.metaKey) { openNew(); } else { show(id); } };
+    button.onauxclick = function (event) { if (event.button === 1) { event.preventDefault(); openNew(); } };
+    button.onmousedown = function (event) { if (event.button === 1) { event.preventDefault(); } };
+    return button;
   }
   function show(id) {
     TABS.forEach(function (tab) {
