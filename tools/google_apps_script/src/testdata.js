@@ -485,8 +485,9 @@ function buildTestRaidRowsRequests_(spreadsheet, raids) {
       if (nextRowByName[winner] === undefined) {
         nextRowByName[winner] = nextAwardRowIndex_(awardsRows, blockStart);
       }
-      var item = wanted[(raidIndex * 3 + k) % wanted.length];
-      // The fourth loot of each raid goes as ALT, for variety.
+      // The fourth loot of each raid is an item outside the winner's list, so ALT like the Objets rule gives it.
+      var others = TEST_ITEMS.filter(function (candidate) { return !testStatut_(candidate, spec); });
+      var item = k === 3 ? others[(raidIndex * 5) % others.length] : wanted[(raidIndex * 3 + k) % wanted.length];
       var award = { itemID: item.id, itemName: item.name, treatment: k === 3 ? 'ALT' : testStatut_(item, spec) };
       requests.push(buildAwardRowWriteRequest_(awardsSheet.getSheetId(), nextRowByName[winner], blockStart, award, raid.raidId, raid.dateSerial));
       nextRowByName[winner] += 1;

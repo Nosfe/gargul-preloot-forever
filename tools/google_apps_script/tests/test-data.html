@@ -62,6 +62,9 @@
         var data = buildRaiderPortalData_(spreadsheet);
         equal(data.loots.length, 24, 'portal sees the test loots');
         equal(data.loots.filter(function (loot) { return loot.treatment === 'ALT'; }).length, 6, 'one ALT loot per raid');
+        var treatmentFor = buildTreatmentLookup_(spreadsheet);
+        equal(data.loots.filter(function (loot) { return treatmentFor(loot.raider, loot.itemId, 0, loot.treatment) !== loot.treatment; }).length, 0,
+          'every test loot already has the Traitement the Objets tabs give');
         truthy(data.raids.length >= 6, 'portal sees the test raids');
 
         var refused = '';
