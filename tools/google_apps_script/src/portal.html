@@ -95,6 +95,12 @@
   #tip td.v { padding-right: 0; color: var(--ink); font-family: Verdana, Arial, sans-serif; text-align: right; }
   #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: Verdana, Arial, sans-serif; color: var(--teal); }
   header { align-items: center; justify-content: space-between; }
+  /* Header and tabs stay visible while the page scrolls. */
+  .topbar { position: sticky; top: 0; z-index: 15; }
+  .topbar nav { position: static; }
+  header .brand { display: flex; align-items: baseline; gap: 14px; }
+  header .rules { font-size: 12px; color: var(--muted); text-decoration: none; border-bottom: 1px dotted currentColor; }
+  header .rules:hover, header .rules:focus { color: var(--cream); }
   header .perso-tab { font: inherit; font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
   header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
   header .perso-tab.active { background: linear-gradient(#1a7fa8, var(--teal)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
@@ -123,6 +129,8 @@
   html.dark a { color: #2aa8dc; }
   html.dark header { background: linear-gradient(#0f3550, #0a2133); border-bottom: 1px solid #9a7432; }
   html.dark header h1 { color: #f6edd2; text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
+  html.dark header .rules { color: #8fa9b8; }
+  html.dark header .rules:hover, html.dark header .rules:focus { color: #2aa8dc; }
   html.dark nav { background: #0a2133; border-bottom: 1px solid #26475f; }
   html.dark nav button, html.dark header .perso-tab { color: #8fa9b8; border-color: transparent; }
   html.dark header .perso-tab { border-color: #26475f; }
@@ -163,8 +171,10 @@
 </style>
 </head>
 <body>
-<header><h1>Parsimonie</h1><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
+<div class="topbar">
+<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="https://tinyurl.com/parsimonie-assign" target="_blank" rel="noopener" title="Ouvrir les règles d'attribution">Règles d'attribution ↗</a></div><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
 <nav id="nav"></nav>
+</div>
 <main>
   <div id="status">Chargement…</div>
   <div id="tip"></div>
