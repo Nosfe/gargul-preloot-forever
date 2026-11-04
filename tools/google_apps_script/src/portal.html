@@ -141,6 +141,8 @@
   html.dark #tip .f { color: #2aa8dc; }
   html.dark .item-card { background: #183247; border-color: #26475f; }
   html.dark #status { color: #8fa9b8; }
+  .medal1, .medal2, .medal3 { font-weight: bold; }
+  .medal1 { color: #d8b25a; } .medal2 { color: #c3ccd4; } .medal3 { color: #cd8a4a; }
 </style>
 </head>
 <body>
@@ -433,7 +435,7 @@
         return table(['Objet', 'Mon score', 'Mon rang', '1er'], rows.map(function (row) {
           var first = ranking(row.item)[0];
           return el('tr', {}, [itemCell(row.item.itemId, row.item.name), el('td', { class: 'num', text: score(row.score) }),
-            el('td', { class: 'num' + (row.rank <= 3 ? ' rank' + row.rank : ''), text: String(row.rank) }), first ? nameCell(first.name) : el('td')]);
+            el('td', { class: 'num' + (row.rank <= 3 ? ' medal' + row.rank : ''), text: String(row.rank) }), first ? nameCell(first.name) : el('td')]);
         }));
       }, 'Aucun objet Impact pour ta spé.'));
 
