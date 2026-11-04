@@ -507,11 +507,12 @@
         }
       };
       BIS_ARMOR_SLOTS.forEach(function (slot) { addRows(slot, pick(bySlots([slot]), slot === 'Doigt' || slot === 'Bijou' ? 2 : 1), slot === 'Doigt' || slot === 'Bijou' ? 2 : 1); });
-      // A second one-hand weapon goes to the off hand (dual wield).
+      // Two weapons and no off-hand item: the second one goes to Main gauche (dual wield).
       var weapons = pick(bySlots(BIS_WEAPON_SLOTS), 1);
-      var overflow = weapons.slice(1).filter(function (item) { return item.slot === 'Une main'; });
-      addRows('Arme', weapons.filter(function (item) { return overflow.indexOf(item) === -1; }), 1);
-      addRows('Main gauche', overflow.length ? overflow : pick(bySlots(BIS_OFF_HAND_SLOTS), 1), 1);
+      var offHand = pick(bySlots(BIS_OFF_HAND_SLOTS), 1);
+      var dualWield = !offHand.length && weapons.length > 1;
+      addRows('Arme', dualWield ? weapons.slice(0, 1) : weapons, 1);
+      addRows('Main gauche', dualWield ? weapons.slice(1) : offHand, 1);
       addRows(RELIC_CLASSES.indexOf(raider.className) !== -1 ? 'Relique' : 'Distance', pick(bySlots(['Distance', 'Relique']), 1), 1);
       var known = BIS_ARMOR_SLOTS.concat(BIS_WEAPON_SLOTS, BIS_OFF_HAND_SLOTS, ['Distance', 'Relique']);
       var others = bisItems.filter(function (item) { return known.indexOf(item.slot) === -1; });
@@ -545,7 +546,8 @@
   }
   // BiS List rows, like wowtbc.gg: armour, two rings, two trinkets, then Arme, Main gauche (shields included) and Distance or Relique.
   var BIS_ARMOR_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds', 'Doigt', 'Bijou'];
-  var BIS_WEAPON_SLOTS = ['Une main', 'Deux mains', 'Main droite'];
+  // The older detailed slots still count until the workbook is refreshed.
+  var BIS_WEAPON_SLOTS = ['Arme', 'Une main', 'Deux mains', 'Main droite'];
   var BIS_OFF_HAND_SLOTS = ['Main gauche', 'Tenu en main gauche', 'Bouclier'];
   var RELIC_CLASSES = ['Paladin', 'Druide', 'Chaman'];
   // Card with an item search dropdown above the table; the table scrolls past about 12 rows unless fullHeight. itemOf returns a row's item, items or null.

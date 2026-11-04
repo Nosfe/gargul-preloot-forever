@@ -22,19 +22,28 @@ function refreshWorkbook_() {
       fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'
     });
     var plan = buildSetupPlan_(existingHeadersByName, sheetsMetadata, separator);
-    return buildLegacyNormalRequests_(spreadsheet).concat(plan.requests);
+    return buildLegacyValueRequests_(spreadsheet).concat(plan.requests);
   });
 }
 
-// NORMAL was renamed ALT: rewrites the old value in the Objets Statut and Awards Traitement cells.
-function buildLegacyNormalRequests_(spreadsheet) {
-  return ITEM_TABS.map(function (tab) { return tab.name; })
+// Renamed values: NORMAL is now ALT (Objets Statut, Awards Traitement), and the detailed weapon slots are now Arme / Main gauche.
+function buildLegacyValueRequests_(spreadsheet) {
+  var replace = function (sheet, find, replacement, range) {
+    range.sheetId = sheet.getSheetId();
+    return { findReplace: { find: find, replacement: replacement, matchEntireCell: true, matchCase: true, range: range } };
+  };
+  var requests = [];
+  ITEM_TABS.map(function (tab) { return tab.name; })
     .concat([GRID_TABS.awards.name, ARCHIVE_TABS.awards.name])
     .map(function (name) { return spreadsheet.getSheetByName(name); })
     .filter(Boolean)
-    .map(function (sheet) {
-      return { findReplace: { find: 'NORMAL', replacement: 'ALT', matchEntireCell: true, matchCase: true, range: { sheetId: sheet.getSheetId(), startRowIndex: 1 } } };
+    .forEach(function (sheet) { requests.push(replace(sheet, 'NORMAL', 'ALT', { startRowIndex: 1 })); });
+  ITEM_TABS.map(function (tab) { return spreadsheet.getSheetByName(tab.name); }).filter(Boolean).forEach(function (sheet) {
+    Object.keys(LEGACY_ITEM_SLOTS).forEach(function (slot) {
+      requests.push(replace(sheet, slot, LEGACY_ITEM_SLOTS[slot], { startRowIndex: 3, startColumnIndex: OBJETS_SLOT_COLUMN, endColumnIndex: OBJETS_SLOT_COLUMN + 1 }));
     });
+  });
+  return requests;
 }
 
 // Requests only (test entry point).

@@ -35,8 +35,10 @@
 
         // NORMAL was renamed ALT: a refresh rewrites old cells, older exports are read as ALT.
         writeCells_(idOf('Objets Caster DPS'), 5, OBJETS_FIRST_SPEC_COLUMN, ['NORMAL']);
+        writeCells_(idOf('Objets Caster DPS'), 5, OBJETS_SLOT_COLUMN, ['Bouclier']);
         refreshWorkbook_();
         equal(rows('Objets Caster DPS')[5][OBJETS_FIRST_SPEC_COLUMN], 'ALT', 'refresh rewrites NORMAL as ALT');
+        equal(rows('Objets Caster DPS')[5][OBJETS_SLOT_COLUMN], 'Main gauche', 'refresh rewrites the old weapon slots');
         writeCells_(idOf('Objets Caster DPS'), 5, OBJETS_FIRST_SPEC_COLUMN, ['']);
         equal(parseGargulExport_('{"checksum":"c1","winner":"Ana","itemID":1,"itemName":"x","rollType":"MS","os":0,"date":"2026-10-22","time":"21:20","raidId":"5","treatment":"NORMAL"},').lines[0].treatment,
           'ALT', 'an older export saying NORMAL reads as ALT');

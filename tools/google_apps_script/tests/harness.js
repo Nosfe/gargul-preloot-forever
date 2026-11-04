@@ -633,9 +633,11 @@
     var start = Number(range.startRowIndex || 0);
     var end = range.endRowIndex === undefined ? sheet.rows.length : Number(range.endRowIndex);
     var changed = 0;
+    var firstColumn = Number(range.startColumnIndex || 0);
     for (var r = start; r < Math.min(end, sheet.rows.length); r += 1) {
       var row = sheet.rows[r] || [];
-      for (var c = 0; c < row.length; c += 1) {
+      var lastColumn = range.endColumnIndex === undefined ? row.length : Math.min(row.length, Number(range.endColumnIndex));
+      for (var c = firstColumn; c < lastColumn; c += 1) {
         if (row[c] === payload.find) {
           row[c] = payload.replacement;
           changed += 1;

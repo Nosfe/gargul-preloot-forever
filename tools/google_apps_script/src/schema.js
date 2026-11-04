@@ -139,9 +139,11 @@ var RANKING_ROW_COUNT = 500;
 var RANKING_SIZE = 5;
 // Ranking fill by rank: gold, silver, bronze, then none.
 var RANKING_BACKGROUNDS = ['FFE38A', 'D3D7DD', 'EDBE93', null, null];
+// Gear slots like wowtbc.gg: Arme covers one-hand, two-hand and main hand; Main gauche covers off-hand items and shields.
 var ITEM_SLOTS = ['Tête', 'Cou', 'Épaules', 'Dos', 'Torse', 'Poignets', 'Mains', 'Taille', 'Jambes', 'Pieds',
-  'Doigt', 'Bijou', 'Une main', 'Deux mains', 'Main droite', 'Main gauche', 'Tenu en main gauche', 'Bouclier',
-  'Distance', 'Relique'];
+  'Doigt', 'Bijou', 'Arme', 'Main gauche', 'Distance', 'Relique'];
+// Older Emplacement values, rewritten by a refresh.
+var LEGACY_ITEM_SLOTS = { 'Une main': 'Arme', 'Deux mains': 'Arme', 'Main droite': 'Arme', 'Tenu en main gauche': 'Main gauche', 'Bouclier': 'Main gauche' };
 
 // Roster "Groupe de raid" dropdown values; used only for filtering.
 var RAID_GROUPS = ['Raid 1', 'Raid 2'];
