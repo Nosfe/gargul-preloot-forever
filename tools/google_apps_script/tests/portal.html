@@ -79,6 +79,9 @@
       var page = loadTextSync_('../src/portal.html');
       equal(page.split('innerHTML').length, page.split("innerHTML = ''").length, 'page never injects sheet text as HTML (innerHTML only cleared)');
       contains(page, '.getRaiderPortalData()', 'page loads its data from the script');
+      equal(typeof include, 'function', 'template include helper');
+      contains(page, "<?!= include('portal-style') ?>", 'page pulls its styles from portal-style.html');
+      contains(loadTextSync_('../src/portal-style.html'), '<style>', 'portal-style.html holds the style block');
 
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {

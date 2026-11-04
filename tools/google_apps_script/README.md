@@ -12,7 +12,7 @@ Source of the Apps Script bound to the Google Sheets workbook **preloot-forever*
 4. From this folder, upload: `clasp push --force`. It prints `Pushed 17 files`.
 5. Reload the workbook. The **Preloot** menu appears; the first menu action asks for authorisation.
 
-`.claspignore` uploads only `appsscript.json`, the `.js` files and `portal.html`. `appsscript.json` turns on the V8 runtime and the advanced **Sheets** service (v4) that every batched write uses, and sets the web app below.
+`.claspignore` uploads only `appsscript.json`, the `.js` files, `portal.html` and `portal-style.html`. `appsscript.json` turns on the V8 runtime and the advanced **Sheets** service (v4) that every batched write uses, and sets the web app below.
 
 If `clasp push` hangs with no output, stop it and run it again.
 
@@ -64,7 +64,7 @@ Rows from earlier tiers stay visible in grey. Each tier change also adds an `Obj
 
 ## Raider portal
 
-A read-only web page for the raiders (`webapp.js`, `portal.html`), in French and dark-themed: Mon personnage (pick your name: your numbers with the BiS ratio calculation on hover, your loots, your rank on each IMPACT item, and the BiS List: one row per gear slot like wowtbc.gg, BIS and IMPACT items comma-separated, an IMPACT item replacing the BIS ones of its slot, with a Looté mark and date per item), Classement Impact (top 5 per item as cards, the full calculation when one item is picked), Roster, Objets, Loots and Présence of the active tier. Items link to Wowhead (Config *Version Wowhead*); the parse links to the character on Warcraft Logs and, for TBC, an Armory link is shown (both built from Config *Serveur WCL*, the only Config value that reaches the page). Filter choices are remembered per browser. Data is cached for one minute.
+A read-only web page for the raiders (`webapp.js`, `portal.html`, styles in `portal-style.html` included by `doGet`), in French and dark-themed: Mon personnage (pick your name: your numbers with the BiS ratio calculation on hover, your loots, your rank on each IMPACT item, and the BiS List: one row per gear slot like wowtbc.gg, BIS and IMPACT items comma-separated, an IMPACT item replacing the BIS ones of its slot, with a Looté mark and date per item), Classement Impact (top 5 per item as cards, the full calculation when one item is picked), Roster, Objets, Loots and Présence of the active tier. Items link to Wowhead (Config *Version Wowhead*); the parse links to the character on Warcraft Logs and, for TBC, an Armory link is shown (both built from Config *Serveur WCL*, the only Config value that reaches the page). Filter choices are remembered per browser. Data is cached for one minute.
 
 The web app runs as the owner and opens for anyone with the link, without a Google account (`appsscript.json` > `webapp`).
 

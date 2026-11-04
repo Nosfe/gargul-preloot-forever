@@ -4,9 +4,14 @@ var PORTAL_CACHE_SECONDS = 60;
 
 // Web app entry point.
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('portal')
+  return HtmlService.createTemplateFromFile('portal').evaluate()
     .setTitle('Parsimonie : portail raiders')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// Template helper: the content of another project HTML file (portal.html includes portal-style).
+function include(name) {
+  return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
 
 // Called by the page; cached a minute so many raiders opening the page do not each read the workbook.
