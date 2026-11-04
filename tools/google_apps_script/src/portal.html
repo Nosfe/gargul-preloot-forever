@@ -480,18 +480,26 @@
         }));
       }, 'Aucun objet Impact pour ta spé.'));
 
+      var statutOf = function (item) {
+        var spec = item.specs.filter(function (s) { return s.classSpec === classSpec; })[0];
+        return spec ? spec.statut : '';
+      };
       var bisItems = DATA.items.filter(function (item) {
-        return item.specs.some(function (spec) { return spec.classSpec === classSpec && spec.statut === 'BIS'; });
+        return statutOf(item) === 'BIS' || statutOf(item) === 'IMPACT';
       }).sort(function (a, b) {
         return (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
       });
-      // Every slot is listed, empty when no BiS item yet; rings and trinkets get two rows.
+      // Every slot is listed, empty when nothing yet; rings and trinkets get two rows. IMPACT items come before BIS ones and replace them.
       var slotRows = [];
       SLOT_ORDER.concat(bisItems.map(function (item) { return item.slot; }).filter(function (slot) { return SLOT_ORDER.indexOf(slot) === -1; }))
         .forEach(function (slot) {
           if (slotRows.some(function (row) { return row.slot === slot; })) { return; }
-          var items = bisItems.filter(function (item) { return item.slot === slot; });
-          var count = Math.max(items.length, slot === 'Doigt' || slot === 'Bijou' ? 2 : 1);
+          var inSlot = bisItems.filter(function (item) { return item.slot === slot; });
+          var impact = inSlot.filter(function (item) { return statutOf(item) === 'IMPACT'; });
+          var bis = inSlot.filter(function (item) { return statutOf(item) === 'BIS'; });
+          var size = slot === 'Doigt' || slot === 'Bijou' ? 2 : 1;
+          var items = impact.length ? impact.concat(bis.slice(0, Math.max(0, size - impact.length))) : bis;
+          var count = Math.max(items.length, size);
           for (var i = 0; i < count; i += 1) { slotRows.push({ slot: slot, item: items[i] || null }); }
         });
       body.appendChild(itemFilterCard('BiS List', slotRows, function (row) { return row.item; }, function (rows) {
