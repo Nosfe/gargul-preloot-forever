@@ -11,12 +11,12 @@
 </head>
 <body>
 <div class="topbar">
-<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="https://tinyurl.com/parsimonie-assign" target="_blank" rel="noopener" title="Ouvrir les attributions raid">Attributions raid <span class="arrow">↗</span></a></div><button class="perso-tab" data-tab="perso">Mon personnage</button></header>
+<header><div class="brand"><h1>Parsimonie</h1><a class="rules" href="https://tinyurl.com/parsimonie-assign" target="_blank" rel="noopener" title="Ouvrir les attributions raid">Attributions raid <span class="arrow">↗</span></a></div><button class="header-tab" data-tab="perso">Mon personnage</button></header>
 <nav id="nav"></nav>
 </div>
 <main>
   <div id="status">Chargement…</div>
-  <div id="tip"></div>
+  <div id="tip" class="tip"></div>
   <section id="perso"></section>
   <section id="classement"></section>
   <section id="roster"></section>
@@ -258,7 +258,7 @@
     navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) === -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
     nav.appendChild(el('span', { class: 'spacer' }));
     navTabs.filter(function (tab) { return NAV_RIGHT.indexOf(tab[0]) !== -1; }).forEach(function (tab) { nav.appendChild(tabButton(tab)); });
-    tabLink(document.querySelector('header .perso-tab'), 'perso');
+    tabLink(document.querySelector('header .header-tab'), 'perso');
     show('roster');
     if (window.google && google.script.url) {
       google.script.url.getLocation(function (location) {

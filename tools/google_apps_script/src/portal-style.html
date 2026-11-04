@@ -1,167 +1,259 @@
-<!-- Portal styles, included into portal.html by doGet (include('portal-style')). -->
+<!-- Portal styles: charte-parsimonie.css, then the portal complements; included into portal.html by doGet (include('portal-style')). -->
 <style>
-  :root { --bg: #f4f6f9; --card: #fff; --line: #dde3ea; --head: #dce9f7; --headText: #0b4f9c; --muted: #66707c; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: var(--body); font-size: 14px; background: var(--bg); color: #1f1f1f; }
-  header { background: #0b4f9c; color: #fff; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
-  header h1 { font-size: 18px; margin: 0; }
-  header .tier { opacity: .85; }
-  nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
-  nav button { border: 0; background: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font: inherit; color: var(--headText); }
-  nav button.active { background: var(--head); font-weight: bold; }
-  main { padding: 12px; max-width: 1200px; margin: 0 auto; }
-  section { display: none; }
-  section.active { display: block; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; overflow-x: auto; }
-  .card h2 { font-size: 15px; margin: 0 0 8px; color: var(--headText); }
-  th.sortable { cursor: pointer; user-select: none; }
-  th[data-dir="asc"]::after { content: ' \25B2'; }
-  th[data-dir="desc"]::after { content: ' \25BC'; }
-  a.item { text-decoration: none; }
-  a.stat.link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
-  a.stat.link:hover { outline: 2px solid var(--head); }
-  button.toggle, a.toggle { display: inline-block; text-decoration: none; font: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--head); color: var(--headText); cursor: pointer; margin: 0 8px 8px 0; vertical-align: top; }
-  a.item:hover { text-decoration: underline; }
-  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-  .stat { flex: 1 1 130px; background: var(--bg); border-radius: 6px; padding: 8px; }
-  .stat .label { color: var(--muted); font-size: 12px; }
-  .stat .value { font-size: 18px; font-weight: bold; }
-  /* Table rules stay inside main: Wowhead's tooltips are tables appended to body. */
-  main table { border-collapse: collapse; width: 100%; }
-  main th, main td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
-  main th { background: var(--head); color: var(--headText); position: sticky; top: 0; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .rank1 { background: #ffe38a; } .rank2 { background: #d3d7dd; } .rank3 { background: #edbe93; }
-  .rank1, .rank2, .rank3 { font-weight: bold; }
-  .muted { color: var(--muted); }
-  .P { background: #e6f4ea; color: #1e7d32; text-align: center; } .B { background: #fff2cc; color: #b26a00; text-align: center; } .A { background: #fce8e6; text-align: center; }
-  .t-BIS { color: #a335ee; font-weight: bold; } .t-IMPACT { color: #c65f00; font-weight: bold; } .t-CLASS_BOUND { color: #0070dd; } .t-ALT { color: #1a8c00; }
-  input, select { font: inherit; padding: 6px; border: 1px solid var(--line); border-radius: 6px; margin: 0 8px 8px 0; }
-  .combo { display: inline-block; margin: 0 8px 8px 0; }
-  .combo input { margin: 0; min-width: 220px; }
-  /* Fixed so the card's horizontal scroll does not clip the list. */
-  .combo ul { display: none; position: fixed; z-index: 10; max-height: 280px; overflow-y: auto; list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
-  .combo.open ul { display: block; }
-  .combo li { padding: 5px 8px; cursor: pointer; white-space: nowrap; }
-  .combo li.hl { background: var(--head); }
-  #status { padding: 24px; text-align: center; color: var(--muted); }
+/* ==========================================================================
+   Parsimonie : feuille de style complète et réutilisable (thème sombre Forever).
+   --------------------------------------------------------------------------
+   Utilisation :
+     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+     <link rel="stylesheet" href="charte-parsimonie.css">
+   Toutes les couleurs passent par les variables de :root (bloc 1).
+   Le comportement JavaScript (tri, listes saisissables, infobulle) n'est pas inclus.
+   Voir charte-parsimonie.html pour les composants en situation.
+   ========================================================================== */
 
-  /* Forever theme from the logo palette: teal frame, tan trim, cream cards so class and quality colours stay readable. */
-  :root { --tan: #c8b08a; --teal: #11678a; --cream: #fff5e1; --tealDark: #0b4f6b; --tanDark: #9c8460;
-    --bg: #f4e7cc; --card: var(--cream); --line: #e3d3b4; --head: var(--teal); --headText: var(--cream); --muted: #6b6255; --gold: var(--tan); --ink: #22201c; --blue: var(--teal); --navy: var(--tealDark);
-    --body: 'IBM Plex Sans', system-ui, sans-serif; --display: 'Cinzel', Georgia, serif; }
-  body { font-family: var(--body); color: var(--ink); background: #0b4f6b radial-gradient(ellipse at top, #2a86ab 0%, #11678a 45%, #0b4f6b 85%) fixed; }
-  header { background: linear-gradient(#0e5d7d, #083d53); border-bottom: 2px solid var(--tan); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); padding: 14px 18px; }
-  header h1 { font-family: var(--display); font-size: 32px; letter-spacing: 1.5px; color: var(--tan); text-shadow: 0 1px 0 #000, 0 0 8px rgba(200, 176, 138, .35); }
-  header .tier { color: var(--cream); opacity: .85; }
-  nav { background: #083d53; border-bottom: 1px solid var(--tanDark); }
-  nav button { color: var(--cream); font-family: var(--display); border: 1px solid transparent; border-radius: 4px; }
-  nav button:hover { border-color: var(--tanDark); }
-  nav button.active { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border-color: var(--tan); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
-  .card { background: var(--card); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 0 0 2px var(--tealDark), 0 4px 14px rgba(0, 0, 0, .35); }
-  .card .card { box-shadow: none; }
-  .card h2 { font-family: var(--display); font-size: 17px; color: var(--teal); border-bottom: 1px solid var(--tan); padding-bottom: 4px; }
-  main th { background: linear-gradient(#167596, var(--teal)); color: var(--cream); font-weight: 600; border-bottom: 2px solid var(--tan); }
-  td.num, .stat .value { font-family: var(--body); font-variant-numeric: tabular-nums; }
-  /* Cinzel for the logo, page tabs, zone titles and the home tiles; IBM Plex Sans for text and numbers. */
-  .stat .label { font-family: var(--display); }
-  main tbody tr:hover td { background-image: linear-gradient(rgba(17, 103, 138, .08), rgba(17, 103, 138, .08)); }
-  .stat { background: #f4e7cc; border: 1px solid var(--tan); border-radius: 4px; }
-  a.stat.link:hover { outline: 2px solid var(--teal); }
-  input, select { background: #fffdf7; border-color: var(--tan); color: var(--ink); }
-  input:focus { outline: 2px solid var(--teal); outline-offset: 0; }
-  .combo ul { background: #fffdf7; border-color: var(--tan); }
-  .combo li.hl { background: #f4e7cc; }
-  button.toggle, a.toggle { background: linear-gradient(#1a7fa8, var(--teal)); color: var(--cream); border: 1px solid var(--tan); border-radius: 4px; font-weight: 600; }
-  button.toggle:hover, a.toggle:hover { filter: brightness(1.15); }
-  /* Wowhead's quality colours are made for dark tooltips; darker common/uncommon so they read on parchment. */
-  html:not(.dark) main a.item.q0 { color: #6b6b6b !important; } html:not(.dark) main a.item.q1 { color: var(--ink) !important; } html:not(.dark) main a.item.q2 { color: #1a8c00 !important; }
-  #status { color: var(--cream); }
-  /* About 12 rows, then the table scrolls under its sticky header. */
-  .scroll { max-height: 440px; overflow-y: auto; }
-  .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--tan); padding-bottom: 4px; margin-bottom: 8px; }
-  .card .card-head h2 { border: 0; margin: 0; padding: 0; }
-  .card-head .combo { margin: 0; }
-  #tip { display: none; position: fixed; z-index: 20; pointer-events: none; background: var(--cream); border: 1px solid var(--tan); border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .35); padding: 6px 10px; font-size: 12px; }
-  #tip .t { font-weight: bold; margin-bottom: 4px; }
-  #tip table { width: auto; }
-  #tip td { padding: 1px 12px 1px 0; border: 0; background: none; color: var(--muted); }
-  #tip td.v { padding-right: 0; color: var(--ink); font-family: var(--body); text-align: right; }
-  #tip .f { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); font-family: var(--body); color: var(--teal); }
-  header { align-items: center; justify-content: space-between; }
-  /* Header and tabs stay visible while the page scrolls. */
-  .topbar { position: sticky; top: 0; z-index: 15; }
-  .topbar nav { position: static; }
-  header .brand { display: flex; align-items: center; gap: 14px; }
-  header .rules { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; border: 1px solid var(--line); border-radius: 6px; }
-  header .rules .arrow { font-size: 12px; }
-  header .rules:hover, header .rules:focus { color: var(--cream); }
-  header .perso-tab { font: inherit; font-family: var(--display); font-weight: 600; padding: 7px 14px; color: var(--cream); background: none; border: 1px solid var(--tan); border-radius: 4px; cursor: pointer; }
-  header .perso-tab:hover { background: rgba(255, 255, 255, .08); }
-  header .perso-tab.active { background: linear-gradient(#1a7fa8, var(--teal)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2); }
-  nav .spacer { flex: 1; }
-  .card-head .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .card-head .filters .combo, .card-head .filters .toggle { margin: 0; }
-  .card-head .title-group { display: flex; align-items: center; gap: 12px; }
-  .card-head .title-group .toggle { margin: 0; }
-  .item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-  .item-card { padding: 8px 10px; background: #fffdf7; border: 1px solid var(--tan); border-radius: 4px; }
-  .item-card .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 4px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
-  .item-card .head .slot { align-self: flex-end; }
-  /* Same title height on every card: the name is centred (up to two lines), the slot sits on the bottom line. */
-  .item-card .head { height: calc(2 * 1.3em + 4px); line-height: 1.3; }
-  .item-card .head > :first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .item-card .slot { font-size: 12px; font-weight: normal; color: var(--muted); white-space: nowrap; }
-  .item-card ol { margin: 0; padding: 0; list-style: none; }
-  .item-card li { display: flex; gap: 6px; padding: 2px 0; cursor: help; }
-  .item-card .rk { width: 1.6em; color: var(--muted); }
-  .item-card .nm { flex: 1; }
-  .item-card .sc { font-family: var(--body); font-size: 12px; align-self: center; }
+/* 1. Variables ------------------------------------------------------------ */
+:root {
+  color-scheme: dark;
 
-  /* Dark theme (forever.css palette), only when <html class="dark">. */
-  html.dark { color-scheme: dark; --ink: #ecf2f5; --muted: #8fa9b8; --line: #26475f; }
-  html.dark body { color: #ecf2f5; background: #0a1620 radial-gradient(120% 600px at 50% 0, #0e2232 0%, #0a1620 70%) no-repeat fixed; }
-  html.dark a { color: #2aa8dc; }
-  html.dark header { background: linear-gradient(#0f3550, #0a2133); border-bottom: 1px solid #9a7432; }
-  html.dark header h1 { color: #f6edd2; text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
-  html.dark header .rules { color: #8fa9b8; background: #183247; border-color: #26475f; }
-  html.dark header .rules .arrow { color: #2aa8dc; }
-  html.dark header .rules:hover, html.dark header .rules:focus { color: #ecf2f5; background: #1e3d55; }
-  html.dark nav { background: #0a2133; border-bottom: 1px solid #26475f; }
-  html.dark nav button, html.dark header .perso-tab { color: #8fa9b8; border-color: transparent; }
-  html.dark header .perso-tab { border-color: #26475f; }
-  html.dark nav button:hover, html.dark header .perso-tab:hover { color: #ecf2f5; background: #1e3d55; }
-  html.dark nav button.active, html.dark header .perso-tab.active { color: #04131c; background: #2aa8dc; border-color: #2aa8dc; box-shadow: none; }
-  html.dark .card { background: #13293a; border-color: #26475f; border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
-  html.dark .card .card { background: transparent; }
-  html.dark .card h2 { color: #2aa8dc; border-bottom-color: #26475f; }
-  html.dark .card-head { border-bottom-color: #26475f; }
-  html.dark main th { color: #fff; background: #1683b8; border-bottom: 0; }
-  html.dark main tbody tr:hover td { background-image: none; background-color: #1e3d55; }
-  html.dark .stat { background: #183247; border-color: #26475f; }
-  html.dark input, html.dark select { color: #ecf2f5; background: #183247; border-color: #26475f; }
-  html.dark input::placeholder { color: #5f7b8c; }
-  html.dark input:focus { outline-color: #2aa8dc; }
-  html.dark .combo ul { background: #183247; border-color: #26475f; }
-  html.dark .combo li.hl { background: #1e3d55; }
-  html.dark button.toggle, html.dark a.toggle { color: #04131c; background: #2aa8dc; border-color: #2aa8dc; }
-  html.dark button.toggle:hover, html.dark a.toggle:hover { filter: none; color: #fff; background: #1683b8; }
-  html.dark .t-BIS { color: #b569f5; } html.dark .t-IMPACT { color: #ff8000; } html.dark .t-CLASS_BOUND { color: #3d8bff; } html.dark .t-ALT { color: #1eff00; }
-  html.dark .P { color: #6fcf7f; background: rgba(111, 207, 127, .15); } html.dark .B { color: #e5a83b; background: rgba(229, 168, 59, .15); } html.dark .A { background: rgba(224, 96, 90, .12); }
-  html.dark .rank1 { background: rgba(216, 178, 90, .3); } html.dark .rank2 { background: rgba(200, 210, 220, .18); } html.dark .rank3 { background: rgba(205, 127, 50, .28); }
-  html.dark #tip { background: #183247; border-color: #26475f; }
-  html.dark #tip .f { color: #2aa8dc; }
-  html.dark .item-card { background: #183247; border-color: #26475f; }
-  html.dark #status { color: #8fa9b8; }
-  .item-grid > .card { grid-column: 1 / -1; margin-bottom: 0; }
-  td.calc { color: var(--muted); }
-  main table.detail th, main table.detail td { padding: 8px 14px; border-right: 1px solid var(--line); }
-  main table.detail th:last-child, main table.detail td:last-child { border-right: 0; }
-  main table.detail th { white-space: normal; vertical-align: bottom; line-height: 1.2; }
-  main table.detail tbody tr:nth-child(even) td:not(.P):not(.B):not(.A) { background-color: rgba(255, 255, 255, .035); }
-  main table.detail .c { text-align: center; }
-  main table.detail .r { text-align: right; }
-  main table.detail .fit { width: 1%; }
-  .medal1, .medal2, .medal3 { font-weight: bold; }
-  .medal1, .item-card .rk.medal1 { color: #d8b25a; } .medal2, .item-card .rk.medal2 { color: #c3ccd4; } .medal3, .item-card .rk.medal3 { color: #cd8a4a; }
+  /* Fonds et surfaces */
+  --bg: #0a1620;
+  --bg-2: #0e2232;
+  --surface: #13293a;     /* blocs */
+  --surface-2: #183247;   /* pastilles, champs, cartes d'objet, infobulle */
+  --surface-3: #1e3d55;   /* survol */
+  --line: #26475f;        /* bordures */
+
+  /* Texte */
+  --fg: #ecf2f5;
+  --fg-muted: #8fa9b8;
+  --fg-faint: #5f7b8c;
+
+  /* Couleurs Forever */
+  --accent: #2aa8dc;        /* cyan : onglet actif, boutons, titres, liens */
+  --accent-strong: #1683b8; /* en-têtes de tableau, survol des boutons */
+  --accent-ink: #04131c;    /* texte posé sur l'accent */
+  --gold: #d8b25a;
+  --gold-deep: #9a7432;     /* liseré sous l'en-tête */
+  --cream: #f6edd2;         /* nom de l'appli */
+  --header-from: #0f3550;
+  --header-to: #0a2133;
+
+  /* Podium (texte) */
+  --medal-1: #d8b25a;
+  --medal-2: #c3ccd4;
+  --medal-3: #cd8a4a;
+
+  /* Statuts d'objet (couleurs de qualité WoW) */
+  --q-epic: #b569f5;       /* BIS */
+  --q-legendary: #ff8000;  /* IMPACT */
+  --q-rare: #3d8bff;       /* CLASS_BOUND */
+  --q-uncommon: #1eff00;   /* NORMAL */
+
+  /* Présence */
+  --present: #6fcf7f;
+  --bench: #e5a83b;
+  --absent: #e0605a;
+
+  /* Couleurs de classe WoW */
+  --c-druid: #ff7c0a;
+  --c-hunter: #aad372;
+  --c-mage: #3fc7eb;
+  --c-paladin: #f48cba;
+  --c-priest: #ffffff;
+  --c-rogue: #fff468;
+  --c-shaman: #0070dd;
+  --c-warlock: #8788ee;
+  --c-warrior: #c69b6d;
+
+  /* Parses Warcraft Logs */
+  --wcl-100: #e5cc80;
+  --wcl-99: #e268a8;
+  --wcl-95: #ff8000;
+  --wcl-75: #a335ee;
+  --wcl-50: #0070ff;
+  --wcl-25: #1eff00;
+  --wcl-0: #666666;
+
+  /* Typographie : pas de serif, Verdana pour les chiffres */
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-numbers: Verdana, Arial, sans-serif;
+
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+/* 2. Base ----------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--bg) radial-gradient(120% 600px at 50% 0, var(--bg-2) 0%, var(--bg) 70%) no-repeat fixed;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.muted { color: var(--fg-muted); }
+
+main { max-width: 1200px; margin: 0 auto; padding: 12px; }
+section { display: none; }
+section.active { display: block; }
+
+/* 3. En-tête et onglets --------------------------------------------------- */
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 14px 18px; background: linear-gradient(var(--header-from), var(--header-to)); border-bottom: 1px solid var(--gold-deep); box-shadow: 0 2px 14px rgba(0, 0, 0, .3); }
+header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; color: var(--cream); text-shadow: 0 1px 0 rgba(0, 0, 0, .4); }
+
+nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px; background: var(--header-to); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+nav .spacer { flex: 1; } /* pousse les onglets suivants à droite */
+
+/* Onglet (barre de navigation) et onglet d'en-tête (ex. « Mon personnage ») */
+nav button, header .header-tab { font: inherit; padding: 8px 12px; color: var(--fg-muted); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
+header .header-tab { font-weight: 600; padding: 7px 14px; border-color: var(--line); }
+nav button:hover, header .header-tab:hover { color: var(--fg); background: var(--surface-3); }
+nav button.active, header .header-tab.active { font-weight: bold; color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+
+/* 4. Blocs ---------------------------------------------------------------- */
+.card { margin-bottom: 12px; padding: 12px; overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card .card { background: transparent; box-shadow: none; }
+.card h2 { margin: 0 0 8px; padding-bottom: 4px; font-size: 17px; color: var(--accent); border-bottom: 1px solid var(--line); }
+
+/* Ligne de titre : titre (+ bouton) à gauche, filtres alignés à droite. C'est la norme pour tout bloc filtrable. */
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.card .card-head h2 { margin: 0; padding: 0; border: 0; }
+.card-head .title-group { display: flex; align-items: center; gap: 12px; }
+.card-head .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.card-head .combo, .card-head .toggle { margin: 0; }
+
+/* 5. Pastilles ------------------------------------------------------------ */
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.stat { flex: 1 1 130px; padding: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.stat .label { font-size: 12px; color: var(--fg-muted); }
+.stat .value { font-family: var(--font-numbers); font-size: 18px; font-weight: bold; }
+a.stat.link { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+a.stat.link:hover { outline: 2px solid var(--accent); }
+
+/* 6. Tableaux (limités à main pour ne pas toucher les infobulles externes, ex. Wowhead) */
+main table { width: 100%; border-collapse: collapse; }
+main th, main td { padding: 6px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+main th { position: sticky; top: 0; font-weight: 600; color: #fff; background: var(--accent-strong); }
+main tbody tr:hover td { background-color: var(--surface-3); }
+th.sortable { cursor: pointer; user-select: none; }
+th[data-dir="asc"]::after { content: ' \25B2'; }
+th[data-dir="desc"]::after { content: ' \25BC'; }
+td.num { font-family: var(--font-numbers); text-align: right; font-variant-numeric: tabular-nums; }
+/* Environ 12 lignes, puis le tableau défile sous son en-tête. */
+.scroll { max-height: 440px; overflow-y: auto; }
+
+/* Tableau de détail : colonnes séparées, lignes alternées, alignement par colonne (en-tête compris). */
+main table.detail th, main table.detail td { padding: 8px 14px; border-right: 1px solid var(--line); }
+main table.detail th:last-child, main table.detail td:last-child { border-right: 0; }
+main table.detail th { white-space: normal; vertical-align: bottom; line-height: 1.2; }
+main table.detail tbody tr:nth-child(even) td { background-color: rgba(255, 255, 255, .035); }
+main table.detail .c { text-align: center; }
+main table.detail .r { text-align: right; }
+td.calc { color: var(--fg-muted); }
+
+/* 7. Boutons -------------------------------------------------------------- */
+button.toggle, a.toggle { display: inline-block; margin: 0 8px 8px 0; padding: 6px 12px; font: inherit; font-weight: 600; text-decoration: none; vertical-align: top; color: var(--accent-ink); background: var(--accent); border: 1px solid var(--accent); border-radius: var(--radius-sm); cursor: pointer; }
+button.toggle:hover, a.toggle:hover { color: #fff; background: var(--accent-strong); }
+
+/* 8. Champs et listes déroulantes saisissables ---------------------------- */
+input, select { margin: 0 8px 8px 0; padding: 6px; font: inherit; color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+input::placeholder { color: var(--fg-faint); }
+input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.combo { display: inline-block; margin: 0 8px 8px 0; }
+.combo input { margin: 0; min-width: 220px; }
+/* Position fixe pour que le défilement horizontal du bloc ne coupe pas la liste. */
+.combo ul { display: none; position: fixed; z-index: 10; max-height: 280px; margin: 0; padding: 0; overflow-y: auto; list-style: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+.combo.open ul { display: block; }
+.combo li { padding: 5px 8px; white-space: nowrap; cursor: pointer; }
+.combo li.hl { background: var(--surface-3); }
+
+/* 9. Grille de cartes d'objet --------------------------------------------- */
+.item-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.item-grid > .card { grid-column: 1 / -1; margin-bottom: 0; }
+.item-card { padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+/* Titre de même hauteur partout : nom centré (deux lignes max), emplacement sur la ligne du bas. */
+.item-card .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; height: calc(2 * 1.3em + 4px); line-height: 1.3; margin-bottom: 4px; padding-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--line); }
+.item-card .head > :first-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item-card .slot { align-self: flex-end; font-size: 12px; font-weight: normal; color: var(--fg-muted); white-space: nowrap; }
+.item-card ol { margin: 0; padding: 0; list-style: none; }
+.item-card li { display: flex; gap: 6px; padding: 2px 0; }
+.item-card .rk { width: 1.6em; color: var(--fg-muted); }
+.item-card .nm { flex: 1; }
+.item-card .sc { align-self: center; font-family: var(--font-numbers); font-size: 12px; }
+
+/* 10. Infobulle ----------------------------------------------------------- */
+.tip { position: fixed; z-index: 20; padding: 6px 10px; font-size: 12px; pointer-events: none; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+.tip .t { margin-bottom: 4px; font-weight: bold; }
+.tip table { width: auto; }
+.tip td { padding: 1px 12px 1px 0; color: var(--fg-muted); background: none; border: 0; }
+.tip td.v { padding-right: 0; font-family: var(--font-numbers); text-align: right; color: var(--fg); }
+.tip .f { margin-top: 4px; padding-top: 4px; font-family: var(--font-numbers); color: var(--accent); border-top: 1px solid var(--line); }
+
+/* 11. États et couleurs de données ----------------------------------------- */
+.medal1, .medal2, .medal3 { font-weight: bold; }
+.medal1, .item-card .rk.medal1 { color: var(--medal-1); }
+.medal2, .item-card .rk.medal2 { color: var(--medal-2); }
+.medal3, .item-card .rk.medal3 { color: var(--medal-3); }
+
+.t-BIS { font-weight: bold; color: var(--q-epic); }
+.t-IMPACT { font-weight: bold; color: var(--q-legendary); }
+.t-CLASS_BOUND { color: var(--q-rare); }
+.t-NORMAL { color: var(--q-uncommon); }
+
+.P { text-align: center; color: var(--present); background: rgba(111, 207, 127, .15); }
+.B { text-align: center; color: var(--bench); background: rgba(229, 168, 59, .15); }
+.A { text-align: center; background: rgba(224, 96, 90, .12); }
+
+.c-druid { color: var(--c-druid); } .c-hunter { color: var(--c-hunter); } .c-mage { color: var(--c-mage); }
+.c-paladin { color: var(--c-paladin); } .c-priest { color: var(--c-priest); } .c-rogue { color: var(--c-rogue); }
+.c-shaman { color: var(--c-shaman); } .c-warlock { color: var(--c-warlock); } .c-warrior { color: var(--c-warrior); }
+.player { font-weight: bold; white-space: nowrap; }
+
+.wcl-100 { color: var(--wcl-100); } .wcl-99 { color: var(--wcl-99); } .wcl-95 { color: var(--wcl-95); } .wcl-75 { color: var(--wcl-75); }
+.wcl-50 { color: var(--wcl-50); } .wcl-25 { color: var(--wcl-25); } .wcl-0 { color: var(--wcl-0); }
+[class^="wcl-"] { font-weight: bold; }
+
+/* Échelle rouge → jaune → vert pour comparer des valeurs entre elles :
+   color: hsl(calc(var(--t) * 120), 80%, 60%) avec --t de 0 (plus bas) à 1 (plus haut). */
+.scale { font-weight: bold; color: hsl(calc(var(--t, 1) * 120), 80%, 60%); }
+
+#status { padding: 24px; text-align: center; color: var(--fg-muted); }
+
+/* 12. Compléments portail -------------------------------------------------
+   Ce que le portail utilise en plus de la charte ci-dessus. */
+
+/* Typographie : Cinzel pour le logo, les onglets, les titres de bloc et les libellés des pastilles ; IBM Plex Sans pour les chiffres. */
+:root { --font-display: 'Cinzel', Georgia, serif; --font-numbers: var(--font-body); }
+header h1 { font-family: var(--font-display); font-size: 32px; letter-spacing: 1.5px; }
+nav button, header .header-tab, .card h2, .stat .label { font-family: var(--font-display); }
+
+/* En-tête et onglets restent visibles au défilement. */
+.topbar { position: sticky; top: 0; z-index: 15; }
+.topbar nav { position: static; }
+
+/* Logo et lien « Attributions raid ». */
+header .brand { display: flex; align-items: center; gap: 14px; }
+header .rules { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 14px; font-weight: 600; text-decoration: none; color: var(--fg-muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); }
+header .rules .arrow { font-size: 12px; color: var(--accent); }
+header .rules:hover, header .rules:focus { color: var(--fg); background: var(--surface-3); text-decoration: none; }
+
+/* Infobulle : cachée jusqu'au survol (le script l'affiche). */
+#tip { display: none; }
+
+/* Statut ALT (ancien NORMAL). */
+.t-ALT { color: var(--q-uncommon); }
+
+/* Tableau de détail : colonne ajustée au contenu ; les cases de présence gardent leur couleur sur les lignes alternées. */
+main table.detail .fit { width: 1%; }
+main table.detail tbody tr:nth-child(even) td.P { background-color: rgba(111, 207, 127, .15); }
+main table.detail tbody tr:nth-child(even) td.B { background-color: rgba(229, 168, 59, .15); }
+main table.detail tbody tr:nth-child(even) td.A { background-color: rgba(224, 96, 90, .12); }
+
+/* Cartes du Classement Impact : le survol d'un raider ouvre le détail du score. */
+.item-card li { cursor: help; }
 </style>
