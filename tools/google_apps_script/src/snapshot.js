@@ -232,12 +232,16 @@ function buildSnapshotItems_(itemStates) {
 
       specs.forEach(function (spec, specIndex) {
         var statutCell = normalizeCellString_(row[OBJETS_FIRST_SPEC_COLUMN + (specIndex * 2)]).trim();
+        // Not yet rewritten by a refresh: NORMAL is now ALT.
+        if (statutCell === 'NORMAL') {
+          statutCell = 'ALT';
+        }
         var gainCell = row[OBJETS_FIRST_SPEC_COLUMN + 1 + (specIndex * 2)];
         if (!statutCell && (gainCell === '' || gainCell === null || gainCell === undefined)) {
           return;
         }
 
-        if (['BIS', 'IMPACT', 'CLASS_BOUND', 'NORMAL'].indexOf(statutCell) === -1) {
+        if (['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'].indexOf(statutCell) === -1) {
           errors.push(where + (rowIndex + 1) + ': statut invalide pour ' + spec.label + '.');
           return;
         }

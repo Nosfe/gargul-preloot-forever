@@ -50,8 +50,8 @@ var TEST_ITEMS = [
 // Oldest first; the IDs carry a "test-" prefix so they never collide with Raid > Démarrer IDs.
 var TEST_RAIDS = ['Karazhan', 'Gruul\'s Lair', 'Karazhan', 'Magtheridon\'s Lair', 'Karazhan', 'Gruul\'s Lair'];
 
-var TEST_STATUTS = ['IMPACT', 'BIS', 'IMPACT', 'NORMAL', 'CLASS_BOUND', ''];
-var TEST_TREATMENTS = ['BIS', 'IMPACT', 'NORMAL', 'IMPACT', 'CLASS_BOUND'];
+var TEST_STATUTS = ['IMPACT', 'BIS', 'IMPACT', 'ALT', 'CLASS_BOUND', ''];
+var TEST_TREATMENTS = ['BIS', 'IMPACT', 'ALT', 'IMPACT', 'CLASS_BOUND'];
 
 function fillTestData() {
   var ui = SpreadsheetApp.getUi();

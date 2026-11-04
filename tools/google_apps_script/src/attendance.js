@@ -99,7 +99,7 @@ function previewEndRaidLoot(gargulText) {
         itemID: award.itemID,
         itemName: Object.prototype.hasOwnProperty.call(namesById, String(award.itemID)) ? namesById[String(award.itemID)] : award.itemName,
         os: Number(award.os) === 1 ? 1 : 0,
-        treatment: Number(award.os) === 1 ? 'NORMAL' : award.treatment
+        treatment: Number(award.os) === 1 ? 'ALT' : award.treatment
       };
     }),
     rejected: parsed.rejected.concat(inRaid.rejected, validated.rejected)
@@ -144,7 +144,7 @@ function submitEndRaid(linkText, gargulText, treatments) {
       var chosen = selectedTreatments && Object.prototype.hasOwnProperty.call(selectedTreatments, award.checksum)
         ? normalizeCellString_(selectedTreatments[award.checksum]).trim()
         : award.treatment;
-      var treatment = Number(award.os) === 1 ? 'NORMAL' : (isKnownTreatment_(chosen) ? chosen : '');
+      var treatment = Number(award.os) === 1 ? 'ALT' : (isKnownTreatment_(chosen) ? chosen : '');
       if (!treatment) {
         throw new Error('Choisissez un Traitement pour chaque loot avant de terminer le raid.');
       }
@@ -509,7 +509,7 @@ function showEndRaidDialog_(openRaidId) {
           'var awardHtml="<p style=\\"margin:0 0 6px 0\\"><strong>Awards valides</strong> ("+awards.length+")</p>";' +
           'if(!awards.length){awardHtml+="<p style=\\"margin:0\\">Aucune ligne valide.</p>";}else{' +
             'awardHtml+="<table style=\\"border-collapse:collapse;width:100%\\"><thead><tr><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Gagnant</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Objet (ID)</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">OS</th><th style=\\"text-align:left;border-bottom:1px solid #d0d0d0;padding:4px\\">Traitement</th></tr></thead><tbody>";' +
-            'for(var i=0;i<awards.length;i+=1){var row=awards[i];var disabled=row.os===1?" disabled":"";var forced=row.os===1?"NORMAL":(row.treatment||"");awardHtml+="<tr><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.winner)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemName)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemID)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+(row.os===1?"oui":"")+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\"><select data-checksum=\\""+esc(row.checksum)+"\\""+disabled+"><option value=\\"\\""+(forced===""?" selected":"")+">(choisir)</option><option value=\\"BIS\\""+(forced==="BIS"?" selected":"")+">BIS</option><option value=\\"IMPACT\\""+(forced==="IMPACT"?" selected":"")+">IMPACT</option><option value=\\"CLASS_BOUND\\""+(forced==="CLASS_BOUND"?" selected":"")+">CLASS_BOUND</option><option value=\\"NORMAL\\""+(forced==="NORMAL"?" selected":"")+">NORMAL</option></select></td></tr>";}' +
+            'for(var i=0;i<awards.length;i+=1){var row=awards[i];var disabled=row.os===1?" disabled":"";var forced=row.os===1?"ALT":(row.treatment||"");awardHtml+="<tr><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.winner)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemName)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+esc(row.itemID)+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\">"+(row.os===1?"oui":"")+"</td><td style=\\"padding:4px;border-bottom:1px solid #efefef\\"><select data-checksum=\\""+esc(row.checksum)+"\\""+disabled+"><option value=\\"\\""+(forced===""?" selected":"")+">(choisir)</option><option value=\\"BIS\\""+(forced==="BIS"?" selected":"")+">BIS</option><option value=\\"IMPACT\\""+(forced==="IMPACT"?" selected":"")+">IMPACT</option><option value=\\"CLASS_BOUND\\""+(forced==="CLASS_BOUND"?" selected":"")+">CLASS_BOUND</option><option value=\\"ALT\\""+(forced==="ALT"?" selected":"")+">ALT</option></select></td></tr>";}' +
             'awardHtml+="</tbody></table>";' +
           '}' +
           'document.getElementById("preview-awards").innerHTML=awardHtml;' +

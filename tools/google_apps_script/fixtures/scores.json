@@ -60,7 +60,7 @@
         "bisLoots": 3,
         "impactLoots": 1,
         "role": "Caster DPS",
-        "statut": "NORMAL",
+        "statut": "ALT",
         "gainDps": 50
       },
       "expected": {

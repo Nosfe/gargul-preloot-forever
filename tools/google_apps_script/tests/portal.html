@@ -40,7 +40,7 @@
 
         var awardsHeader = TracerHarness.getRows('Awards')[0];
         var blockOf = function (name) { return awardsHeader.indexOf(name); };
-        writeCells_(idOf('Awards'), 2, blockOf('Bob'), ['', 'Bâton ancien', 777, 'NORMAL', '1']);
+        writeCells_(idOf('Awards'), 2, blockOf('Bob'), ['', 'Bâton ancien', 777, 'ALT', '1']);
         writeCells_(idOf('Awards'), 2, blockOf('Ana'), ['2026-09-01', 'Vieux', 555, 'BIS', 'old']);
 
         var data = buildRaiderPortalData_(spreadsheet);

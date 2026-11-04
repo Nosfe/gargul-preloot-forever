@@ -45,7 +45,7 @@
   --q-epic: #b569f5;       /* BIS */
   --q-legendary: #ff8000;  /* IMPACT */
   --q-rare: #3d8bff;       /* CLASS_BOUND */
-  --q-uncommon: #1eff00;   /* NORMAL */
+  --q-uncommon: #1eff00;   /* ALT */
 
   /* Présence */
   --present: #6fcf7f;
@@ -201,7 +201,7 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 .t-BIS { font-weight: bold; color: var(--q-epic); }
 .t-IMPACT { font-weight: bold; color: var(--q-legendary); }
 .t-CLASS_BOUND { color: var(--q-rare); }
-.t-NORMAL { color: var(--q-uncommon); }
+.t-ALT { color: var(--q-uncommon); }
 
 .P { text-align: center; color: var(--present); background: rgba(111, 207, 127, .15); }
 .B { text-align: center; color: var(--bench); background: rgba(229, 168, 59, .15); }

@@ -12,11 +12,11 @@ The workbook and its Apps Script live in [tools/google_apps_script](tools/google
 - **Two columns after Gargul's own:**
   - **Ratio BiS**: (tier presence / raids in the tier) / (BiS loots + 1).
   - **Impact**: the workbook's score for the rolled item and the roller: (tier presence / raids in the tier) × parse × the item's gain in DPS for the roller's spec / (Impact loots + 1). It is shown only when that spec's Statut for the item is IMPACT, and never for tanks. It stays as exported until the next snapshot.
-- **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and NORMAL. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked NORMAL.
+- **Treatment per award:** each Gargul award opens a small window with BIS, IMPACT, CLASS_BOUND and ALT. The button matching the winner's spec Statut for that item is marked; an off-spec award is marked ALT.
   - Click a button, or **Fermer** (Close) to keep the marked one.
   - `/preloot` lists every award of the raid, so a treatment can be changed later.
-- **Live values:** BIS awards count immediately, so Ratio BiS is up to date for the next roll. NORMAL and CLASS_BOUND count for nothing.
-- **Chat line:** when a treatment is confirmed in the window, a French line goes to group chat. For example: `Alya : nouveau ratio BiS 0.167` or `Alya : score Impact 0.083 pour [item]`. Nothing is sent for NORMAL or CLASS_BOUND, nor when Gargul's award announcements are turned off.
+- **Live values:** BIS awards count immediately, so Ratio BiS is up to date for the next roll. ALT and CLASS_BOUND count for nothing.
+- **Chat line:** when a treatment is confirmed in the window, a French line goes to group chat. For example: `Alya : nouveau ratio BiS 0.167` or `Alya : score Impact 0.083 pour [item]`. Nothing is sent for ALT or CLASS_BOUND, nor when Gargul's award announcements are turned off.
 - **Export fill:** Gargul's Custom export gets each line's `raidId` and `treatment` filled in, matched by the award's checksum, so the workbook's **Raid > Terminer** can import it.
 
 ## Requirements

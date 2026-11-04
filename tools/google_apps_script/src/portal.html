@@ -43,7 +43,7 @@
   .rank1, .rank2, .rank3 { font-weight: bold; }
   .muted { color: var(--muted); }
   .P { background: #e6f4ea; color: #1e7d32; text-align: center; } .B { background: #fff2cc; color: #b26a00; text-align: center; } .A { background: #fce8e6; text-align: center; }
-  .t-BIS { color: #a335ee; font-weight: bold; } .t-IMPACT { color: #c65f00; font-weight: bold; } .t-CLASS_BOUND { color: #0070dd; } .t-NORMAL { color: #1a8c00; }
+  .t-BIS { color: #a335ee; font-weight: bold; } .t-IMPACT { color: #c65f00; font-weight: bold; } .t-CLASS_BOUND { color: #0070dd; } .t-ALT { color: #1a8c00; }
   input, select { font: inherit; padding: 6px; border: 1px solid var(--line); border-radius: 6px; margin: 0 8px 8px 0; }
   .combo { display: inline-block; margin: 0 8px 8px 0; }
   .combo input { margin: 0; min-width: 220px; }
@@ -142,7 +142,7 @@
   html.dark .combo li.hl { background: #1e3d55; }
   html.dark button.toggle, html.dark a.toggle { color: #04131c; background: #2aa8dc; border-color: #2aa8dc; }
   html.dark button.toggle:hover, html.dark a.toggle:hover { filter: none; color: #fff; background: #1683b8; }
-  html.dark .t-BIS { color: #b569f5; } html.dark .t-IMPACT { color: #ff8000; } html.dark .t-CLASS_BOUND { color: #3d8bff; } html.dark .t-NORMAL { color: #1eff00; }
+  html.dark .t-BIS { color: #b569f5; } html.dark .t-IMPACT { color: #ff8000; } html.dark .t-CLASS_BOUND { color: #3d8bff; } html.dark .t-ALT { color: #1eff00; }
   html.dark .P { color: #6fcf7f; background: rgba(111, 207, 127, .15); } html.dark .B { color: #e5a83b; background: rgba(229, 168, 59, .15); } html.dark .A { background: rgba(224, 96, 90, .12); }
   html.dark .rank1 { background: rgba(216, 178, 90, .3); } html.dark .rank2 { background: rgba(200, 210, 220, .18); } html.dark .rank3 { background: rgba(205, 127, 50, .28); }
   html.dark #tip { background: #183247; border-color: #26475f; }
@@ -499,7 +499,7 @@
           var loots = row.item ? DATA.loots.filter(function (loot) { return loot.raider === raider.name && String(loot.itemId) === String(row.item.itemId); }) : [];
           var first = loots.map(function (loot) { return loot.date || ''; }).sort()[0];
           return el('tr', {}, [el('td', { 'data-sort': String(slotRank(row.slot)), text: row.slot }), row.item ? itemCell(row.item.itemId, row.item.name) : el('td', {}),
-            loots.length ? el('td', { class: 't-NORMAL', 'data-sort': first || '0', text: '✓' + (first ? ' ' + frDate(first) : '') }) : el('td', {})]);
+            loots.length ? el('td', { class: 't-ALT', 'data-sort': first || '0', text: '✓' + (first ? ' ' + frDate(first) : '') }) : el('td', {})]);
         })), ['', '', 'c']);
       }, '', true));
     }
@@ -670,7 +670,7 @@
   }
 
   // Sorted like the workbook, not alphabetically.
-  var TREATMENT_ORDER = ['BIS', 'IMPACT', 'CLASS_BOUND', 'NORMAL'];
+  var TREATMENT_ORDER = ['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'];
   function treatmentCell(treatment) {
     var rank = TREATMENT_ORDER.indexOf(treatment);
     return el('td', { class: 't-' + treatment, 'data-sort': String(rank === -1 ? TREATMENT_ORDER.length : rank), text: treatment });

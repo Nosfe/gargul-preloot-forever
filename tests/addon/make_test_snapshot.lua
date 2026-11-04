@@ -62,8 +62,8 @@ for index, name in ipairs(NAMES) do
     raiders[#raiders + 1] = raider
 end
 
--- Each item lists six specs: three IMPACT with different gains, then BIS, CLASS_BOUND and NORMAL.
-local STATUTS = { "IMPACT", "IMPACT", "IMPACT", "BIS", "CLASS_BOUND", "NORMAL" }
+-- Each item lists six specs: three IMPACT with different gains, then BIS, CLASS_BOUND and ALT.
+local STATUTS = { "IMPACT", "IMPACT", "IMPACT", "BIS", "CLASS_BOUND", "ALT" }
 local items = {}
 for index, itemID in ipairs(ITEM_IDS) do
     local specs = {}

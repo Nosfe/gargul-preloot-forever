@@ -802,18 +802,18 @@ function buildAwardsGridRequests_(awardsState, rosterNames, archive, metadataByS
           { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
           { userEnteredValue: 'CLASS_BOUND' },
-          { userEnteredValue: 'NORMAL' }
+          { userEnteredValue: 'ALT' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou NORMAL.'
+      inputMessage: 'Traitement : BIS, IMPACT, CLASS_BOUND ou ALT.'
     }));
 
-    // Whole award row tinted by its Traitement with WoW rarity: NORMAL uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
+    // Whole award row tinted by its Traitement with WoW rarity: ALT uncommon, CLASS_BOUND rare, BIS epic, IMPACT legendary.
     var treatmentCell = '$' + columnLetter_(start + AWARDS_TREATMENT_OFFSET) + AWARDS_FIRST_ROW;
     [
-      { value: 'NORMAL', style: RARITY_STYLE.uncommon },
+      { value: 'ALT', style: RARITY_STYLE.uncommon },
       { value: 'CLASS_BOUND', style: RARITY_STYLE.rare },
       { value: 'BIS', style: RARITY_STYLE.epic },
       { value: 'IMPACT', style: RARITY_STYLE.legendary }
@@ -1220,7 +1220,7 @@ function buildTierGainRuleRequests_(sheetId, argSeparator, specs) {
     var statusColumn = gainColumn - 1;
     var statusLetter = columnLetter_(statusColumn);
     [
-      { value: 'NORMAL', style: RARITY_STYLE.uncommon },
+      { value: 'ALT', style: RARITY_STYLE.uncommon },
       { value: 'CLASS_BOUND', style: RARITY_STYLE.rare },
       { value: 'BIS', style: RARITY_STYLE.epic },
       { value: 'IMPACT', style: RARITY_STYLE.legendary }
@@ -1257,12 +1257,12 @@ function buildTierStatusValidationRequests_(sheetId, specs) {
           { userEnteredValue: 'BIS' },
           { userEnteredValue: 'IMPACT' },
           { userEnteredValue: 'CLASS_BOUND' },
-          { userEnteredValue: 'NORMAL' }
+          { userEnteredValue: 'ALT' }
         ]
       },
       strict: true,
       showCustomUi: true,
-      inputMessage: 'Statut : BIS, IMPACT, CLASS_BOUND ou NORMAL.'
+      inputMessage: 'Statut : BIS, IMPACT, CLASS_BOUND ou ALT.'
     }));
   });
 

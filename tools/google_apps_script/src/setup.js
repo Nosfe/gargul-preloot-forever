@@ -22,8 +22,19 @@ function refreshWorkbook_() {
       fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'
     });
     var plan = buildSetupPlan_(existingHeadersByName, sheetsMetadata, separator);
-    return plan.requests;
+    return buildLegacyNormalRequests_(spreadsheet).concat(plan.requests);
   });
+}
+
+// NORMAL was renamed ALT: rewrites the old value in the Objets Statut and Awards Traitement cells.
+function buildLegacyNormalRequests_(spreadsheet) {
+  return ITEM_TABS.map(function (tab) { return tab.name; })
+    .concat([GRID_TABS.awards.name, ARCHIVE_TABS.awards.name])
+    .map(function (name) { return spreadsheet.getSheetByName(name); })
+    .filter(Boolean)
+    .map(function (sheet) {
+      return { findReplace: { find: 'NORMAL', replacement: 'ALT', matchEntireCell: true, matchCase: true, range: { sheetId: sheet.getSheetId(), startRowIndex: 1 } } };
+    });
 }
 
 // Requests only (test entry point).

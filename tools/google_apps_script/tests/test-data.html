@@ -33,6 +33,14 @@
         writeCells_(idOf('Objets Caster DPS'), 5, 0, [28770, 'Nathrezim Mindblade (r\u00e9el)']);
         var casterBefore = rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean).join(',');
 
+        // NORMAL was renamed ALT: a refresh rewrites old cells, older exports are read as ALT.
+        writeCells_(idOf('Objets Caster DPS'), 5, OBJETS_FIRST_SPEC_COLUMN, ['NORMAL']);
+        refreshWorkbook_();
+        equal(rows('Objets Caster DPS')[5][OBJETS_FIRST_SPEC_COLUMN], 'ALT', 'refresh rewrites NORMAL as ALT');
+        writeCells_(idOf('Objets Caster DPS'), 5, OBJETS_FIRST_SPEC_COLUMN, ['']);
+        equal(parseGargulExport_('{"checksum":"c1","winner":"Ana","itemID":1,"itemName":"x","rollType":"MS","os":0,"date":"2026-10-22","time":"21:20","raidId":"5","treatment":"NORMAL"},').lines[0].treatment,
+          'ALT', 'an older export saying NORMAL reads as ALT');
+
         contains(fillTestData_(), '20 raiders', 'fill summary');
         equal(names().length, 23, 'test raiders added below the real ones');
         equal(names().slice(0, 3).join(','), 'Ana,Bob,Cid', 'real raiders untouched');

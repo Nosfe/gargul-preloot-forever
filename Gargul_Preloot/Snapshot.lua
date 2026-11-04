@@ -66,7 +66,7 @@ function Snapshot.parse(text, GL)
 end
 
 local ROLES = { DPS = true, HEALER = true, TANK = true }
-local STATUTS = { BIS = true, IMPACT = true, CLASS_BOUND = true, NORMAL = true }
+local STATUTS = { BIS = true, IMPACT = true, CLASS_BOUND = true, ALT = true }
 
 local function isFiniteNumber(value)
     return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
@@ -205,6 +205,10 @@ local function validateItem(item, index, errors, seenIDs, validRaiders)
             errors[#errors + 1] = where .. " : " .. spec.classSpec .. " en double"
         else
             seenSpecs[spec.classSpec] = spec
+            -- Snapshots made before the rename say NORMAL, now ALT.
+            if spec.statut == "NORMAL" then
+                spec.statut = "ALT"
+            end
             if not STATUTS[spec.statut] then
                 errors[#errors + 1] = where .. " : statut invalide pour " .. spec.classSpec
             end

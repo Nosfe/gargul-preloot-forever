@@ -24,7 +24,7 @@ var ITEM_IDS = [
   28657, 28658, 29348, 30627, 32483, 29996, 30311, 30312, 30090, 32500, 32471
 ];
 
-var STATUTS = ['IMPACT', 'IMPACT', 'BIS', 'CLASS_BOUND', 'NORMAL', ''];
+var STATUTS = ['IMPACT', 'IMPACT', 'BIS', 'CLASS_BOUND', 'ALT', ''];
 
 var outDir = path.join(__dirname, 'anniversary-kit');
 fs.mkdirSync(outDir, { recursive: true });

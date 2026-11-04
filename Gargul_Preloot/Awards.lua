@@ -3,7 +3,7 @@ local _, GP = ...
 local Awards = {}
 GP.Awards = Awards
 
-Awards.TREATMENTS = { "BIS", "IMPACT", "CLASS_BOUND", "NORMAL" }
+Awards.TREATMENTS = { "BIS", "IMPACT", "CLASS_BOUND", "ALT" }
 
 local DISENCHANT_WINNER = "||de||"
 
@@ -57,15 +57,15 @@ function Awards.liveRaider(raiderKey)
     return live
 end
 
---- Prefill: the winner's spec Statut for the item, NORMAL when unknown or off-spec.
+--- Prefill: the winner's spec Statut for the item, ALT when unknown or off-spec.
 function Awards.defaultTreatment(itemID, raiderKey, isOS)
     if isOS then
-        return "NORMAL"
+        return "ALT"
     end
 
     local raider = GP.Snapshot.raider(raiderKey)
     local statut = raider and GP.Snapshot.statut(itemID, raider.classSpec)
-    return isTreatment(statut) and statut or "NORMAL"
+    return isTreatment(statut) and statut or "ALT"
 end
 
 --- Record a new Gargul award; returns its checksum, or nil when it is not recorded.

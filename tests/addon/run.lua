@@ -227,19 +227,19 @@ do
     equal(prompted[#prompted], "c1", "popup requested for the award")
 
     handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c2", 999, "Alya-Forever"))
-    equal(GP.Awards.get("c2").treatment, "NORMAL", "item absent from snapshot: NORMAL")
+    equal(GP.Awards.get("c2").treatment, "ALT", "item absent from snapshot: ALT")
 
     handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c3", 888, "Alya-Forever", true))
-    equal(GP.Awards.get("c3").treatment, "NORMAL", "off-spec award: NORMAL")
+    equal(GP.Awards.get("c3").treatment, "ALT", "off-spec award: ALT")
 
     handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c4", 888, "Inconnu-Forever"))
-    equal(GP.Awards.get("c4").treatment, "NORMAL", "unknown winner: NORMAL")
+    equal(GP.Awards.get("c4").treatment, "ALT", "unknown winner: ALT")
 
     handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c5", 888, "||de||"))
     equal(GP.Awards.get("c5"), nil, "disenchant not recorded")
 
     handlers["GL.ITEM_AWARDED"]("GL.ITEM_AWARDED", award("c6", 888, "Beryl-Forever"))
-    equal(GP.Awards.get("c6").treatment, "NORMAL", "spec without statut: NORMAL")
+    equal(GP.Awards.get("c6").treatment, "ALT", "spec without statut: ALT")
 
     check(GP.Awards.setTreatment("c6", "BIS"), "owner changes treatment")
     equal(GP.Awards.get("c6").treatment, "BIS", "owner choice stored")
@@ -358,17 +358,17 @@ do
     buttons(first)["BIS"].callbacks.OnClick()
     equal(GP.Awards.get("p1").treatment, "BIS", "popup button sets the treatment")
     local second = lastFrame()
-    check(second ~= first and buttons(second)["[NORMAL]"] ~= nil, "queued popup opens after the first closes")
+    check(second ~= first and buttons(second)["[ALT]"] ~= nil, "queued popup opens after the first closes")
 
     second:Hide()
-    equal(GP.Awards.get("p2").treatment, "NORMAL", "closing keeps the prefilled treatment")
+    equal(GP.Awards.get("p2").treatment, "ALT", "closing keeps the prefilled treatment")
 
     GP.Picker.openList()
     local list = lastFrame()
     local rows = list.children[1] and list.children[1].children or {}
     equal(#rows, 2, "list shows one row per session award")
     local dropdown = rows[1] and rows[1].children[2]
-    equal(dropdown and dropdown.value, "NORMAL", "list row shows the treatment")
+    equal(dropdown and dropdown.value, "ALT", "list row shows the treatment")
     dropdown.callbacks.OnValueChanged(dropdown, "OnValueChanged", "CLASS_BOUND")
     equal(GP.Awards.get("p2").treatment, "CLASS_BOUND", "list dropdown changes the treatment")
 
@@ -727,19 +727,19 @@ do
     equal(#sent, 2, "hiding the popup without Close sends nothing")
     GP.Awards.remove("u1")
 
-    -- 3. NORMAL and CLASS_BOUND: no counts, no chat
+    -- 3. ALT and CLASS_BOUND: no counts, no chat
     award("a3", 888, "Beryl")
     lastPopup():Hide()
     award("a4", 777, "Beryl")
     click("CLASS_BOUND")
-    equal(#sent, 2, "NORMAL and CLASS_BOUND send nothing")
-    equal(cell("Beryl", 11), "0.750", "Beryl unchanged by NORMAL and CLASS_BOUND")
+    equal(#sent, 2, "ALT and CLASS_BOUND send nothing")
+    equal(cell("Beryl", 11), "0.750", "Beryl unchanged by ALT and CLASS_BOUND")
 
     -- 4. Treatment changed later in the list: counts drop back, no chat
     refreshes = 0
-    GP.Awards.setTreatment("a1", "NORMAL")
+    GP.Awards.setTreatment("a1", "ALT")
     check(refreshes == 1, "treatment change refreshes the roll table")
-    equal(cell("Alya", 11), "0.250", "Ratio BiS back to 0.5/2 after BIS -> NORMAL")
+    equal(cell("Alya", 11), "0.250", "Ratio BiS back to 0.5/2 after BIS -> ALT")
     equal(#sent, 2, "list change sends nothing")
 
     -- 5. Delete: Impact unchanged
@@ -778,8 +778,8 @@ do
     GP.Picker.refresh()
     award("h2", 777, "Alya")
     check(lastPopup() ~= hidden, "next award opens a new popup after a silent close on a hidden frame")
-    click("NORMAL")
-    equal(#sent, before, "NORMAL after the hidden-frame close sends nothing")
+    click("ALT")
+    equal(#sent, before, "ALT after the hidden-frame close sends nothing")
 
     -- 8. IMPACT not computable: tank with an IMPACT Statut on item 555
     award("a8", 555, "Cairn")

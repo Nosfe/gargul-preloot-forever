@@ -55,7 +55,7 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Classement Impact | Formulas only: one row per item with an IMPACT Statut, and the 5 raiders with the best Impact score for it, as "Name (score)" in the raider's class colour; the top 3 in bold on a gold, silver and bronze fill. A raider who already received the item (Awards) is left out. Raid > Démarrer sends Gargul the scores of every raider. |
 | Présence | One row per raid, one column per raider (`1` present, `B` bench). |
 | Awards | One block per raider: date, item, item ID, Traitement and the raid ID (hidden). |
-| Objets Tank / Heal / Melee DPS / Ranged DPS / Caster DPS | Items of the tier, with a Statut (BIS, IMPACT, CLASS_BOUND, NORMAL) and a Gain (DPS) per spec: the raw DPS the item adds for that spec. |
+| Objets Tank / Heal / Melee DPS / Ranged DPS / Caster DPS | Items of the tier, with a Statut (BIS, IMPACT, CLASS_BOUND, ALT) and a Gain (DPS) per spec: the raw DPS the item adds for that spec. |
 | Raids | Raid ID, instance, date, report codes, import time, tier. |
 | Config | Active tier, tier start, open raid, WCL server. |
 | Présence (archive), Awards (archive), _Listes | Archives and the lists behind dropdowns. |

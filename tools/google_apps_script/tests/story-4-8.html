@@ -57,7 +57,7 @@
       var tankId = sheetIdOf_('Objets Tank');
       writeCells_(tankId, 3, 0, [777, 'Hache', 'Deux mains', 'BIS', 0.12, 'IMPACT', 0.3]);
       writeCells_(tankId, 4, 0, [888, 'Cape', 'Dos']);
-      writeCells_(tankId, 5, 0, ['', '', '', 'NORMAL']);
+      writeCells_(tankId, 5, 0, ['', '', '', 'ALT']);
     }
 
     try {
@@ -81,7 +81,7 @@
         equal(archive[1].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[0].label + '|BIS|0.12', 'one row per filled spec (1)');
         equal(archive[2].join('|'), 'Tank|777|Hache|Deux mains|' + tankSpecs[1].label + '|IMPACT|0.3', 'one row per filled spec (2)');
         equal(archive[3].join('|'), 'Tank|888|Cape|Dos|||', 'item with no spec keeps one row');
-        equal(archive[4].join('|'), 'Tank||||' + tankSpecs[0].label + '|NORMAL|', 'row without ID or name still archived');
+        equal(archive[4].join('|'), 'Tank||||' + tankSpecs[0].label + '|ALT|', 'row without ID or name still archived');
         equal(archive.length, 5, 'nothing else archived');
         var archiveProtections = TracerHarness.getSheetMeta('Objets (t1)').protectedRanges;
         equal(archiveProtections.length + '|' + archiveProtections[0].warningOnly + '|' + archiveProtections[0].description,
