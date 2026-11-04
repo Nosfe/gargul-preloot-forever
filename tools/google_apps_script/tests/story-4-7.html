@@ -55,6 +55,17 @@
       return -1;
     }
 
+    // Ana plays Mage Givre; in Objets Caster DPS, 777 is BIS and 888 IMPACT for that spec.
+    function setAnaFrostStatuts_() {
+      var spreadsheet = SpreadsheetApp.getActive();
+      writeCells_(spreadsheet.getSheetByName('Roster').getSheetId(), 1, columnOf_(tabByName_('Roster'), 'spec'), ['Givre']);
+      var casterSpecs = SPEC_COLUMNS.filter(function (spec) { return spec.role === 'Caster DPS'; });
+      var column = OBJETS_FIRST_SPEC_COLUMN + 2 * casterSpecs.map(function (spec) { return spec.label; }).indexOf('Mage Givre');
+      var casterId = spreadsheet.getSheetByName('Objets Caster DPS').getSheetId();
+      writeCells_(casterId, 3, column, ['BIS']);
+      writeCells_(casterId, 4, column, ['IMPACT', 25]);
+    }
+
     try {
       var sampleText = loadTextSync_('../fixtures/custom-export-sample.txt');
 
@@ -106,43 +117,58 @@
         // Preview matrix row.
         seedCoreTabs_();
         setStartedRaid_(5);
+        setAnaFrostStatuts_();
         var preview = previewEndRaidLoot(sampleText);
         equal(preview.awards.length, 3, 'preview returns three valid awards');
         equal(preview.rejected.length, 6, 'preview returns merged rejected lines');
         equal(preview.awards[0].itemName.length > 0, true, 'preview resolves item names from Objets tabs');
         var osAward = preview.awards.filter(function (award) { return award.os === 1; })[0];
         equal(osAward.treatment, 'ALT', 'preview forces os award treatment to ALT');
+        equal(preview.awards.map(function (award) { return award.treatment; }).join(','), 'BIS,IMPACT,ALT', 'preview Traitement comes from Objets');
       });
 
       withHarness(function () {
-        // Missing treatment matrix row.
+        // The Objets tabs decide the Traitement: unfilled, wrong or chosen values in the export are replaced.
         seedCoreTabs_();
         setStartedRaid_(5);
+        setAnaFrostStatuts_();
         saveWclCredentials('id', 'secret');
         queueWclSuccess_();
+        var text = [
+          '{"checksum":"m1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"5","treatment":"@GPTREATMENT"},',
+          '{"checksum":"m2","winner":"Ana","itemID":888,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:01","raidId":"5","treatment":"BIS"},',
+          '{"checksum":"m3","winner":"Cid","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:02","raidId":"5","treatment":"BIS"},',
+          '{"checksum":"m4","winner":"Cid","itemID":888,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:03","raidId":"5","treatment":"CLASS_BOUND"},'
+        ].join('\n');
+        var message = submitEndRaid('ABC123', text, { m1: '', m2: 'ALT' });
+        contains(message, 'Loots importés : 4', 'every line imported, none refused for its Traitement');
+        contains(message, 'Traitements corrigés d\'après les onglets Objets : 2', 'corrections are counted');
+        var ana = awardRowsForWinner_('Ana');
+        equal(ana.map(function (row) { return row.cells[AWARDS_TREATMENT_OFFSET]; }).join(','), 'BIS,IMPACT', 'Ana gets the Objets Statuts');
+        equal(awardRowsForWinner_('Cid').map(function (row) { return row.cells[AWARDS_TREATMENT_OFFSET]; }).join(','), 'ALT,CLASS_BOUND',
+          'no Statut for the spec: BIS becomes ALT, CLASS_BOUND is kept');
+      });
 
-        var missingTreatmentText = '{"checksum":"m1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"5","treatment":"@GPTREATMENT"},';
-        var beforeAwards = JSON.stringify(TracerHarness.getRows('Awards'));
-        var fetchesBefore = TracerHarness.getFetchLog().length;
-        var failedMessage = '';
-        try {
-          submitEndRaid('ABC123', missingTreatmentText, {});
-        } catch (error) {
-          failedMessage = error.message;
-        }
-        contains(failedMessage, 'Choisissez un Traitement', 'missing treatment throws');
-        equal(String(TracerHarness.getRows('Config')[1][columnOf_(tabByName_('Config'), 'openRaidId')]), '5', 'missing treatment keeps raid started');
-        equal(JSON.stringify(TracerHarness.getRows('Awards')), beforeAwards, 'missing treatment writes nothing');
-        equal(TracerHarness.getFetchLog().length, fetchesBefore, 'missing treatment does not call WCL');
-
-        var clearedText = '{"checksum":"c1","winner":"Ana","itemID":777,"rollType":"MS","os":0,"date":"2026-10-22","time":"21:00","raidId":"5","treatment":"BIS"},';
-        var clearedMessage = '';
-        try {
-          submitEndRaid('ABC123', clearedText, { c1: '' });
-        } catch (error) {
-          clearedMessage = error.message;
-        }
-        contains(clearedMessage, 'Choisissez un Traitement', 'cleared dropdown does not fall back to the line treatment');
+      withHarness(function () {
+        // A row typed by hand in Awards gets its Traitement from Objets, even over a typed value.
+        seedCoreTabs_();
+        setAnaFrostStatuts_();
+        var spreadsheet = SpreadsheetApp.getActive();
+        var awards = spreadsheet.getSheetByName('Awards');
+        var anaStart = findAwardBlockStart_('Ana');
+        writeCells_(awards.getSheetId(), AWARDS_FIRST_ROW - 1, anaStart, ['2026-10-22', 'Bâton ancien', 777, 'ALT', 5]);
+        writeCells_(awards.getSheetId(), AWARDS_FIRST_ROW, anaStart, ['2026-10-22', 'Anneau céleste', 888, '', 5]);
+        writeCells_(awards.getSheetId(), AWARDS_FIRST_ROW + 1, anaStart, ['2026-10-22', 'Jeton', 999, 'CLASS_BOUND', 5]);
+        writeCells_(awards.getSheetId(), AWARDS_FIRST_ROW + 2, anaStart, ['2026-10-22', 'Cape', 998, 'BIS', 5]);
+        // Fetched again: the fake sheet reads the rows as they were when it was fetched.
+        awards = spreadsheet.getSheetByName('Awards');
+        onEdit({ range: awards.getRange(AWARDS_FIRST_ROW, anaStart + 1, 4, AWARDS_BLOCK_WIDTH) });
+        var ana = awardRowsForWinner_('Ana');
+        equal(ana.map(function (row) { return row.cells[AWARDS_TREATMENT_OFFSET]; }).join(','), 'BIS,IMPACT,CLASS_BOUND,ALT',
+          'Objets Statut forced; without one CLASS_BOUND kept, BIS turned into ALT');
+        onEdit({ range: awards.getRange(1, anaStart + 1, 1, 1) });
+        onEdit({ range: spreadsheet.getSheetByName('Roster').getRange(2, 1, 1, 1) });
+        equal(awardRowsForWinner_('Ana').length, 4, 'edits outside Awards rows change nothing');
       });
 
       withHarness(function () {
@@ -195,6 +221,7 @@
         // Happy path + rejected lines + OS forced ALT matrix rows.
         seedCoreTabs_();
         setStartedRaid_(5);
+        setAnaFrostStatuts_();
         saveWclCredentials('id', 'secret');
         queueWclSuccess_();
 

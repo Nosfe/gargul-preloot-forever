@@ -5,6 +5,97 @@ var AWARD_TREATMENTS = ['BIS', 'IMPACT', 'CLASS_BOUND', 'ALT'];
 // Line to paste into Gargul's Custom export format; @GPRAID/@GPTREATMENT are filled by the companion.
 var GARGUL_EXPORT_TEMPLATE = '{"checksum":"@CHECKSUM","winner":"@WINNER","itemID":@ID,"itemName":"@ITEM","rollType":"@ROLLTYPE","os":@OS,"date":"@DATE","time":"@TIME","raidId":"@GPRAID","treatment":"@GPTREATMENT"},';
 
+// The Objets tabs are the source of truth for an award's Traitement: the winner's spec Statut for the item wins.
+// Without one, a given CLASS_BOUND or ALT is kept and anything else becomes ALT; an off-spec loot is always ALT.
+// Returns treatmentFor(winner, itemID, os, given).
+function buildTreatmentLookup_(spreadsheet) {
+	var rosterSheet = spreadsheet.getSheetByName('Roster');
+	var rosterRows = rosterSheet ? rosterSheet.getDataRange().getValues() : [];
+	var rosterTab = tabByName_('Roster');
+	var classSpecByName = Object.create(null);
+	for (var rowIndex = 1; rowIndex < rosterRows.length; rowIndex += 1) {
+		var row = rosterRows[rowIndex] || [];
+		var name = normalizeCellString_(row[columnOf_(rosterTab, 'raiderKey')]).trim();
+		if (name) {
+			classSpecByName[name] = rosterClassSpec_(
+				normalizeCellString_(row[columnOf_(rosterTab, 'class')]).trim(),
+				normalizeCellString_(row[columnOf_(rosterTab, 'spec')]).trim(),
+				normalizeCellString_(row[columnOf_(rosterTab, 'role')]).trim()
+			);
+		}
+	}
+
+	var itemStates = ITEM_TABS.map(function (itemTab) {
+		var sheet = spreadsheet.getSheetByName(itemTab.name);
+		return { role: itemTab.role, rows: sheet ? sheet.getDataRange().getValues() : [] };
+	});
+	var statutByKey = Object.create(null);
+	buildSnapshotItems_(itemStates).items.forEach(function (item) {
+		item.specs.forEach(function (spec) {
+			statutByKey[item.itemID + '|' + spec.classSpec] = spec.statut;
+		});
+	});
+
+	return function (winner, itemID, os, given) {
+		if (Number(os) === 1) {
+			return 'ALT';
+		}
+		var classSpec = classSpecByName[normalizeCellString_(winner).trim()];
+		var statut = classSpec && statutByKey[itemID + '|' + classSpec];
+		if (statut) {
+			return statut;
+		}
+		var kept = normalizeCellString_(given).trim();
+		return kept === 'CLASS_BOUND' ? kept : 'ALT';
+	};
+}
+
+// Objets spec label from the Roster class and spec; the role only settles specs that exist for two roles (feral).
+function rosterClassSpec_(className, specCell, roleCell) {
+	var spec = specDisplayValue_(className, specCell);
+	var matches = SPEC_COLUMNS.filter(function (entry) {
+		return entry.className === className && entry.spec === spec;
+	});
+	if (matches.length > 1) {
+		matches = matches.filter(function (entry) {
+			return snapshotRole_(entry.role) === snapshotRole_(roleCell);
+		});
+	}
+	return matches.length === 1 ? matches[0].label : null;
+}
+
+// Simple trigger: an award row typed or changed by hand in Awards gets its Traitement from the Objets tabs.
+function onEdit(e) {
+	var range = e && e.range;
+	if (!range || range.getSheet().getName() !== GRID_TABS.awards.name || range.getLastRow() < AWARDS_FIRST_ROW) {
+		return;
+	}
+	var sheet = range.getSheet();
+	var treatmentFor = buildTreatmentLookup_(sheet.getParent());
+	var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+	var firstRow = Math.max(range.getRow(), AWARDS_FIRST_ROW);
+	var rowCount = range.getLastRow() - firstRow + 1;
+	var lastBlock = Math.floor((range.getLastColumn() - 1) / AWARDS_BLOCK_WIDTH);
+	for (var block = Math.floor((range.getColumn() - 1) / AWARDS_BLOCK_WIDTH); block <= lastBlock; block += 1) {
+		var start = block * AWARDS_BLOCK_WIDTH;
+		var winner = normalizeCellString_(header[start]).trim();
+		if (!winner) {
+			continue;
+		}
+		var values = sheet.getRange(firstRow, start + 1, rowCount, AWARDS_BLOCK_WIDTH).getValues();
+		values.forEach(function (row, index) {
+			var itemID = parseInteger_(row[AWARDS_ITEM_ID_OFFSET]);
+			if (itemID === null) {
+				return;
+			}
+			var expected = treatmentFor(winner, itemID, 0, row[AWARDS_TREATMENT_OFFSET]);
+			if (row[AWARDS_TREATMENT_OFFSET] !== expected) {
+				sheet.getRange(firstRow + index, start + AWARDS_TREATMENT_OFFSET + 1).setValue(expected);
+			}
+		});
+	}
+}
+
 // Setup menu: shows the Gargul custom export format with a copy button.
 function showGargulExportFormat() {
 	var html = HtmlService.createHtmlOutput(

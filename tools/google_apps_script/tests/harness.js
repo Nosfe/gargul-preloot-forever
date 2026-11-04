@@ -1052,6 +1052,46 @@
               }
             };
           },
+          getParent: function () {
+            return buildSpreadsheetFacade();
+          },
+          // 1-based like Apps Script; enough for onEdit: values, single-cell setValue and bounds.
+          getRange: function (row, column, numRows, numColumns) {
+            var sheet = this;
+            var height = numRows || 1;
+            var width = numColumns || 1;
+            return {
+              getSheet: function () { return sheet; },
+              getRow: function () { return row; },
+              getColumn: function () { return column; },
+              getLastRow: function () { return row + height - 1; },
+              getLastColumn: function () { return column + width - 1; },
+              getValues: function () {
+                var out = [];
+                for (var r = 0; r < height; r += 1) {
+                  var source = sheetRecord.rows[row - 1 + r] || [];
+                  var line = [];
+                  for (var c = 0; c < width; c += 1) {
+                    var value = source[column - 1 + c];
+                    line.push(value === undefined || value === null ? '' : value);
+                  }
+                  out.push(line);
+                }
+                return out;
+              },
+              setValue: function (value) {
+                while (sheetRecord.rows.length < row) {
+                  sheetRecord.rows.push([]);
+                }
+                var target = sheetRecord.rows[row - 1] || (sheetRecord.rows[row - 1] = []);
+                while (target.length < column) {
+                  target.push('');
+                }
+                target[column - 1] = value;
+                return this;
+              }
+            };
+          },
           // Grid width (columnCount), 26 by default like a new Sheets tab.
           getMaxColumns: function () {
             ensureSheetMeta_(sheetRecord);
