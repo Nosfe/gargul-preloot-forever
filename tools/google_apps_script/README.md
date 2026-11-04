@@ -40,6 +40,13 @@ To bind a copy of the workbook, use **File > Make a copy** in Sheets (the bound 
 | Nouveau palier | Starts the next tier (new ID and start date). The current Objets tabs are copied into an `Objets (<old tier>)` archive tab, protected with a warning, and then **emptied** for the new tier. Both scores reset. Refused while a raid is open. |
 | Réinitialiser tout le classeur | Deletes every tab (data, archives, Config) and rebuilds the empty layout. Asks for the owner's password; only its salted SHA-256 is in the code. WCL credentials are kept. |
 
+**Parsimonie > Données de test**
+
+| Item | Effect |
+| --- | --- |
+| Remplir (aperçu du portail) | Adds TBC test data next to the real data, to preview the raider portal: 20 fictional raiders (every role), Karazhan, Gruul and Magtheridon items in each Objets tab (IDs already listed are skipped), 6 raids `test-1` to `test-6` dated within the tier, with presence and 18 loots. What was added is recorded in the document properties. Refused while a raid is open, if a test name is already in Roster, or if test data is already there. While present, the test raids count in every raider's tier presence. |
+| Effacer | Removes exactly what was recorded: the test raids (like Raid > Supprimer), the test raiders (Roster rows and their Présence and Awards columns) and the item rows added by the fill, then refreshes the workbook. |
+
 ## Tabs
 
 | Tab | Content |

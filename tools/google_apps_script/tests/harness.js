@@ -1087,6 +1087,10 @@
         delete backing[String(key)];
         return this;
       },
+      deleteProperty: function (key) {
+        delete backing[String(key)];
+        return this;
+      },
       deleteAllProperties: function () {
         Object.keys(backing).forEach(function (key) {
           delete backing[key];
@@ -1212,6 +1216,7 @@
       promptResponses: [],
       fetchLog: [],
       userProperties: {},
+      documentProperties: {},
       storeById: {},
       nameIndex: {}
     };
@@ -1321,6 +1326,9 @@
     global.PropertiesService = {
       getUserProperties: function () {
         return createPropertiesStore_(state.userProperties);
+      },
+      getDocumentProperties: function () {
+        return createPropertiesStore_(state.documentProperties);
       }
     };
 

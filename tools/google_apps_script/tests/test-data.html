@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test data tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="helpers.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/ledger.js"></script>
+<script src="../src/attendance.js"></script>
+<script src="../src/raids.js"></script>
+<script src="../src/tier.js"></script>
+<script src="../src/parses.js"></script>
+<script src="../src/webapp.js"></script>
+<script src="../src/testdata.js"></script>
+<script>
+  (function () {
+    try {
+      withHarness(function () {
+        seedCoreTabs_();
+        var spreadsheet = SpreadsheetApp.getActive();
+        var idOf = function (name) { return spreadsheet.getSheetByName(name).getSheetId(); };
+        var rows = function (name) { return TracerHarness.getRows(name); };
+        var names = function () { return rows('Roster').slice(1).map(function (row) { return row[0]; }).filter(Boolean); };
+        writeCells_(idOf('Config'), 1, 0, ['t1', '2026-10-01', '', 'eu/realm', 'TBC']);
+        // A real raid and a real item already listed: both must survive the clear.
+        writeCells_(idOf('Raids'), 1, 0, ['77', 'Karazhan', '2026-10-02']);
+        writeCells_(idOf('Objets Caster DPS'), 5, 0, [28770, 'Nathrezim Mindblade (r\u00e9el)']);
+        var casterBefore = rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean).join(',');
+
+        contains(fillTestData_(), '20 raiders', 'fill summary');
+        equal(names().length, 23, 'test raiders added below the real ones');
+        equal(names().slice(0, 3).join(','), 'Ana,Bob,Cid', 'real raiders untouched');
+        var caster = rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean);
+        equal(caster.filter(function (id) { return id === 28770; }).length, 1, 'an item already listed is not added twice');
+        equal(caster.length, 3 + TEST_ITEMS.length - 1, 'other test items added to the tab');
+        var presence = rows('Pr\u00e9sence');
+        equal(presence.filter(function (row) { return /^test-/.test(String(row[0])); }).length, 6, 'six test raids in Pr\u00e9sence');
+        truthy(presence[0].indexOf('Aelwynn') !== -1, 'refresh added the test raider columns');
+        equal(rows('Raids').filter(function (row) { return /^test-/.test(String(row[0])); }).length, 6, 'six test raids in Raids');
+        var stored = JSON.parse(PropertiesService.getDocumentProperties().getProperty(TEST_DATA_PROPERTY));
+        equal(stored.raids.length + '|' + stored.raiders.length, '6|20', 'what was added is recorded');
+
+        var data = buildRaiderPortalData_(spreadsheet);
+        equal(data.loots.length, 18, 'portal sees the test loots');
+        truthy(data.raids.length >= 6, 'portal sees the test raids');
+
+        var refused = '';
+        try { fillTestData_(); } catch (error) { refused = error.message; }
+        contains(refused, 'd\u00e9j\u00e0 en place', 'a second fill is refused');
+
+        equal(clearTestData_(), 'Donn\u00e9es de test effac\u00e9es.', 'clear summary');
+        equal(names().join(','), 'Ana,Bob,Cid', 'only the real raiders remain');
+        equal(rows('Objets Caster DPS').slice(3).map(function (row) { return row[0]; }).filter(Boolean).join(','), casterBefore, 'Objets back to the real items');
+        equal(rows('Pr\u00e9sence').filter(function (row) { return /^test-/.test(String(row[0])); }).length, 0, 'test raids gone from Pr\u00e9sence');
+        equal(rows('Pr\u00e9sence')[0].indexOf('Aelwynn'), -1, 'test raider columns gone');
+        equal(rows('Raids').filter(function (row) { return row[0]; }).map(function (row) { return String(row[0]); }).join(','), 'Raid (ID),77', 'real raid kept');
+        equal(JSON.stringify(rows('Awards')).indexOf('test-'), -1, 'no test loot left in Awards');
+        equal(PropertiesService.getDocumentProperties().getProperty(TEST_DATA_PROPERTY), null, 'record cleared');
+        equal(clearTestData_(), 'Aucune donn\u00e9e de test \u00e0 effacer.', 'nothing to clear twice');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>

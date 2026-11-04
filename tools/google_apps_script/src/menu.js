@@ -20,5 +20,10 @@ function onOpen() {
         .addItem('Nouveau palier', 'openNewTierDialog')
         .addItem('Réinitialiser tout le classeur', 'openResetWorkbookDialog')
     )
+    .addSubMenu(
+      ui.createMenu('Données de test')
+        .addItem('Remplir (aperçu du portail)', 'fillTestData')
+        .addItem('Effacer', 'clearTestData')
+    )
     .addToUi();
 }

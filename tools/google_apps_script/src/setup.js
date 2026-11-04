@@ -3,23 +3,27 @@ function setUpWorkbook() {
   var ui = SpreadsheetApp.getUi();
 
   try {
-    // Read and plan inside the lock so another action cannot change the tabs in between.
-    applyBatch_(function () {
-      var spreadsheet = SpreadsheetApp.getActive();
-      var separator = formulaArgSeparator_();
-      var existingHeadersByName = readExistingHeadersByName_();
-      // Existing rules and banding are needed so they can be replaced instead of duplicated.
-      var sheetsMetadata = Sheets.Spreadsheets.get(spreadsheet.getId(), {
-        fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'
-      });
-      var plan = buildSetupPlan_(existingHeadersByName, sheetsMetadata, separator);
-      return plan.requests;
-    });
-
+    refreshWorkbook_();
     ui.alert('Classeur mis à jour.');
   } catch (error) {
     ui.alert('Mise à jour du classeur impossible : ' + error.message);
   }
+}
+
+// The refresh itself, without the alert (also run by the test data actions).
+function refreshWorkbook_() {
+  // Read and plan inside the lock so another action cannot change the tabs in between.
+  applyBatch_(function () {
+    var spreadsheet = SpreadsheetApp.getActive();
+    var separator = formulaArgSeparator_();
+    var existingHeadersByName = readExistingHeadersByName_();
+    // Existing rules and banding are needed so they can be replaced instead of duplicated.
+    var sheetsMetadata = Sheets.Spreadsheets.get(spreadsheet.getId(), {
+      fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'
+    });
+    var plan = buildSetupPlan_(existingHeadersByName, sheetsMetadata, separator);
+    return plan.requests;
+  });
 }
 
 // Requests only (test entry point).
