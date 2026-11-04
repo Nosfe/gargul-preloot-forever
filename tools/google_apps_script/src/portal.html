@@ -772,17 +772,20 @@
     var section = document.getElementById('objets');
     var select = combo(roleOptions(), function () {
       roleFilter = select.value;
+      specFilter = '';
       itemSelect.value = '';
       specSelect.value = '';
       filterSpecs();
+      filterItems();
       fill();
     }, 'objets-role');
     var specOptions = [];
     DATA.roles.forEach(function (role) {
       role.specs.forEach(function (label) { specOptions.push({ value: label, text: label, color: classColor[label.split(' ')[0]], role: role.role }); });
     });
-    // The spec list follows the last role picked, even while the role filter shows "-".
+    // The spec list follows the last role picked, and the item list the last spec (else role) picked, even while those filters show "-".
     var roleFilter = savedFilter('objets-role');
+    var specFilter = savedFilter('objets-spec');
     var specChoices = [{ value: '', text: 'Toutes les spés' }];
     function filterSpecs() {
       specChoices.splice.apply(specChoices, [1, specChoices.length - 1].concat(specOptions.filter(function (option) {
@@ -792,16 +795,28 @@
     filterSpecs();
     // Role, spec and item are exclusive: the filters not in use show "-".
     var specSelect = combo(specChoices, function () {
+      specFilter = specSelect.value;
       itemSelect.value = '';
       select.value = specSelect.value ? null : roleFilter;
+      filterItems();
       fill();
     }, 'objets-spec');
     var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
-      return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
+      return { value: String(item.itemId), text: item.name || ('#' + item.itemId), item: item };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var itemSelect = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () {
-      select.value = itemSelect.value ? null : roleFilter;
-      specSelect.value = itemSelect.value ? null : '';
+    var itemChoices = [{ value: '', text: 'Tous les objets' }];
+    function filterItems() {
+      var role = DATA.roles.filter(function (r) { return r.role === roleFilter; })[0];
+      var labels = specFilter ? [specFilter] : role ? role.specs : null;
+      itemChoices.splice.apply(itemChoices, [1, itemChoices.length - 1].concat(itemOptions.filter(function (option) {
+        return !labels || option.item.specs.some(function (spec) { return labels.indexOf(spec.classSpec) !== -1; });
+      })));
+    }
+    filterItems();
+    var itemSelect = combo(itemChoices, function () {
+      // Back to "Tous les objets": the spec (else role) the list was filtered on comes back.
+      select.value = itemSelect.value || specFilter ? null : roleFilter;
+      specSelect.value = itemSelect.value ? null : specFilter;
       fill();
     }, 'objets-item');
     var holder = el('div');
