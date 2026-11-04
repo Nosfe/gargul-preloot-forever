@@ -814,6 +814,15 @@
     }
     filterItems();
     var itemSelect = combo(itemChoices, function () {
+      // Picking an item clears the role and spec context, so both lists show everything again.
+      if (itemSelect.value) {
+        roleFilter = '';
+        specFilter = '';
+        saveFilter('objets-role', '');
+        saveFilter('objets-spec', '');
+        filterSpecs();
+        filterItems();
+      }
       // Back to "Tous les objets": the spec (else role) the list was filtered on comes back.
       select.value = itemSelect.value || specFilter ? null : roleFilter;
       specSelect.value = itemSelect.value ? null : specFilter;
