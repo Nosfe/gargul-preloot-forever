@@ -774,9 +774,9 @@
       roleFilter = select.value;
       specFilter = '';
       itemSelect.value = '';
-      specSelect.value = '';
       filterSpecs();
       filterItems();
+      showFilters();
       fill();
     }, 'objets-role');
     var specOptions = [];
@@ -793,12 +793,12 @@
       })));
     }
     filterSpecs();
-    // Role, spec and item are exclusive: the filters not in use show "-".
+    // A spec picked inside a role keeps the role; an item picked inside a spec keeps the spec (and its role).
     var specSelect = combo(specChoices, function () {
       specFilter = specSelect.value;
       itemSelect.value = '';
-      select.value = specSelect.value ? null : roleFilter;
       filterItems();
+      showFilters();
       fill();
     }, 'objets-spec');
     var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
@@ -814,24 +814,27 @@
     }
     filterItems();
     var itemSelect = combo(itemChoices, function () {
-      // An item picked under a selected spec keeps that spec and its item list; otherwise role and spec reset so both lists show everything.
-      var keepSpec = Boolean(itemSelect.value && specSelect.value);
-      if (itemSelect.value && !keepSpec) {
+      // An item picked without a spec resets the role, so both lists show everything.
+      if (itemSelect.value && !specFilter) {
         roleFilter = '';
-        specFilter = '';
         saveFilter('objets-role', '');
-        saveFilter('objets-spec', '');
         filterSpecs();
         filterItems();
       }
-      // Back to "Tous les objets": the spec (else role) the list was filtered on comes back.
-      select.value = itemSelect.value || specFilter ? null : roleFilter;
-      specSelect.value = itemSelect.value && !keepSpec ? null : specFilter;
+      showFilters();
       fill();
     }, 'objets-item');
+    // A filter with nothing chosen shows "-" once a narrower filter is in use.
+    function showFilters() {
+      var narrowed = Boolean(itemSelect.value);
+      specSelect.value = specFilter || (narrowed ? null : '');
+      select.value = roleFilter || (narrowed || specFilter ? null : '');
+    }
     var holder = el('div');
     section.appendChild(filterCard('Objets du palier', [select, specSelect, itemSelect], [holder]));
-    if (itemSelect.value) { select.value = null; if (!specSelect.value) { specSelect.value = null; } } else if (specSelect.value) { select.value = null; }
+    roleFilter = select.value;
+    specFilter = specSelect.value;
+    showFilters();
     function specFill(node, label) {
       var className = label.split(' ')[0];
       var entry = classFill[className];
