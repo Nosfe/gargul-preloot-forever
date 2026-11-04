@@ -107,7 +107,7 @@
   .item-card li { display: flex; gap: 6px; padding: 2px 0; cursor: help; }
   .item-card .rk { width: 1.6em; color: var(--muted); }
   .item-card .nm { flex: 1; }
-  .item-card .sc { font-family: Verdana, Arial, sans-serif; }
+  .item-card .sc { font-family: Verdana, Arial, sans-serif; font-size: 12px; align-self: center; }
 
   /* Dark theme (forever.css palette), only when <html class="dark">. */
   html.dark { color-scheme: dark; --ink: #ecf2f5; --muted: #8fa9b8; --line: #26475f; }
@@ -142,7 +142,7 @@
   html.dark .item-card { background: #183247; border-color: #26475f; }
   html.dark #status { color: #8fa9b8; }
   .medal1, .medal2, .medal3 { font-weight: bold; }
-  .medal1 { color: #d8b25a; } .medal2 { color: #c3ccd4; } .medal3 { color: #cd8a4a; }
+  .medal1, .item-card .rk.medal1 { color: #d8b25a; } .medal2, .item-card .rk.medal2 { color: #c3ccd4; } .medal3, .item-card .rk.medal3 { color: #cd8a4a; }
 </style>
 </head>
 <body>
@@ -493,7 +493,7 @@
         var rows = ranking(item).map(function (entry, index) {
           var name = el('span', { class: 'nm', text: entry.name });
           colorName(name, entry.name, index);
-          var row = el('li', {}, [el('span', { class: 'rk', text: (index + 1) + '.' }), name, el('span', { class: 'sc', text: wholeScore(entry.score) })]);
+          var row = el('li', {}, [el('span', { class: 'rk' + (index < 3 ? ' medal' + (index + 1) : ''), text: (index + 1) + '.' }), name, el('span', { class: 'sc', text: wholeScore(entry.score) })]);
           scoreTip(row, item, entry);
           return row;
         });
