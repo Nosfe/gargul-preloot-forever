@@ -244,11 +244,14 @@
   }
   function fold(text) { return String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
   // Typeable dropdown: typing filters the entries, the full list still scrolls. options: [{ value, text, color }].
-  function combo(options, onchange) {
+  // Filter choices kept in this browser, so a returning raider finds them as left (first visit: Tous).
+  function savedFilter(key) { return localStorage.getItem('parsimonie-filter-' + key) || ''; }
+  function saveFilter(key, value) { localStorage.setItem('parsimonie-filter-' + key, value || ''); }
+  function combo(options, onchange, key) {
     var input = el('input', { type: 'text', autocomplete: 'off' });
     var list = el('ul');
     var box = el('div', { class: 'combo' }, [input, list]);
-    var current = options[0];
+    var current = (key && options.filter(function (option) { return option.value === savedFilter(key); })[0]) || options[0];
     var shown = [];
     var active = -1;
     function label(option) { return option.value === '' ? '' : option.text; }
@@ -284,6 +287,7 @@
     function pick(option) {
       var changed = option !== current;
       current = option;
+      if (key) { saveFilter(key, option.value); }
       input.blur();
       close();
       if (changed) { onchange(); }
@@ -309,7 +313,12 @@
     Object.defineProperty(box, 'value', {
       get: function () { return current.value; },
       // null shows "-": no active choice on this filter.
-      set: function (value) { current = options.filter(function (option) { return option.value === value; })[0] || (value === null ? { value: null, text: '-' } : options[0]); close(); }
+      set: function (value) {
+        current = options.filter(function (option) { return option.value === value; })[0] || (value === null ? { value: null, text: '-' } : options[0]);
+        // "-" is only a display state: the remembered choice stays the last real one.
+        if (key && value !== null) { saveFilter(key, current.value); }
+        close();
+      }
     });
     close();
     return box;
@@ -479,7 +488,7 @@
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
     var holder = el('div', { class: 'scroll' });
-    var pick = combo([{ value: '', text: 'Tous les objets' }].concat(options), function () { draw(); });
+    var pick = combo([{ value: '', text: 'Tous les objets' }].concat(options), function () { draw(); }, 'perso-' + title);
     function draw() {
       holder.innerHTML = '';
       holder.appendChild(render(rows.filter(function (row) { return !pick.value || String(itemOf(row).itemId) === pick.value; })));
@@ -496,8 +505,10 @@
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
     // Role and item are exclusive, as in Objets: picking an item shows "-" for the role.
     var lastRole = '';
-    var roleSelect = combo(roleOptions(), function () { lastRole = roleSelect.value; search.value = ''; fill(); });
-    var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { roleSelect.value = search.value ? null : lastRole; fill(); });
+    var roleSelect = combo(roleOptions(), function () { lastRole = roleSelect.value; search.value = ''; fill(); }, 'classement-role');
+    var search = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { roleSelect.value = search.value ? null : lastRole; fill(); }, 'classement-item');
+    lastRole = roleSelect.value;
+    if (search.value) { roleSelect.value = null; }
     var holder = el('div', { class: 'item-grid' });
     section.appendChild(card('', [el('div', { class: 'card-head' }, [el('h2', { text: 'Top 5 Impact par objet' }), el('div', { class: 'filters' }, [roleSelect, search])]), holder]));
     // An item belongs to a type when one of that role's specs has it as IMPACT.
@@ -654,8 +665,8 @@
       var raid = raidById[raidId];
       return raid ? (raid.instance || 'Raid ' + raidId) + ' du ' + frDate(raid.date) : (raidId ? 'Raid ' + raidId : 'Raid inconnu');
     }
-    var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); });
-    var select = combo(raiderOptions('Tous les raiders'), function () { fill(); });
+    var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); }, 'loots-raid');
+    var select = combo(raiderOptions('Tous les raiders'), function () { fill(); }, 'loots-raider');
     var holder = el('div');
     section.appendChild(el('div', { class: 'card' }, [
       el('div', { class: 'card-head' }, [el('div', { class: 'title-group' }, [el('h2', { text: 'Loots du palier' }), view]), el('div', { class: 'filters' }, [raidSelect, select])]),
@@ -708,18 +719,15 @@
   // Picking an item instead lists every spec, of any role, that has it.
   function renderObjets() {
     var section = document.getElementById('objets');
-    var select = combo(roleOptions(), function () { lastRole = select.value; itemSelect.value = ''; fill(); });
+    var select = combo(roleOptions(), function () { lastRole = select.value; itemSelect.value = ''; fill(); }, 'objets-role');
     var itemOptions = DATA.items.filter(function (item) { return item.specs.length; }).map(function (item) {
       return { value: String(item.itemId), text: item.name || ('#' + item.itemId) };
     }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr', { sensitivity: 'base' }); });
-    var itemSelect = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : lastRole; fill(); });
+    var itemSelect = combo([{ value: '', text: 'Tous les objets' }].concat(itemOptions), function () { select.value = itemSelect.value ? null : lastRole; fill(); }, 'objets-item');
     var holder = el('div');
     section.appendChild(filterCard('Objets du palier', [select, itemSelect], [holder]));
-    var firstWithItems = DATA.roles.filter(function (r) {
-      return DATA.items.some(function (item) { return item.specs.some(function (spec) { return r.specs.indexOf(spec.classSpec) !== -1; }); });
-    })[0];
-    if (firstWithItems) { select.value = firstWithItems.role; }
     var lastRole = select.value;
+    if (itemSelect.value) { select.value = null; }
     function specFill(node, label) {
       var className = label.split(' ')[0];
       var entry = classFill[className];
