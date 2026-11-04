@@ -652,7 +652,7 @@
     var raidSelect = combo([{ value: '', text: 'Tous les raids' }].concat(DATA.raids.map(function (raid) { return { value: raid.raidId, text: raidTitle(raid.raidId) }; })), function () { fill(); });
     var select = combo(raiderOptions('Tous les raiders'), function () { fill(); });
     var holder = el('div');
-    section.appendChild(filterCard('Loots du palier', [view, raidSelect, select], [holder]));
+    section.appendChild(filterCard('Loots du palier', [raidSelect, select], [view, holder]));
     function fill() {
       holder.innerHTML = '';
       var loots = DATA.loots.filter(function (loot) {
