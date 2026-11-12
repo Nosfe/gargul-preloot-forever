@@ -221,6 +221,18 @@ function buildListsRows_(argSeparator) {
   return rows;
 }
 
+// _Listes G2:G201 again once Roster exists: written before it (new or reset workbook), the lookup stays #REF!.
+function buildListsLookupRequests_(argSeparator) {
+  var lists = SpreadsheetApp.getActive().getSheetByName(LISTS_TAB.name);
+  return [{
+    updateCells: {
+      start: { sheetId: lists ? lists.getSheetId() : LISTS_TAB.sheetId, rowIndex: 1, columnIndex: LISTS_LAYOUT.rosterLookupColumn },
+      rows: buildListsRows_(argSeparator).map(function (row) { return { values: [row.values[LISTS_LAYOUT.rosterLookupColumn]] }; }),
+      fields: 'userEnteredValue'
+    }
+  }];
+}
+
 // Creates or refreshes the Présence grid without rewriting raid data rows.
 function buildPresenceGridRequests_(presenceState, rosterNames, argSeparator, archive, metadataBySheetId, classByName) {
   var separator = argSeparator || ',';

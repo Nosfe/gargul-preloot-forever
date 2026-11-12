@@ -435,7 +435,18 @@
         var flushes = 0;
         var realFlush = SpreadsheetApp.flush;
         SpreadsheetApp.flush = function () { flushes += 1; return realFlush.apply(this, arguments); };
+        var realBatchUpdate = Sheets.Spreadsheets.batchUpdate;
+        var resetRequests = [];
+        Sheets.Spreadsheets.batchUpdate = function (body) { resetRequests = resetRequests.concat(body.requests); return realBatchUpdate.apply(this, arguments); };
         contains(submitResetWorkbook('duracell'), 'Classeur réinitialisé', 'right password resets');
+        Sheets.Spreadsheets.batchUpdate = realBatchUpdate;
+        var rosterAdded = -1, lookupWritten = -1;
+        resetRequests.forEach(function (request, index) {
+          if (request.addSheet && request.addSheet.properties.title === 'Roster') { rosterAdded = index; }
+          if (request.updateCells && request.updateCells.start && request.updateCells.start.sheetId === LISTS_TAB.sheetId &&
+            request.updateCells.start.columnIndex === LISTS_LAYOUT.rosterLookupColumn) { lookupWritten = index; }
+        });
+        truthy(rosterAdded >= 0 && lookupWritten > rosterAdded, 'the Spé lookup is written again after Roster is created, so the dropdown works');
         SpreadsheetApp.flush = realFlush;
         truthy(flushes > 0, 'reset flushes after deleting the tabs, so the rebuild does not see them');
         equal(String(PropertiesService.getDocumentProperties().getProperty(TEST_DATA_PROPERTY)) + '|' +

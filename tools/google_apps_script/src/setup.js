@@ -108,6 +108,9 @@ function buildSetupPlan_(existingHeadersByName, sheetsMetadata, argSeparator) {
   }
 
   requests = requests.concat(buildRoleAndSpecRewriteRequests_(existingHeadersByName));
+  if (!existingHeadersByName.Roster) {
+    requests = requests.concat(buildListsLookupRequests_(separator));
+  }
 
   requests = requests.concat(buildTabOrderRequests_(requests));
 
