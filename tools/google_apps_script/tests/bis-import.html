@@ -72,6 +72,14 @@
         equal(rows('Objets Tank').length, 3, 'nothing written on a format error');
       });
 
+      withHarness(function () {
+        TracerHarness.setFetchResponses(Object.keys(BIS_IMPORT_SPECS).map(function (slug) {
+          var caps = slug === 'fire-mage' ? { neck: [201, 202, 203, 204, 205, 206, 207] } : {};
+          return { statusCode: 200, body: { result: { pageContext: { bisList: { caps: { 60: caps } }, gearData: [] } } } };
+        }));
+        equal(fetchForeverBisLists_().specs['Mage Feu'].join(','), '201,202,203,204,205', 'only the first five items of a slot are imported');
+      });
+
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
     } catch (error) {
       document.getElementById('result').textContent = 'FAIL: ' + error.stack;

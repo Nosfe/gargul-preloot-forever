@@ -386,7 +386,7 @@
       slotRows.forEach(function (row, index) { row.order = index; });
       var separated = function (nodes) {
         var out = [];
-        nodes.forEach(function (node, index) { if (index) { out.push(el('span', { text: ', ' })); } out.push(node); });
+        nodes.forEach(function (node, index) { if (index) { out.push(el('span', { class: 'sep', text: ', ' })); } out.push(node); });
         return out;
       };
       body.appendChild(itemFilterCard('BiS List', slotRows, function (row) { return row.items; }, function (rows) {
@@ -400,7 +400,7 @@
             }).sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); })[0];
           });
           var looted = firsts.filter(Boolean);
-          var lootCell = looted.length ? el('td', { 'data-sort': looted.map(function (loot) { return loot.date || ''; }).sort()[0] || '0' }, separated(firsts.map(function (loot) {
+          var lootCell = looted.length ? el('td', { class: 'wrap', 'data-sort': looted.map(function (loot) { return loot.date || ''; }).sort()[0] || '0' }, separated(firsts.map(function (loot) {
             if (!loot) { return el('span', { class: 'muted', text: '–' }); }
             var mark = el('span', { class: 't-ALT', text: '✓' + (loot.date ? ' ' + frDate(loot.date) : '') });
             if (tokenPiece(loot.itemId, raider)) {
@@ -409,7 +409,7 @@
             }
             return mark;
           }))) : el('td', {});
-          var itemsCell = el('td', { 'data-sort': row.items.map(function (item) { return item.name || ''; }).join(', ') },
+          var itemsCell = el('td', { class: 'wrap', 'data-sort': row.items.map(function (item) { return item.name || ''; }).join(', ') },
             separated(row.items.map(function (item) { return itemLink(item.itemId, item.name); })));
           return el('tr', {}, [el('td', { 'data-sort': String(row.order), text: row.slot }), itemsCell, lootCell]);
         })), ['', '', 'c']);

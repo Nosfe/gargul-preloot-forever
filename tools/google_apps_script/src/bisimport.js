@@ -2,6 +2,8 @@
 // Re-runnable: listed items are added once per Objets tab, and BIS only fills empty Statut cells.
 var BIS_IMPORT_URL = 'https://wowtbc.gg/page-data/warcraftforever/bis-list/{slug}/page-data.json';
 var BIS_IMPORT_LEVEL = '60';
+// Items kept per list slot, like the five shown by wowtbc.gg before "Show more".
+var BIS_IMPORT_PER_SLOT = 5;
 
 // wowtbc.gg page → sheet spec column (shockadin-paladin has no column).
 var BIS_IMPORT_SPECS = {
@@ -87,7 +89,7 @@ function fetchForeverBisLists_() {
     context.gearData.forEach(function (entry) { gear[entry.id] = entry; });
     var ids = [];
     Object.keys(caps).forEach(function (listSlot) {
-      (Array.isArray(caps[listSlot]) ? caps[listSlot] : []).forEach(function (id) {
+      (Array.isArray(caps[listSlot]) ? caps[listSlot] : []).slice(0, BIS_IMPORT_PER_SLOT).forEach(function (id) {
         var info = gear[id] || {};
         var slot = BIS_IMPORT_SLOTS[info.slot] || BIS_IMPORT_SLOTS[listSlot];
         if (typeof id !== 'number' || !slot) {

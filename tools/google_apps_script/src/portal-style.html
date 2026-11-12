@@ -239,4 +239,8 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 /* Portail uniquement : l'infobulle reste cachée jusqu'au survol (le script l'affiche), et le survol d'un raider dans une carte d'objet ouvre le détail du score. */
 #tip { display: none; }
 .item-card li { cursor: help; }
+/* Listes d'objets : la ligne s'agrandit plutôt que d'ajouter une barre de défilement horizontale, un objet n'est jamais coupé. */
+main table.detail td { vertical-align: middle; }
+main td.wrap { white-space: normal; }
+main td.wrap > a, main td.wrap > span:not(.sep) { white-space: nowrap; }
 </style>
