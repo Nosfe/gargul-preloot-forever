@@ -55,8 +55,8 @@
       equal(menu.items.map(function (entry) { return entry.menu.caption; }).join(','), 'Raid,Configuration,Données de test', 'three submenus: Raid, Configuration and Données de test');
       equal(itemLabels(submenu(menu, 'Données de test')), 'Remplir (aperçu du portail),Effacer', 'Données de test items');
       equal(itemLabels(submenu(menu, 'Raid')), 'Démarrer (exporter le snapshot),Terminer,Annuler,Supprimer', 'Raid submenu always shows its 4 actions');
-      equal(itemLabels(submenu(menu, 'Configuration')), 'Rafraîchir le classeur,Identifiants WCL,Mettre à jour les parses WCL,Afficher le format d\'export Gargul,Nouveau palier,Importer les BiS pré-raid (wowtbc.gg),Réinitialiser tout le classeur', 'Configuration items');
-      ['Démarrer (exporter le snapshot)', 'Terminer', 'Annuler', 'Supprimer', 'Rafraîchir le classeur', 'Identifiants WCL', 'Mettre à jour les parses WCL', 'Afficher le format d\'export Gargul', 'Nouveau palier', 'Importer les BiS pré-raid (wowtbc.gg)', 'Réinitialiser tout le classeur', 'Remplir (aperçu du portail)', 'Effacer'].forEach(function (label) {
+      equal(itemLabels(submenu(menu, 'Configuration')), 'Rafraîchir le classeur,Identifiants WCL,Mettre à jour les parses WCL,Afficher le format d\'export Gargul,Nouveau palier,Importer les BiS pré-raid (wowtbc.gg),Vider tous les objets,Réinitialiser tout le classeur', 'Configuration items');
+      ['Démarrer (exporter le snapshot)', 'Terminer', 'Annuler', 'Supprimer', 'Rafraîchir le classeur', 'Identifiants WCL', 'Mettre à jour les parses WCL', 'Afficher le format d\'export Gargul', 'Nouveau palier', 'Importer les BiS pré-raid (wowtbc.gg)', 'Vider tous les objets', 'Réinitialiser tout le classeur', 'Remplir (aperçu du portail)', 'Effacer'].forEach(function (label) {
         equal(typeof window[menuItem(menu, label).functionName], 'function', 'handler exists for ' + label);
       });
 

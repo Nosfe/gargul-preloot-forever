@@ -70,6 +70,12 @@
         try { importForeverBis_(); } catch (e) { error = e.message; }
         contains(error, 'a changé de format', 'unexpected page format refused before any write');
         equal(rows('Objets Tank').length, 3, 'nothing written on a format error');
+
+        clearAllItems();
+        equal(rows('Objets Caster DPS').length, 3, 'menu: cancelled confirmation clears nothing');
+        contains(clearAllItems_(), '7 objet(s) effacé(s)', 'clear summary counts the item rows (6 imported + 888)');
+        equal(ITEM_TABS.map(function (tab) { return TracerHarness.getRows(tab.name).slice(3).map(function (row) { return row.join(''); }).join(''); }).join(''), '', 'every Objets tab emptied below its header');
+        truthy(TracerHarness.getRows('Objets Tank').slice(0, 3).map(function (row) { return row.join(''); }).join('') !== '', 'headers kept');
       });
 
       withHarness(function () {

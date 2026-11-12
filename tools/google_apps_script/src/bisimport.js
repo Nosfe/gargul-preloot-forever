@@ -202,3 +202,35 @@ function buildBisImportRequests_(spreadsheet, lists) {
       '\nLes statuts déjà remplis n\'ont pas été modifiés.'
   };
 }
+
+// Menu action: empties every Objets tab below its header, after a confirmation.
+function clearAllItems() {
+  var ui = SpreadsheetApp.getUi();
+  var answer = ui.alert('Vider tous les objets',
+    'Toutes les lignes des onglets Objets (ID, nom, emplacement, statuts et gains) seront effacées. Continuer ?', ui.ButtonSet.OK_CANCEL);
+  if (answer !== ui.Button.OK) {
+    return;
+  }
+  try {
+    ui.alert(clearAllItems_());
+  } catch (error) {
+    ui.alert('Vidage des objets impossible :\n' + error.message);
+  }
+}
+
+function clearAllItems_() {
+  var count = 0;
+  applyBatch_(function () {
+    var spreadsheet = SpreadsheetApp.getActive();
+    var configRow = requireCurrentLayout_(snapshotSheet_(spreadsheet, 'Config').getDataRange().getValues(), 'Config')[1] || [];
+    if (normalizeCellString_(configRow[columnOf_(tabByName_('Config'), 'openRaidId')]).trim()) {
+      throw new Error('un raid est démarré : les objets servent à sa fin, terminez-le ou annulez-le d\'abord.');
+    }
+    return ITEM_TABS.map(function (itemTab) {
+      var sheet = snapshotSheet_(spreadsheet, itemTab.name);
+      count += sheet.getDataRange().getValues().slice(3).filter(function (row) { return parseInteger_((row || [])[0]) !== null; }).length;
+      return { updateCells: { range: { sheetId: sheet.getSheetId(), startRowIndex: 3 }, fields: 'userEnteredValue' } };
+    });
+  });
+  return 'Objets vidés : ' + count + ' objet(s) effacé(s) des onglets Objets.';
+}
