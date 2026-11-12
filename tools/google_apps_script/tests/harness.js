@@ -1022,6 +1022,16 @@
           return spreadsheet.getSheetByName(name);
         });
       },
+      insertSheet: function (name) {
+        applyAddSheet_({ addSheet: { properties: { title: name } } }, state.storeById, state.nameIndex);
+        return this.getSheetByName(name);
+      },
+      deleteSheet: function (sheet) {
+        if (Object.keys(state.nameIndex).length <= 1) {
+          throw new Error('Vous ne pouvez pas supprimer toutes les feuilles.');
+        }
+        applyDeleteSheet_({ deleteSheet: { sheetId: sheet.getSheetId() } }, state.storeById, state.nameIndex);
+      },
       getSheetByName: function (name) {
         if (!Object.prototype.hasOwnProperty.call(state.nameIndex, name)) {
           return null;

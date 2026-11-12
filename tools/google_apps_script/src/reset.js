@@ -41,12 +41,18 @@ function submitResetWorkbook(password) {
     var spreadsheet = SpreadsheetApp.getActive();
     var spreadsheetId = spreadsheet.getId();
     // A spreadsheet needs at least one tab: a blank one stands in until the layout is rebuilt.
-    var blankRequests = [{ addSheet: { properties: { title: '_reinitialisation_' + new Date().getTime() } } }];
+    // Done through SpreadsheetApp: after a Sheets API delete it still sees the old tabs ("Feuille 1001 introuvable").
+    var blank = spreadsheet.insertSheet('_reinitialisation_' + new Date().getTime());
+    var blankSheetId = blank.getSheetId();
     spreadsheet.getSheets().forEach(function (sheet) {
-      blankRequests.push({ deleteSheet: { sheetId: sheet.getSheetId() } });
+      if (sheet.getSheetId() !== blankSheetId) {
+        spreadsheet.deleteSheet(sheet);
+      }
     });
-    var reply = Sheets.Spreadsheets.batchUpdate({ requests: blankRequests }, spreadsheetId);
-    var blankSheetId = reply.replies[0].addSheet.properties.sheetId;
+    SpreadsheetApp.flush();
+    var properties = PropertiesService.getDocumentProperties();
+    properties.deleteProperty(TEST_DATA_PROPERTY);
+    properties.deleteProperty(WCL_PARSE_DETAILS_PROPERTY);
 
     var sheetsMetadata = Sheets.Spreadsheets.get(spreadsheetId, {
       fields: 'sheets(properties.sheetId,conditionalFormats,bandedRanges.bandedRangeId,protectedRanges(protectedRangeId,description))'

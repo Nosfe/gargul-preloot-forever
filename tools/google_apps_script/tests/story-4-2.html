@@ -11,6 +11,8 @@
 <script src="../src/roster.js"></script>
 <script src="../src/scores.js"></script>
 <script src="../src/reset.js"></script>
+<script src="../src/parses.js"></script>
+<script src="../src/testdata.js"></script>
 <script>
   (function () {
     // Seeds every flat contract tab with its key header row, except the names in `skip`.
@@ -428,7 +430,16 @@
         truthy(SpreadsheetApp.getActive().getSheetByName('Notes'), 'wrong password: other tabs untouched');
 
         var expectedNames = sheetNames().split(',').filter(function (name) { return name !== 'Notes'; }).join(',');
+        PropertiesService.getDocumentProperties().setProperty(TEST_DATA_PROPERTY, '{}');
+        PropertiesService.getDocumentProperties().setProperty(WCL_PARSE_DETAILS_PROPERTY, '{}');
+        var flushes = 0;
+        var realFlush = SpreadsheetApp.flush;
+        SpreadsheetApp.flush = function () { flushes += 1; return realFlush.apply(this, arguments); };
         contains(submitResetWorkbook('duracell'), 'Classeur réinitialisé', 'right password resets');
+        SpreadsheetApp.flush = realFlush;
+        truthy(flushes > 0, 'reset flushes after deleting the tabs, so the rebuild does not see them');
+        equal(String(PropertiesService.getDocumentProperties().getProperty(TEST_DATA_PROPERTY)) + '|' +
+          PropertiesService.getDocumentProperties().getProperty(WCL_PARSE_DETAILS_PROPERTY), 'null|null', 'reset forgets the test data record and WCL parse details');
         equal(sheetNames(), expectedNames, 'only the layout tabs remain, no temporary tab');
         equal(TracerHarness.getRows('Roster').slice(1).map(function (row) { return row[0] + '' + row[2] + row[3]; }).join(''), '', 'Roster emptied');
         equal(TracerHarness.getRows('Roster')[0][0], 'Raider (nom exact en jeu)', 'Roster headers rebuilt');
