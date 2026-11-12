@@ -18,6 +18,7 @@ function onOpen() {
         .addItem('Mettre à jour les parses WCL', 'updateWclParses')
         .addItem('Afficher le format d\'export Gargul', 'showGargulExportFormat')
         .addItem('Nouveau palier', 'openNewTierDialog')
+        .addItem('Importer les BiS pré-raid (wowtbc.gg)', 'importForeverBis')
         .addItem('Réinitialiser tout le classeur', 'openResetWorkbookDialog')
     )
     .addSubMenu(

@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>BiS import tests</title>
+<pre id="result">Tests did not run.</pre>
+<script src="harness.js"></script>
+<script src="helpers.js"></script>
+<script src="../src/batch.js"></script>
+<script src="../src/schema.js"></script>
+<script src="../src/setup.js"></script>
+<script src="../src/grids.js"></script>
+<script src="../src/roster.js"></script>
+<script src="../src/scores.js"></script>
+<script src="../src/snapshot.js"></script>
+<script src="../src/ledger.js"></script>
+<script src="../src/attendance.js"></script>
+<script src="../src/bisimport.js"></script>
+<script>
+  (function () {
+    try {
+      var gear = [
+        { id: 100, name: 'Spellweaver\'s Turban', slot: 'head' },
+        { id: 101, name: 'Dagger', slot: 'one-hand' },
+        { id: 102, name: 'Shield', slot: 'off hand' },
+        { id: 103, name: 'Idol', slot: 'relic' }
+      ];
+      var pages = {
+        'arcane-mage': { head: [100], 'main-hand': [101] },
+        'frost-mage': { head: [100] },
+        'protection-warrior': { head: [100], 'off-hand': [102], 'main-hand': [101] },
+        'balance-druid': { ranged: [103] }
+      };
+      var responses = function () {
+        return Object.keys(BIS_IMPORT_SPECS).map(function (slug) {
+          return { statusCode: 200, body: { result: { pageContext: { bisList: { caps: { 20: { head: [999] }, 60: pages[slug] || {} } }, gearData: gear } } } };
+        });
+      };
+
+      withHarness(function () {
+        seedCoreTabs_();
+        var spreadsheet = SpreadsheetApp.getActive();
+        var idOf = function (name) { return spreadsheet.getSheetByName(name).getSheetId(); };
+        // seedCoreTabs_ already lists item 888 in Objets Caster DPS; left out of the checks.
+        var rows = function (name) { return TracerHarness.getRows(name).slice(3).filter(function (row) { return row[0] !== '' && row[0] !== undefined && row[0] !== 888; }); };
+        var casterSpecs = SPEC_COLUMNS.filter(function (spec) { return spec.role === 'Caster DPS'; });
+        var statutOf = function (row, label) { return row[OBJETS_FIRST_SPEC_COLUMN + 2 * casterSpecs.map(function (s) { return s.label; }).indexOf(label)]; };
+        // Item 100 already listed, IMPACT for Mage Givre: kept; Mage Arcanes empty: filled.
+        writeCells_(idOf('Objets Caster DPS'), 3, 0, [100, 'Turban', 'Tête']);
+        writeCells_(idOf('Objets Caster DPS'), 3, OBJETS_FIRST_SPEC_COLUMN + 4, ['IMPACT', 30]);
+
+        TracerHarness.setFetchResponses(responses());
+        contains(importForeverBis_(), '5 objet(s) ajouté(s), 1 statut(s) BIS ajouté(s)', 'summary counts added items and filled statuts');
+        equal(TracerHarness.getFetchLog().length, 28, 'one page per spec with a sheet column (no shockadin)');
+        equal(TracerHarness.getFetchLog()[0].url, 'https://wowtbc.gg/page-data/warcraftforever/bis-list/protection-warrior/page-data.json', 'page data URL');
+
+        var caster = rows('Objets Caster DPS');
+        equal(caster.map(function (row) { return row[0] + ':' + row[2]; }).join(','), '100:Tête,101:Arme,103:Relique', 'level 60 items only, below the existing row, slot from the item');
+        equal(statutOf(caster[0], 'Mage Arcanes') + '|' + statutOf(caster[0], 'Mage Givre') + '|' + caster[0][OBJETS_FIRST_SPEC_COLUMN + 5] + '|' + statutOf(caster[0], 'Mage Feu'),
+          'BIS|IMPACT|30|', 'empty Statut filled with BIS, filled ones and unlisted specs untouched');
+        equal(caster[1][1] + '|' + statutOf(caster[1], 'Mage Arcanes') + '|' + statutOf(caster[1], 'Mage Givre'), 'Dagger|BIS|', 'new item BIS only for the specs listing it');
+        equal(statutOf(caster[2], 'Druide Équilibre'), 'BIS', 'relic for Balance');
+        var tank = rows('Objets Tank');
+        equal(tank.map(function (row) { return row[0] + ':' + row[2]; }).join(','), '100:Tête,101:Arme,102:Main gauche', 'Tank tab sorted in Emplacement order');
+
+        TracerHarness.setFetchResponses(responses());
+        contains(importForeverBis_(), '0 objet(s) ajouté(s), 0 statut(s) BIS', 'a second import adds nothing');
+        equal(rows('Objets Caster DPS').length, 3, 'no duplicate rows');
+
+        TracerHarness.setFetchResponses([{ statusCode: 200, body: { result: { pageContext: {} } } }]);
+        var error = '';
+        try { importForeverBis_(); } catch (e) { error = e.message; }
+        contains(error, 'a changé de format', 'unexpected page format refused before any write');
+        equal(rows('Objets Tank').length, 3, 'nothing written on a format error');
+      });
+
+      document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';
+    } catch (error) {
+      document.getElementById('result').textContent = 'FAIL: ' + error.stack;
+      try {
+        TracerHarness.uninstall();
+      } catch (ignored) {}
+    }
+  }());
+</script>
