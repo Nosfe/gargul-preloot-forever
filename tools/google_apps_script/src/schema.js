@@ -219,6 +219,15 @@ function wowheadPath_(label) {
   return (match || WOWHEAD_VERSIONS[0]).path;
 }
 
+function wowVersion_(label) {
+  return WOWHEAD_VERSIONS.filter(function (entry) { return entry.path === wowheadPath_(label); })[0];
+}
+
+// Warcraft Logs site of the version (fresh when not set): each site has its own API and characters.
+function wclSite_(label) {
+  return 'https://' + (wowVersion_(label).wcl || 'fresh') + '.warcraftlogs.com';
+}
+
 // _Listes layout (0-based columns): class table A + up to 4 specs, a per-row spec lookup for Roster
 // (spills over 4 columns), the Classe|Spé → Rôle table read by the Rôle formula, and the IMPACT gain table
 // (key Objet|Classe|Spé, gain, Objet (ID), Objet; spills over 4 columns) read by the Classement Impact tab.

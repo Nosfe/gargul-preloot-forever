@@ -159,7 +159,8 @@ function submitEndRaid(linkText, gargulText, treatments) {
     });
 
     var reportCode = extractReportCode_(linkText);
-    var report = fetchWarcraftLogsReport_(reportCode, requireWclCredentials_(), wclApiUrlForLink_(linkText));
+    var report = fetchWarcraftLogsReport_(reportCode, requireWclCredentials_(),
+      wclApiUrlForLink_(linkText, (configRows[1] || [])[columnOf_(tabByName_('Config'), 'wowheadVersion')]));
     var raidPulls = buildRaidPulls_(report);
     var credits = creditedRaiders_(raidPulls, rosterIndex);
     var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
@@ -582,10 +583,10 @@ function getWclAccessToken_(credentials) {
   return payload.access_token;
 }
 
-// Each WCL site (fresh, classic, sod, www) only serves its own reports; a bare code uses fresh, like the parses.
-function wclApiUrlForLink_(linkText) {
-  var match = normalizeCellString_(linkText).match(/\b(www|fresh|classic|sod)\.warcraftlogs\.com\b/i);
-  return match ? 'https://' + match[1].toLowerCase() + '.warcraftlogs.com/api/v2/client' : WCL_API_URL;
+// Each WCL site (forever, fresh, classic, sod, www) only serves its own reports; a bare code uses the Config version's site.
+function wclApiUrlForLink_(linkText, versionValue) {
+  var match = normalizeCellString_(linkText).match(/\b(www|forever|fresh|classic|sod)\.warcraftlogs\.com\b/i);
+  return match ? 'https://' + match[1].toLowerCase() + '.warcraftlogs.com/api/v2/client' : wclSite_(versionValue) + '/api/v2/client';
 }
 
 // Fetches one report payload from WCL GraphQL.

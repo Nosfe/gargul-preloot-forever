@@ -73,9 +73,11 @@
         var fetchLog = TracerHarness.getFetchLog();
         equal(fetchLog[0].url + '|' + fetchLog[0].params.headers.Authorization.indexOf('Basic '), WCL_TOKEN_URL + '|0', 'token request uses Basic auth');
         equal(fetchLog[1].url + '|' + JSON.parse(fetchLog[1].params.payload).variables.code, 'https://www.warcraftlogs.com/api/v2/client|ABC123', 'report request goes to the link site with the code');
-        equal(wclApiUrlForLink_('https://fresh.warcraftlogs.com/reports/ABC123#fight=3'), 'https://fresh.warcraftlogs.com/api/v2/client', 'Anniversary/Forever link uses the Fresh API');
+        equal(wclApiUrlForLink_('https://fresh.warcraftlogs.com/reports/ABC123#fight=3'), 'https://fresh.warcraftlogs.com/api/v2/client', 'Anniversary link uses the Fresh API');
+        equal(wclApiUrlForLink_('https://forever.warcraftlogs.com/reports/ABC123', 'TBC'), 'https://forever.warcraftlogs.com/api/v2/client', 'Forever link uses the Forever API');
         equal(wclApiUrlForLink_('https://classic.warcraftlogs.com/reports/ABC123'), 'https://classic.warcraftlogs.com/api/v2/client', 'Classic link uses the Classic API');
-        equal(wclApiUrlForLink_('ABC123'), 'https://fresh.warcraftlogs.com/api/v2/client', 'bare code uses the Fresh API');
+        equal(wclApiUrlForLink_('ABC123', 'TBC') + '|' + wclApiUrlForLink_('ABC123', ''), 'https://fresh.warcraftlogs.com/api/v2/client|https://forever.warcraftlogs.com/api/v2/client',
+          'bare code uses the site of the Config version (Forever when blank)');
         equal((message + TracerHarness.getAlerts().join(' ')).indexOf('client-secret'), -1, 'no secret in result or alerts');
       });
 
@@ -327,7 +329,7 @@
         contains(TracerHarness.getAlerts().slice(-1)[0], 'Sans classement WCL (inchangés) : Cid', 'summary lists characters without rankings');
         var request = TracerHarness.getFetchLog()[1];
         var query = JSON.parse(request.params.payload).query;
-        equal(request.url, WCL_CHARACTER_API_URL, 'character query goes to the Fresh API');
+        equal(request.url, 'https://forever.warcraftlogs.com/api/v2/client', 'character query goes to the WCL site of the Config version (Forever when blank)');
         contains(query, 'c0: character(name: "Ana", serverSlug: "thunderstrike", serverRegion: "eu") { zoneRankings(metric: dps) }', 'DPS metric and realm from Config');
         contains(query, 'c1: character(name: "Bob"', 'second raider in the same request');
         contains(query.split('c1:')[1], 'metric: hps', 'healer uses HPS');

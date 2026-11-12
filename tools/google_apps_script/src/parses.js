@@ -1,5 +1,4 @@
-// Character rankings for Fresh realms live on the Fresh API host; the token from WCL_TOKEN_URL works there too.
-var WCL_CHARACTER_API_URL = 'https://fresh.warcraftlogs.com/api/v2/client';
+// Character rankings live on the WCL site of the Config version; the token from WCL_TOKEN_URL works on every site.
 var WCL_PARSE_BATCH_SIZE = 25;
 // Document property: { raider: { best, median, value } } from the last update, shown by the portal.
 var WCL_PARSE_DETAILS_PROPERTY = 'wclParseDetails';
@@ -26,9 +25,10 @@ function updateWclParses() {
       }
 
       var token = getWclAccessToken_(requireWclCredentials_());
+      var apiUrl = wclSite_(configRow[columnOf_(configTab, 'wowheadVersion')]) + '/api/v2/client';
       var results = [];
       for (var start = 0; start < targets.length; start += WCL_PARSE_BATCH_SIZE) {
-        results = results.concat(fetchCharacterParses_(token, realm, targets.slice(start, start + WCL_PARSE_BATCH_SIZE)));
+        results = results.concat(fetchCharacterParses_(token, realm, targets.slice(start, start + WCL_PARSE_BATCH_SIZE), apiUrl));
       }
 
       var built = buildParseUpdateRequests_(targets, results);
@@ -85,12 +85,12 @@ function parseTargets_(sheet, rows, tab) {
 }
 
 // One GraphQL request for a batch of characters (aliased c0, c1, ...); returns zoneRankings or null per target.
-function fetchCharacterParses_(token, realm, targets) {
+function fetchCharacterParses_(token, realm, targets, apiUrl) {
   var fields = targets.map(function (target, index) {
     return 'c' + index + ': character(name: ' + JSON.stringify(target.name) + ', serverSlug: ' + JSON.stringify(realm.slug) +
       ', serverRegion: ' + JSON.stringify(realm.region) + ') { zoneRankings(metric: ' + target.metric + ') }';
   });
-  var response = UrlFetchApp.fetch(WCL_CHARACTER_API_URL, {
+  var response = UrlFetchApp.fetch(apiUrl, {
     method: 'post',
     contentType: 'application/json',
     headers: { Authorization: 'Bearer ' + token },

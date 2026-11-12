@@ -135,10 +135,9 @@ function buildRaiderPortalData_(spreadsheet) {
 
 // WCL character page with a {name} placeholder (filled by the page) from Config; '' when Serveur WCL is not set.
 function portalWclCharacterUrl_(versionValue, realmValue) {
-  var version = portalVersion_(versionValue);
   try {
     var realm = parseWclRealm_(realmValue);
-    return 'https://' + (version.wcl || 'fresh') + '.warcraftlogs.com/character/' + encodeURIComponent(realm.region) + '/' + encodeURIComponent(realm.slug) + '/{name}';
+    return wclSite_(versionValue) + '/character/' + encodeURIComponent(realm.region) + '/' + encodeURIComponent(realm.slug) + '/{name}';
   } catch (error) {
     return '';
   }
@@ -146,7 +145,7 @@ function portalWclCharacterUrl_(versionValue, realmValue) {
 
 // Blizzard Armory character page with a {name} placeholder (lower-case name); '' for versions without a known Armory.
 function portalArmoryCharacterUrl_(versionValue, realmValue) {
-  var version = portalVersion_(versionValue);
+  var version = wowVersion_(versionValue);
   if (!version.armory) {
     return '';
   }
@@ -160,10 +159,6 @@ function portalArmoryCharacterUrl_(versionValue, realmValue) {
   } catch (error) {
     return '';
   }
-}
-
-function portalVersion_(versionValue) {
-  return WOWHEAD_VERSIONS.filter(function (entry) { return entry.path === wowheadPath_(versionValue); })[0];
 }
 
 // Raid rows of Présence from the tier start ('' = all): raid ID, instance, date and each raider's 1 or B.
