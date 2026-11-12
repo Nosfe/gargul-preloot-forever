@@ -79,7 +79,7 @@ function buildRaiderPortalData_(spreadsheet) {
     tierId: normalizeCellString_(configRow[columnOf_(configTab, 'tierId')]).trim(),
     tierStart: tierStart,
     wowhead: wowheadPath_(configRow[columnOf_(configTab, 'wowheadVersion')]),
-    wclCharacterUrl: portalWclCharacterUrl_(configRow[columnOf_(configTab, 'wclRealm')]),
+    wclCharacterUrl: portalWclCharacterUrl_(configRow[columnOf_(configTab, 'wowheadVersion')], configRow[columnOf_(configTab, 'wclRealm')]),
     armoryCharacterUrl: portalArmoryCharacterUrl_(configRow[columnOf_(configTab, 'wowheadVersion')], configRow[columnOf_(configTab, 'wclRealm')]),
     classes: CLASS_SPECS.map(function (entry) {
       return { name: entry.name, color: '#' + classHeaderTextHex_(entry.name), fill: '#' + entry.colorHex, fillText: '#' + entry.textHex };
@@ -133,28 +133,33 @@ function buildRaiderPortalData_(spreadsheet) {
   };
 }
 
-// WCL character page prefix (name appended by the page) from Config Serveur WCL; '' when it is not set.
-function portalWclCharacterUrl_(realmValue) {
+// WCL character page with a {name} placeholder (filled by the page) from Config; '' when Serveur WCL is not set.
+function portalWclCharacterUrl_(versionValue, realmValue) {
+  var version = portalVersion_(versionValue);
   try {
     var realm = parseWclRealm_(realmValue);
-    return 'https://fresh.warcraftlogs.com/character/' + encodeURIComponent(realm.region) + '/' + encodeURIComponent(realm.slug) + '/';
+    return 'https://' + (version.wcl || 'fresh') + '.warcraftlogs.com/character/' + encodeURIComponent(realm.region) + '/' + encodeURIComponent(realm.slug) + '/{name}';
   } catch (error) {
     return '';
   }
 }
 
-// Blizzard Armory character page prefix (lower-case name appended by the page); '' for versions without a known Armory.
+// Blizzard Armory character page with a {name} placeholder (lower-case name); '' for versions without a known Armory.
 function portalArmoryCharacterUrl_(versionValue, realmValue) {
-  var version = WOWHEAD_VERSIONS.filter(function (entry) { return entry.path === wowheadPath_(versionValue); })[0];
+  var version = portalVersion_(versionValue);
   if (!version.armory) {
     return '';
   }
   try {
     var realm = parseWclRealm_(realmValue);
-    return 'https://worldofwarcraft.blizzard.com/fr-fr/' + version.armory + '/' + encodeURIComponent(realm.region) + '/armory/character/' + encodeURIComponent(realm.slug) + '/';
+    return version.armory.replace('{region}', encodeURIComponent(realm.region)).replace('{realm}', encodeURIComponent(realm.slug));
   } catch (error) {
     return '';
   }
+}
+
+function portalVersion_(versionValue) {
+  return WOWHEAD_VERSIONS.filter(function (entry) { return entry.path === wowheadPath_(versionValue); })[0];
 }
 
 // Raid rows of Présence from the tier start ('' = all): raid ID, instance, date and each raider's 1 or B.

@@ -48,11 +48,13 @@
         var data = buildRaiderPortalData_(spreadsheet);
         equal(Object.keys(data).join(','), 'tierId,tierStart,wowhead,wclCharacterUrl,armoryCharacterUrl,classes,parseColors,roles,raiders,items,loots,raids', 'only the portal fields are sent');
         equal(data.wowhead + '|' + wowheadPath_('') + '|' + wowheadPath_('<script>'), 'tbc|forever|forever', 'Wowhead version from Config, Forever when blank or unknown');
-        equal(data.wclCharacterUrl + '|' + portalWclCharacterUrl_(''), 'https://fresh.warcraftlogs.com/character/eu/secret-realm/|', 'WCL character pages from Serveur WCL, none when unset');
+        equal(data.wclCharacterUrl + '|' + portalWclCharacterUrl_('TBC', ''), 'https://fresh.warcraftlogs.com/character/eu/secret-realm/{name}|', 'WCL character pages from Serveur WCL, none when unset');
+        equal(portalWclCharacterUrl_('Forever', 'eu/sora'), 'https://forever.warcraftlogs.com/character/eu/sora/{name}', 'Forever uses the Forever WCL site');
         equal(data.parseColors[0].min + '|' + data.parseColors[0].color, '100|#E5CC80', 'WCL parse colours like the Roster');
         equal(data.roles.map(function (r) { return r.role; }).join(','), 'Tank,Heal,Melee DPS,Ranged DPS,Caster DPS', 'Objets grouped like the sheet tabs');
         equal(data.roles[4].specs[2], 'Mage Givre', 'role specs in the sheet column order');
-        equal(data.armoryCharacterUrl + '|' + portalArmoryCharacterUrl_('Forever', 'eu/secret-realm'), 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/eu/armory/character/secret-realm/|', 'Armory pages for TBC, none for versions without a known Armory');
+        equal(data.armoryCharacterUrl + '|' + portalArmoryCharacterUrl_('Classic', 'eu/secret-realm'), 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/eu/armory/character/secret-realm/{name}|', 'Armory pages for TBC, none for versions without a known Armory');
+        equal(portalArmoryCharacterUrl_('Forever', 'eu/sora'), 'https://worldofwarcraft.blizzard.com/fr-fr/forever/eu/armory/character/{name}-sora', 'Forever Armory: name-realm');
         equal(JSON.stringify(data).split('secret-realm').length, 3, 'Serveur WCL only reaches the page inside the WCL and Armory links');
         equal(data.tierId + '|' + data.tierStart, 't1|2026-10-01', 'active tier and its start');
 

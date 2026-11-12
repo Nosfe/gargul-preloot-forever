@@ -298,12 +298,12 @@
       var raider = raiderByName(select.value);
       armory.style.display = raider && DATA.armoryCharacterUrl ? '' : 'none';
       if (!raider) { return; }
-      armory.href = DATA.armoryCharacterUrl + encodeURIComponent(raider.name.toLowerCase());
+      armory.href = DATA.armoryCharacterUrl.replace('{name}', encodeURIComponent(raider.name.toLowerCase()));
       var classSpec = raider.className + ' ' + raider.spec;
       var stats = [
         ['Classe / spé', classSpec], ['Ratio BiS', score(raider.bisRatio)], ['Présence palier', raider.tierPresence + ' / ' + raider.tierPresenceMax],
         ['Loots BiS', raider.bisLootCount], ['Loots Impact', raider.impactLootCount],
-        ['Parse WCL', raider.parse, DATA.wclCharacterUrl && DATA.wclCharacterUrl + encodeURIComponent(raider.name), 'Voir sur Warcraft Logs']
+        ['Parse WCL', raider.parse, DATA.wclCharacterUrl && DATA.wclCharacterUrl.replace('{name}', encodeURIComponent(raider.name)), 'Voir sur Warcraft Logs']
       ];
       body.appendChild(el('div', { class: 'stats' }, stats.map(function (pair) {
         var value = el('div', { class: 'value', text: String(pair[1]) });

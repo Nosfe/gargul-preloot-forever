@@ -203,11 +203,11 @@ function classHeaderTextHex_(className) {
 // Hidden helper tab for dependent dropdown values.
 var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
-// Config Version Wowhead choices → wowhead.com path segment; the first one is the default.
+// Config Version Wowhead choices → wowhead.com path segment, Armory and WCL character pages; the first one is the default.
 var WOWHEAD_VERSIONS = [
-  { label: 'Forever', path: 'forever' },
+  { label: 'Forever', path: 'forever', armory: 'https://worldofwarcraft.blizzard.com/fr-fr/forever/{region}/armory/character/{name}-{realm}', wcl: 'forever' },
   { label: 'Classic', path: 'classic' },
-  { label: 'TBC', path: 'tbc', armory: 'classicann' },
+  { label: 'TBC', path: 'tbc', armory: 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/{region}/armory/character/{realm}/{name}' },
   { label: 'WotLK', path: 'wotlk' },
   { label: 'Cataclysm', path: 'cata' },
   { label: 'MoP Classic', path: 'mop-classic' }
