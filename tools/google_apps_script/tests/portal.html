@@ -54,7 +54,7 @@
         equal(data.roles.map(function (r) { return r.role; }).join(','), 'Tank,Heal,Melee DPS,Ranged DPS,Caster DPS', 'Objets grouped like the sheet tabs');
         equal(data.roles[4].specs[2], 'Mage Givre', 'role specs in the sheet column order');
         equal(data.armoryCharacterUrl + '|' + portalArmoryCharacterUrl_('Classic', 'eu/secret-realm'), 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/eu/armory/character/secret-realm/{name}|', 'Armory pages for TBC, none for versions without a known Armory');
-        equal(portalArmoryCharacterUrl_('Forever', 'eu/sora'), 'https://worldofwarcraft.blizzard.com/fr-fr/forever/eu/armory/character/{name}-sora', 'Forever Armory: name-realm');
+        equal(portalArmoryCharacterUrl_('Forever', 'eu/sora') + '|' + portalArmoryCharacterUrl_('Forever', ''), 'https://worldofwarcraft.blizzard.com/fr-fr/forever/eu/armory/character/{name}|https://worldofwarcraft.blizzard.com/fr-fr/forever/eu/armory/character/{name}', 'Forever Armory: no realm, EU by default');
         equal(JSON.stringify(data).split('secret-realm').length, 3, 'Serveur WCL only reaches the page inside the WCL and Armory links');
         equal(data.tierId + '|' + data.tierStart, 't1|2026-10-01', 'active tier and its start');
 

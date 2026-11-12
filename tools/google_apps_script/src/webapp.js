@@ -150,6 +150,10 @@ function portalArmoryCharacterUrl_(versionValue, realmValue) {
   if (!version.armory) {
     return '';
   }
+  if (version.armory.indexOf('{realm}') === -1) {
+    var region = normalizeCellString_(realmValue).trim().toLowerCase().split('/')[0].trim() || 'eu';
+    return version.armory.replace('{region}', encodeURIComponent(region));
+  }
   try {
     var realm = parseWclRealm_(realmValue);
     return version.armory.replace('{region}', encodeURIComponent(realm.region)).replace('{realm}', encodeURIComponent(realm.slug));

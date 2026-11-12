@@ -205,7 +205,8 @@ var LISTS_TAB = { name: '_Listes', sheetId: 1020 };
 
 // Config Version Wowhead choices → wowhead.com path segment, Armory and WCL character pages; the first one is the default.
 var WOWHEAD_VERSIONS = [
-  { label: 'Forever', path: 'forever', armory: 'https://worldofwarcraft.blizzard.com/fr-fr/forever/{region}/armory/character/{name}-{realm}', wcl: 'forever' },
+  // Forever characters have a first and last name and no realm: "Yajiru Sora" → yajiru-sora.
+  { label: 'Forever', path: 'forever', armory: 'https://worldofwarcraft.blizzard.com/fr-fr/forever/{region}/armory/character/{name}', wcl: 'forever' },
   { label: 'Classic', path: 'classic' },
   { label: 'TBC', path: 'tbc', armory: 'https://worldofwarcraft.blizzard.com/fr-fr/classicann/{region}/armory/character/{realm}/{name}' },
   { label: 'WotLK', path: 'wotlk' },

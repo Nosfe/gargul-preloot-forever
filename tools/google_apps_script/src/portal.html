@@ -298,7 +298,7 @@
       var raider = raiderByName(select.value);
       armory.style.display = raider && DATA.armoryCharacterUrl ? '' : 'none';
       if (!raider) { return; }
-      armory.href = DATA.armoryCharacterUrl.replace('{name}', encodeURIComponent(raider.name.toLowerCase()));
+      armory.href = DATA.armoryCharacterUrl.replace('{name}', encodeURIComponent(raider.name.trim().toLowerCase().replace(/\s+/g, '-')));
       var classSpec = raider.className + ' ' + raider.spec;
       var stats = [
         ['Classe / spé', classSpec], ['Ratio BiS', score(raider.bisRatio)], ['Présence palier', raider.tierPresence + ' / ' + raider.tierPresenceMax],
