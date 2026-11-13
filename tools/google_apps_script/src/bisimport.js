@@ -2,8 +2,10 @@
 // Re-runnable: listed items are added once per Objets tab, and BIS only fills empty Statut cells.
 var BIS_IMPORT_URL = 'https://wowtbc.gg/page-data/warcraftforever/bis-list/{slug}/page-data.json';
 var BIS_IMPORT_LEVEL = '60';
-// Items kept per list slot, like the five shown by wowtbc.gg before "Show more".
-var BIS_IMPORT_PER_SLOT = 5;
+// Items kept per list slot (wowtbc.gg lists them in no particular order).
+var BIS_IMPORT_PER_SLOT = 7;
+// PvP rank 13 and 14 rewards (Warlord / Field Marshal armour, High Warlord / Grand Marshal weapons) are left out.
+var BIS_IMPORT_EXCLUDED_PVP = /\b(High Warlord|Warlord|Field Marshal|Grand Marshal)'s\b/;
 
 // wowtbc.gg page → sheet spec column (shockadin-paladin has no column).
 var BIS_IMPORT_SPECS = {
@@ -66,7 +68,7 @@ function importForeverBis_() {
   return summary;
 }
 
-// { items: { id: { name, slot } }, specs: { label: [id, ...] } } read from every spec page.
+// { items: { id: { name, slot, level } }, specs: { label: [id, ...] } } read from every spec page.
 function fetchForeverBisLists_() {
   var items = Object.create(null);
   var specs = Object.create(null);
@@ -89,14 +91,20 @@ function fetchForeverBisLists_() {
     context.gearData.forEach(function (entry) { gear[entry.id] = entry; });
     var ids = [];
     Object.keys(caps).forEach(function (listSlot) {
-      (Array.isArray(caps[listSlot]) ? caps[listSlot] : []).slice(0, BIS_IMPORT_PER_SLOT).forEach(function (id) {
+      (Array.isArray(caps[listSlot]) ? caps[listSlot] : []).filter(function (id) {
+        var info = gear[id] || {};
+        return !(info.source_type === 'Honor Vendor' && BIS_IMPORT_EXCLUDED_PVP.test(String(info.name || '')));
+      }).slice(0, BIS_IMPORT_PER_SLOT).forEach(function (id) {
         var info = gear[id] || {};
         var slot = BIS_IMPORT_SLOTS[info.slot] || BIS_IMPORT_SLOTS[listSlot];
         if (typeof id !== 'number' || !slot) {
           return;
         }
         if (!items[id]) {
-          items[id] = { name: normalizeCellString_(info.name).trim(), slot: slot };
+          // Level from which the item can be obtained: required level, else quest level, else unknown (60).
+          var other = info.other_stats || {};
+          var level = Number(other.min_level) || Number(other.quest_level) || 60;
+          items[id] = { name: normalizeCellString_(info.name).trim(), slot: slot, level: level };
         }
         if (ids.indexOf(id) === -1) {
           ids.push(id);
@@ -108,7 +116,7 @@ function fetchForeverBisLists_() {
   return { items: items, specs: specs };
 }
 
-// Per Objets tab: new rows below the last item (sorted by slot), and BIS in the empty Statut cells of listed items.
+// Per Objets tab: new rows below the last item (by slot, then acquisition level), and BIS in the empty Statut cells of listed items.
 function buildBisImportRequests_(spreadsheet, lists) {
   var requests = [];
   var addedTotal = 0;
@@ -167,7 +175,8 @@ function buildBisImportRequests_(spreadsheet, lists) {
 
     var listOrder = newIds.slice();
     newIds.sort(function (left, right) {
-      return ITEM_SLOTS.indexOf(lists.items[left].slot) - ITEM_SLOTS.indexOf(lists.items[right].slot) || listOrder.indexOf(left) - listOrder.indexOf(right);
+      return ITEM_SLOTS.indexOf(lists.items[left].slot) - ITEM_SLOTS.indexOf(lists.items[right].slot) ||
+        (lists.items[left].level || 60) - (lists.items[right].level || 60) || listOrder.indexOf(left) - listOrder.indexOf(right);
     });
     if (newIds.length) {
       requests.push({

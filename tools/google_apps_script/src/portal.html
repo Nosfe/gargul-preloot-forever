@@ -348,10 +348,9 @@
         var spec = item.specs.filter(function (s) { return s.classSpec === classSpec; })[0];
         return spec ? spec.statut : '';
       };
+      // Sheet order: the BiS import lists each slot's items from the earliest level they can be obtained.
       var bisItems = DATA.items.filter(function (item) {
         return statutOf(item) === 'BIS' || statutOf(item) === 'IMPACT';
-      }).sort(function (a, b) {
-        return (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' });
       });
       // One row per gear slot, empty when nothing yet; IMPACT items come before BIS ones and replace them.
       var bySlots = function (slots) { return bisItems.filter(function (item) { return slots.indexOf(item.slot) !== -1; }); };

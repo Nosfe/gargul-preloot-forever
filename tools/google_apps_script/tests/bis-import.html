@@ -18,7 +18,8 @@
   (function () {
     try {
       var gear = [
-        { id: 100, name: 'Spellweaver\'s Turban', slot: 'head' },
+        { id: 100, name: 'Spellweaver\'s Turban', slot: 'head', other_stats: { min_level: 60 } },
+        { id: 105, name: 'Low Helm', slot: 'head', other_stats: { quest_level: 30 } },
         { id: 101, name: 'Dagger', slot: 'one-hand' },
         { id: 102, name: 'Shield', slot: 'off hand' },
         { id: 103, name: 'Idol', slot: 'relic' }
@@ -26,7 +27,7 @@
       var pages = {
         'arcane-mage': { head: [100], 'main-hand': [101] },
         'frost-mage': { head: [100] },
-        'protection-warrior': { head: [100], 'off-hand': [102], 'main-hand': [101] },
+        'protection-warrior': { head: [100, 105], 'off-hand': [102], 'main-hand': [101] },
         'balance-druid': { ranged: [103] }
       };
       var responses = function () {
@@ -48,7 +49,7 @@
         writeCells_(idOf('Objets Caster DPS'), 3, OBJETS_FIRST_SPEC_COLUMN + 4, ['IMPACT', 30]);
 
         TracerHarness.setFetchResponses(responses());
-        contains(importForeverBis_(), '5 objet(s) ajouté(s), 1 statut(s) BIS ajouté(s)', 'summary counts added items and filled statuts');
+        contains(importForeverBis_(), '6 objet(s) ajouté(s), 1 statut(s) BIS ajouté(s)', 'summary counts added items and filled statuts');
         equal(TracerHarness.getFetchLog().length, 28, 'one page per spec with a sheet column (no shockadin)');
         equal(TracerHarness.getFetchLog()[0].url, 'https://wowtbc.gg/page-data/warcraftforever/bis-list/protection-warrior/page-data.json', 'page data URL');
 
@@ -59,7 +60,7 @@
         equal(caster[1][1] + '|' + statutOf(caster[1], 'Mage Arcanes') + '|' + statutOf(caster[1], 'Mage Givre'), 'Dagger|BIS|', 'new item BIS only for the specs listing it');
         equal(statutOf(caster[2], 'Druide Équilibre'), 'BIS', 'relic for Balance');
         var tank = rows('Objets Tank');
-        equal(tank.map(function (row) { return row[0] + ':' + row[2]; }).join(','), '100:Tête,101:Arme,102:Main gauche', 'Tank tab sorted in Emplacement order');
+        equal(tank.map(function (row) { return row[0] + ':' + row[2]; }).join(','), '105:Tête,100:Tête,101:Arme,102:Main gauche', 'Tank tab sorted in Emplacement order, then from the lowest acquisition level');
 
         TracerHarness.setFetchResponses(responses());
         contains(importForeverBis_(), '0 objet(s) ajouté(s), 0 statut(s) BIS', 'a second import adds nothing');
@@ -69,21 +70,28 @@
         var error = '';
         try { importForeverBis_(); } catch (e) { error = e.message; }
         contains(error, 'a changé de format', 'unexpected page format refused before any write');
-        equal(rows('Objets Tank').length, 3, 'nothing written on a format error');
+        equal(rows('Objets Tank').length, 4, 'nothing written on a format error');
 
         clearAllItems();
         equal(rows('Objets Caster DPS').length, 3, 'menu: cancelled confirmation clears nothing');
-        contains(clearAllItems_(), '7 objet(s) effacé(s)', 'clear summary counts the item rows (6 imported + 888)');
+        contains(clearAllItems_(), '8 objet(s) effacé(s)', 'clear summary counts the item rows (7 imported + 888)');
         equal(ITEM_TABS.map(function (tab) { return TracerHarness.getRows(tab.name).slice(3).map(function (row) { return row.join(''); }).join(''); }).join(''), '', 'every Objets tab emptied below its header');
         truthy(TracerHarness.getRows('Objets Tank').slice(0, 3).map(function (row) { return row.join(''); }).join('') !== '', 'headers kept');
       });
 
       withHarness(function () {
         TracerHarness.setFetchResponses(Object.keys(BIS_IMPORT_SPECS).map(function (slug) {
-          var caps = slug === 'fire-mage' ? { neck: [201, 202, 203, 204, 205, 206, 207] } : {};
-          return { statusCode: 200, body: { result: { pageContext: { bisList: { caps: { 60: caps } }, gearData: [] } } } };
+          var caps = slug === 'fire-mage' ? { neck: [201, 202, 203, 204, 205, 206, 207, 208, 209, 210] } : {};
+          var pvp = [
+            { id: 201, name: 'Premier Warlord\'s Magus Cowl', source_type: 'Honor Vendor' },
+            { id: 202, name: 'Grand Marshal\'s Spellblade', source_type: 'Honor Vendor' },
+            { id: 203, name: 'Premier General\'s Magus Trousers', source_type: 'Honor Vendor' },
+            { id: 204, name: 'Warlord\'s Command Reward', source_type: 'Quest' }
+          ];
+          return { statusCode: 200, body: { result: { pageContext: { bisList: { caps: { 60: caps } }, gearData: pvp } } } };
         }));
-        equal(fetchForeverBisLists_().specs['Mage Feu'].join(','), '201,202,203,204,205', 'only the first five items of a slot are imported');
+        equal(fetchForeverBisLists_().specs['Mage Feu'].join(','), '203,204,205,206,207,208,209',
+          'PvP rank 13/14 rewards left out (rank 12 and non-PvP kept), then the first seven items of a slot');
       });
 
       document.getElementById('result').textContent = 'PASS: ' + testAssertions + ' assertions';

@@ -114,7 +114,10 @@ function buildRaiderPortalData_(spreadsheet) {
         parseMedian: fresh ? detail.median : null
       };
     }),
-    items: items.map(function (item) {
+    // Sheet row order (the snapshot sorts by ID): the BiS List keeps the order the items were imported in.
+    items: items.slice().sort(function (left, right) {
+      return ((infoById[String(left.itemID)] || {}).order || 0) - ((infoById[String(right.itemID)] || {}).order || 0);
+    }).map(function (item) {
       var info = infoById[String(item.itemID)] || {};
       return {
         itemId: item.itemID,
@@ -221,13 +224,14 @@ function portalLoots_(awardsRows, raidDateById) {
 // Name and slot of each item, first non-empty value across the Objets tabs.
 function portalItemInfo_(itemStates) {
   var infoById = Object.create(null);
+  var order = 0;
   itemStates.forEach(function (state) {
     (state.rows || []).slice(3).forEach(function (row) {
       var id = normalizeCellString_(row[0]).trim();
       if (!id) {
         return;
       }
-      var info = infoById[id] || (infoById[id] = { name: '', slot: '' });
+      var info = infoById[id] || (infoById[id] = { name: '', slot: '', order: order++ });
       info.name = info.name || normalizeCellString_(row[1]).trim();
       info.slot = info.slot || normalizeCellString_(row[OBJETS_SLOT_COLUMN]).trim();
     });
